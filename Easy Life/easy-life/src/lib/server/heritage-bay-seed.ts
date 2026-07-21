@@ -1975,6 +1975,135 @@ async function seedProperties() {
   }
 }
 
+async function seedRealEstate() {
+  const listings = [
+    {
+      id: "hb-real-estate-terrace",
+      memberEmail: "susan.thompson@golfheritagebay.com",
+      title: "Turnkey Terrace Condo with Golf Views",
+      description:
+        "Bright two-bedroom residence overlooking the fairway and preserve. Turnkey furnished with screened lanai, stainless appliances, and bundled Heritage Bay golf membership.",
+      type: "sale",
+      price: 397000,
+      beds: 2,
+      baths: 2,
+      sqft: 1408,
+      unit: "Terrace 2111",
+      color: "from-[#c9a84c] to-[#1f2937]",
+      daysAgo: 2,
+    },
+    {
+      id: "hb-real-estate-colonade",
+      memberEmail: "patricia.oconnor@golfheritagebay.com",
+      title: "Colonade End Unit — 2 Bedrooms + Den",
+      description:
+        "First-floor end unit with extra natural light, breakfast bar, dual-sink primary bath, walk-in closet, and a private lanai for morning coffee.",
+      type: "sale",
+      price: 445000,
+      beds: 2,
+      baths: 2,
+      sqft: 1414,
+      unit: "Heritage Bay Blvd 2312",
+      color: "from-emerald-500 to-slate-700",
+      daysAgo: 4,
+    },
+    {
+      id: "hb-real-estate-veranda",
+      memberEmail: "nancy.reynolds@golfheritagebay.com",
+      title: "Veranda Residence on the Cypress Course",
+      description:
+        "Two bedrooms plus den with front and rear lanais, detached garage, updated flooring, and long golf-course views across the Cypress nine.",
+      type: "sale",
+      price: 515000,
+      beds: 2,
+      baths: 2,
+      sqft: 1661,
+      unit: "Veranda 1706",
+      color: "from-sky-400 to-emerald-700",
+      daysAgo: 6,
+    },
+    {
+      id: "hb-real-estate-coach",
+      memberEmail: "david.morgan@golfheritagebay.com",
+      title: "Spacious Coach Home Near Clubhouse",
+      description:
+        "Three-bedroom coach home with two-car garage, open kitchen, generous primary suite, and easy access to dining, fitness, tennis, and pickleball.",
+      type: "sale",
+      price: 665000,
+      beds: 3,
+      baths: 2,
+      sqft: 2099,
+      unit: "Coach Home 916",
+      color: "from-amber-400 to-stone-700",
+      daysAgo: 8,
+    },
+    {
+      id: "hb-real-estate-estate",
+      memberEmail: "thomas.davis@golfheritagebay.com",
+      title: "Estate Home with Pool and Preserve View",
+      description:
+        "Three-bedroom plus den estate residence featuring a private pool and spa, outdoor kitchen, three-car garage, and tranquil preserve backdrop.",
+      type: "sale",
+      price: 1185000,
+      beds: 3,
+      baths: 3,
+      sqft: 2684,
+      unit: "Estate Home 63",
+      color: "from-[#1f2937] to-[#c9a84c]",
+      daysAgo: 10,
+    },
+    {
+      id: "hb-real-estate-seasonal",
+      memberEmail: "mary.bennett@golfheritagebay.com",
+      title: "Furnished Seasonal Rental Near Main Pool",
+      description:
+        "Turnkey two-bedroom seasonal residence with golf transfer available, screened lanai, covered parking, and convenient access to The Cabana and Main Pool.",
+      type: "rent",
+      price: 6500,
+      beds: 2,
+      baths: 2,
+      sqft: 1402,
+      unit: "Veranda 1402",
+      color: "from-cyan-400 to-blue-700",
+      daysAgo: 12,
+    },
+  ] as const;
+
+  for (const listing of listings) {
+    await prisma.realEstateListing.upsert({
+      where: { id: listing.id },
+      create: {
+        id: listing.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        memberEmail: listing.memberEmail,
+        title: listing.title,
+        description: listing.description,
+        type: listing.type,
+        price: listing.price,
+        beds: listing.beds,
+        baths: listing.baths,
+        sqft: listing.sqft,
+        unit: listing.unit,
+        color: listing.color,
+        imagesJson: "[]",
+        createdAt: new Date(Date.now() - listing.daysAgo * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        memberEmail: listing.memberEmail,
+        title: listing.title,
+        description: listing.description,
+        type: listing.type,
+        price: listing.price,
+        beds: listing.beds,
+        baths: listing.baths,
+        sqft: listing.sqft,
+        unit: listing.unit,
+        color: listing.color,
+      },
+    });
+  }
+}
+
 async function seedMarketplaceAndBlog() {
   const listings = [
     {
@@ -2290,6 +2419,7 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   await seedMarketplaceAndBlog();
   await seedNewsletters();
   await seedProperties();
+  await seedRealEstate();
   await seedEngagement();
   await seedMessages();
 }
