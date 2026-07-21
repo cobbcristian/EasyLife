@@ -1836,6 +1836,223 @@ async function seedApparel() {
   }
 }
 
+async function seedMarketplaceAndBlog() {
+  const listings = [
+    {
+      id: "hb-marketplace-peloton",
+      title: "Peloton Bike — Like New",
+      description: "Barely used Bike+ with mat and two pairs of cycling shoes. Pickup from Coach Home 731.",
+      price: 650,
+      category: "Fitness",
+      seller: "Linda Chen",
+      unit: "Coach Home 731",
+      imageUrl: brandAssets.marketplacePeloton,
+      daysAgo: 1,
+    },
+    {
+      id: "hb-marketplace-patio",
+      title: "Patio Dining Set, 6 Chairs",
+      description: "Weather-resistant table and six cushioned chairs. Excellent condition; local pickup only.",
+      price: 280,
+      category: "Home",
+      seller: "Susan Thompson",
+      unit: "Terrace 1116",
+      imageUrl: brandAssets.marketplacePatioSet,
+      daysAgo: 2,
+    },
+    {
+      id: "hb-marketplace-golf-balls",
+      title: "Titleist Pro V1 Dozen",
+      description: "New, unopened dozen. Switching ball models and offering these at a member price.",
+      price: 40,
+      category: "Golf",
+      seller: "James Wilson",
+      unit: "Estate Home 48",
+      imageUrl: brandAssets.marketplaceGolfBalls,
+      daysAgo: 3,
+    },
+    {
+      id: "hb-marketplace-racquet",
+      title: "Kids' Tennis Racquet",
+      description: "Lightly used junior racquet for ages 8–12. Fresh grip and zip cover included.",
+      price: 30,
+      category: "Tennis",
+      seller: "Elena Ramirez",
+      unit: "Terrace 508",
+      imageUrl: brandAssets.marketplaceKidsRacquet,
+      daysAgo: 4,
+    },
+    {
+      id: "hb-marketplace-polo",
+      title: "Heritage Bay Club Polo — Men's Large",
+      description: "Navy performance polo with embroidered club crest. Worn once; like new.",
+      price: 25,
+      category: "Apparel",
+      seller: "Thomas Davis",
+      unit: "Estate Home 63",
+      imageUrl: "/brand/apparel/hb-apparel-polo-navy.png",
+      daysAgo: 5,
+    },
+    {
+      id: "hb-marketplace-cap",
+      title: "Heritage Bay Performance Cap",
+      description: "White adjustable cap with embroidered HB crest. New without tags.",
+      price: 18,
+      category: "Apparel",
+      seller: "Mary Bennett",
+      unit: "Veranda 1402",
+      imageUrl: "/brand/apparel/hb-apparel-cap-white.png",
+      daysAgo: 6,
+    },
+  ] as const;
+
+  for (const listing of listings) {
+    await prisma.listing.upsert({
+      where: { id: listing.id },
+      create: {
+        id: listing.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        category: listing.category,
+        seller: listing.seller,
+        unit: listing.unit,
+        imageUrl: listing.imageUrl,
+        createdAt: new Date(Date.now() - listing.daysAgo * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        category: listing.category,
+        seller: listing.seller,
+        unit: listing.unit,
+        imageUrl: listing.imageUrl,
+      },
+    });
+  }
+
+  const posts = [
+    {
+      id: "hb-blog-summer-golf",
+      title: "Summer golf: making the most of all 27 holes",
+      excerpt: "Early tee times, course rotation tips, and what to expect on Pine, Cypress, and Oak this month.",
+      body: "Summer mornings at Heritage Bay are a special time to play. The golf team shares the best windows for each nine, practice-facility reminders, and a few pace-of-play tips for warmer days.",
+      author: "John Damon, PGA",
+      category: "Golf",
+      daysAgo: 1,
+    },
+    {
+      id: "hb-blog-cabana",
+      title: "Behind the menu at The Cabana",
+      excerpt: "Chef Vincent Capua shares the inspiration behind summer favorites, from the Heritage Blend Burger to the tuna poke bowl.",
+      body: "The Cabana's summer menu balances relaxed poolside favorites with lighter dishes made for warm Naples afternoons. Chef Vincent highlights local seafood, fresh produce, and the team's newest desserts.",
+      author: "Heritage Bay Dining",
+      category: "Dining",
+      daysAgo: 3,
+    },
+    {
+      id: "hb-blog-nine-wine",
+      title: "Nine & Wine returns to the Oak Course",
+      excerpt: "A full field, friendly pairings, and a lively post-round social made this month's event one to remember.",
+      body: "Members enjoyed nine holes on Oak before gathering in The Grille Room. Congratulations to the closest-to-the-pin winners, and thank you to everyone who welcomed first-time participants.",
+      author: "Events & Activities Desk",
+      category: "Club Life",
+      daysAgo: 5,
+    },
+    {
+      id: "hb-blog-racquets",
+      title: "Pickleball mixer welcomes every level",
+      excerpt: "Dana Kim previews Saturday's social format and offers three easy tips for newer players.",
+      body: "The upcoming mixer uses rotating partners and short games so everyone meets more members. New players can borrow paddles at the courts and arrive early for a quick rules overview.",
+      author: "Dana Kim",
+      category: "Racquets",
+      daysAgo: 7,
+    },
+    {
+      id: "hb-blog-aqua",
+      title: "Why members love Summer Aqua Fit",
+      excerpt: "Low-impact conditioning, upbeat music, and a welcoming group meet Monday, Wednesday, and Friday.",
+      body: "Summer Aqua Fit combines resistance, balance, and cardio work in the Main Pool. No prior class experience is needed, and single classes or discounted punch cards are available.",
+      author: "Fitness Team",
+      category: "Wellness",
+      daysAgo: 9,
+    },
+    {
+      id: "hb-blog-neighbors",
+      title: "Welcome, new Heritage Bay neighbors",
+      excerpt: "Simple ways to meet fellow members and settle into club life during your first month.",
+      body: "Start with a casual meal at The Cabana, join a community group, and add one social or clinic to your calendar. The resident directory and Events Desk can help with introductions.",
+      author: "Stephanie McIntosh",
+      category: "Community",
+      daysAgo: 12,
+    },
+  ] as const;
+
+  for (const post of posts) {
+    await prisma.blogPost.upsert({
+      where: { id: post.id },
+      create: {
+        id: post.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        title: post.title,
+        excerpt: post.excerpt,
+        body: post.body,
+        author: post.author,
+        category: post.category,
+        createdAt: new Date(Date.now() - post.daysAgo * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        title: post.title,
+        excerpt: post.excerpt,
+        body: post.body,
+        author: post.author,
+        category: post.category,
+      },
+    });
+  }
+
+  const comments = [
+    {
+      id: "hb-blog-comment-golf-1",
+      postId: "hb-blog-summer-golf",
+      author: "Patricia O'Connor",
+      body: "The early Cypress rotation has been terrific. Thanks for the course update!",
+    },
+    {
+      id: "hb-blog-comment-golf-2",
+      postId: "hb-blog-summer-golf",
+      author: MEMBER_NAME,
+      body: "I appreciate the practice-area reminder. Looking forward to Thursday morning.",
+    },
+    {
+      id: "hb-blog-comment-cabana-1",
+      postId: "hb-blog-cabana",
+      author: "Carlos Martinez",
+      body: "The tuna poke bowl is already my summer favorite.",
+    },
+    {
+      id: "hb-blog-comment-nine-1",
+      postId: "hb-blog-nine-wine",
+      author: "Linda Chen",
+      body: "Such a fun afternoon. Please count me in for the next one!",
+    },
+  ] as const;
+
+  for (const comment of comments) {
+    await prisma.blogComment.upsert({
+      where: { id: comment.id },
+      create: comment,
+      update: {
+        postId: comment.postId,
+        author: comment.author,
+        body: comment.body,
+      },
+    });
+  }
+}
+
 export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   if (!isDemoSeedAllowed()) return;
@@ -1931,6 +2148,7 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   await seedGroups();
   await seedDocuments();
   await seedApparel();
+  await seedMarketplaceAndBlog();
   await seedEngagement();
   await seedMessages();
 }
