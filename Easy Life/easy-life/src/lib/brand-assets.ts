@@ -385,7 +385,7 @@ export function imageForProviderCategory(
   if (n.includes("bike") || n.includes("cycling")) return brandAssets.activityBike;
   if (type === "activity") return brandAssets.activityBike;
   if (c.includes("food") || c.includes("dining") || c.includes("restaurant")) {
-    return brandAssets.foodIceCream;
+    return brandAssets.featuredDining;
   }
   // Neutral clubhouse — never default lawn/outdoor work to a kitchen cleaning shot.
   return brandAssets.amenityClubhouse;
