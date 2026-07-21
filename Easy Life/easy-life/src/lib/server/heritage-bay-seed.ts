@@ -1938,6 +1938,43 @@ async function seedNewsletters() {
   }
 }
 
+async function seedProperties() {
+  const properties = [
+    {
+      id: "hb-property-kelly-primary",
+      userEmail: MEMBER_EMAIL,
+      address: "Residence 214, 10154 Heritage Bay Boulevard, Naples, FL 34120",
+      type: "Primary residence",
+      owner: true,
+    },
+    {
+      id: "hb-property-kelly-coach",
+      userEmail: MEMBER_EMAIL,
+      address: "Coach Home 318, Gator Bay Court, Naples, FL 34120",
+      type: "Investment property",
+      owner: true,
+    },
+  ] as const;
+
+  for (const property of properties) {
+    await prisma.memberProperty.upsert({
+      where: { id: property.id },
+      create: {
+        id: property.id,
+        userEmail: property.userEmail,
+        address: property.address,
+        type: property.type,
+        owner: property.owner,
+      },
+      update: {
+        address: property.address,
+        type: property.type,
+        owner: property.owner,
+      },
+    });
+  }
+}
+
 async function seedMarketplaceAndBlog() {
   const listings = [
     {
@@ -2252,6 +2289,7 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   await seedApparel();
   await seedMarketplaceAndBlog();
   await seedNewsletters();
+  await seedProperties();
   await seedEngagement();
   await seedMessages();
 }
