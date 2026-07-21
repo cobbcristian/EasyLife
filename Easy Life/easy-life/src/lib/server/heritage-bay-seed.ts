@@ -1678,6 +1678,76 @@ async function seedGroups() {
   }
 }
 
+async function seedDocuments() {
+  const documents = [
+    {
+      id: "hb-document-rules-2026",
+      title: "Rules & Regulations — Updated February 2026",
+      category: "legal",
+      url: "https://www.golfheritagebay.com/files/2.27.26%20Rules%20and%20Regulations%20of%20Heritage%20Bay%20Golf%20and%20Country%20Club%20.pdf",
+      uploadedBy: "Club Administration",
+      daysAgo: 2,
+    },
+    {
+      id: "hb-document-fees-2025",
+      title: "Annual Dues & User Fees Schedule",
+      category: "financial",
+      url: "https://www.golfheritagebay.com/files/2025%20Schedule%20of%20User%20Fees%20for%20Heritage%20Bay%20Golf%20and%20Country%20Club.pdf",
+      uploadedBy: "Club Administration",
+      daysAgo: 8,
+    },
+    {
+      id: "hb-document-transfer-2026",
+      title: "Transfer of Club Membership Procedures",
+      category: "membership",
+      url: "https://www.golfheritagebay.com/files/Transfer%20of%20Membership%20Procedures%20eff%201.1.26.pdf",
+      uploadedBy: "Membership Office",
+      daysAgo: 13,
+    },
+    {
+      id: "hb-document-cabana-menu",
+      title: "The Cabana Menu",
+      category: "dining",
+      url: "https://www.golfheritagebay.com/files/031226%20Cabana%20Menu%208.5x11%20-%20Final%20Copy-1.pdf",
+      uploadedBy: "Food & Beverage",
+      daysAgo: 18,
+    },
+    {
+      id: "hb-document-grille-menu",
+      title: "The Grille Room Menu",
+      category: "dining",
+      url: "https://www.golfheritagebay.com/files/4.24.25%20Grille%20Room%20Menu2.pdf",
+      uploadedBy: "Food & Beverage",
+      daysAgo: 25,
+    },
+  ] as const;
+
+  for (const document of documents) {
+    await prisma.communityDocument.upsert({
+      where: { id: document.id },
+      create: {
+        id: document.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        title: document.title,
+        category: document.category,
+        url: document.url,
+        sizeLabel: "PDF",
+        audience: "member",
+        uploadedBy: document.uploadedBy,
+        createdAt: new Date(Date.now() - document.daysAgo * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        title: document.title,
+        category: document.category,
+        url: document.url,
+        sizeLabel: "PDF",
+        audience: "member",
+        uploadedBy: document.uploadedBy,
+      },
+    });
+  }
+}
+
 export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   if (!isDemoSeedAllowed()) return;
@@ -1771,6 +1841,7 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   await seedDining();
   await seedNearbyVendors();
   await seedGroups();
+  await seedDocuments();
   await seedEngagement();
   await seedMessages();
 }
