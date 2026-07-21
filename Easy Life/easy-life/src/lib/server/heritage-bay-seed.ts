@@ -1836,6 +1836,108 @@ async function seedApparel() {
   }
 }
 
+async function seedNewsletters() {
+  const newsletters = [
+    {
+      id: "hb-newsletter-july-2026",
+      title: "Heritage Bay Summer Update — July 2026",
+      summary:
+        "Summer dining hours, Aqua Fit punch cards, and July social calendar highlights across the club.",
+      body: [
+        "Members,",
+        "",
+        "Summer is in full swing at Heritage Bay. The Cabana remains the hub for poolside lunch and weekend dinner, and Summer Aqua Fit continues Monday, Wednesday, and Friday at 10:00 AM in the Main Pool.",
+        "",
+        "This month:",
+        "• Cabana lunch Tue–Sun 11–3 · happy hour Tue–Sun 4–6 · dinner Sat–Sun 5–8",
+        "• Grille Room happy hour + dinner Tue–Fri 4–8",
+        "• Nine & Wine on the Oak Course — check the club calendar for the next outing",
+        "• Pickleball Social Mixer — all levels welcome",
+        "",
+        "Book tee times, courts, dining, and Aqua Fit from the member app. Questions: Events Desk x107 or (239) 353-7056.",
+        "",
+        "— Stephanie McIntosh",
+        "Chief Administrative Officer",
+      ].join("\n"),
+      daysAgo: 2,
+    },
+    {
+      id: "hb-newsletter-golf-racquets",
+      title: "Golf & Racquets Roundup",
+      summary:
+        "Course rotation notes for Pine, Cypress, and Oak, plus tennis and pickleball clinic openings.",
+      body: [
+        "Golf & Racquets members,",
+        "",
+        "Golf: All 27 holes are in strong summer condition. Early tee times remain the coolest window for play. The practice facility opens with the first light, and short-game greens are available for member warm-ups.",
+        "",
+        "Lessons: John Damon and Justin McCarraher have openings this week for private golf. Sofia Reyes and Brett Callahan are booking tennis lessons; Dana Kim and Tyler Brooks cover pickleball clinics.",
+        "",
+        "Pro Shop: Crest polos, visors, and towels are stocked — order through Club Apparel in the app.",
+        "",
+        "— Golf Shop & Racquet Pros",
+      ].join("\n"),
+      daysAgo: 8,
+    },
+    {
+      id: "hb-newsletter-dining",
+      title: "Dining at Heritage Bay — Midsummer Menus",
+      summary:
+        "Cabana and Grille Room favorites, takeout extensions, and reservation tips for July evenings.",
+      body: [
+        "Dining members,",
+        "",
+        "Chef Vincent Capua’s summer menus are live at The Cabana and The Grille Room. Favorites this month include the Heritage Blend Burger, tuna poke bowl, BBQ Wagyu beef sliders, and Chocolate Lava Cake.",
+        "",
+        "Takeout: Cabana x113 · Grille Room x132. Reservations through the Events Desk x107 (Mon–Fri 10–4).",
+        "",
+        "Reminder: Covered Cabana dining requires cover-ups; pool-deck seating allows swim attire. Grille Room remains Country Club Casual.",
+        "",
+        "— Heritage Bay Dining",
+        "dining@golfheritagebay.com",
+      ].join("\n"),
+      daysAgo: 14,
+    },
+    {
+      id: "hb-newsletter-membership",
+      title: "Membership Notes & Community Spotlight",
+      summary:
+        "Transfer procedures, directory updates, and Neighbors Helping Neighbors welcome messages.",
+      body: [
+        "Members,",
+        "",
+        "Welcome to our newest Heritage Bay neighbors. The member Directory, Groups, and Marketplace are great places to connect. Documents in the app include Rules & Regulations, dues schedules, and membership transfer procedures.",
+        "",
+        "Property Management and Club Administration remain available for unit questions, gate access, and amenity guidance. Estoppel and transfer forms are linked under Documents.",
+        "",
+        "Thank you for making Heritage Bay a warm and active community.",
+        "",
+        "— Club Administration",
+      ].join("\n"),
+      daysAgo: 21,
+    },
+  ] as const;
+
+  for (const newsletter of newsletters) {
+    await prisma.newsletter.upsert({
+      where: { id: newsletter.id },
+      create: {
+        id: newsletter.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        title: newsletter.title,
+        summary: newsletter.summary,
+        body: newsletter.body,
+        createdAt: new Date(Date.now() - newsletter.daysAgo * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        title: newsletter.title,
+        summary: newsletter.summary,
+        body: newsletter.body,
+      },
+    });
+  }
+}
+
 async function seedMarketplaceAndBlog() {
   const listings = [
     {
@@ -2149,6 +2251,7 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   await seedDocuments();
   await seedApparel();
   await seedMarketplaceAndBlog();
+  await seedNewsletters();
   await seedEngagement();
   await seedMessages();
 }
