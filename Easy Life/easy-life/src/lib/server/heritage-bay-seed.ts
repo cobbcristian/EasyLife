@@ -1748,6 +1748,94 @@ async function seedDocuments() {
   }
 }
 
+async function seedApparel() {
+  const proShop = "Heritage Bay Pro Shop";
+  const apparel = [
+    {
+      id: "hb-apparel-polo-navy",
+      name: "Club Polo — Navy",
+      description: "Performance pique polo with embroidered Heritage Bay crest.",
+      price: 52,
+      category: "Polo",
+      sizesJson: '["S","M","L","XL","XXL"]',
+      imageUrl: "/brand/apparel/hb-apparel-polo-navy.png",
+    },
+    {
+      id: "hb-apparel-ladies-polo",
+      name: "Ladies Sleeveless Polo — White",
+      description: "Moisture-wicking sleeveless polo with Heritage Bay crest.",
+      price: 48,
+      category: "Polo",
+      sizesJson: '["XS","S","M","L","XL"]',
+      imageUrl: "/brand/apparel/hb-apparel-ladies-polo.png",
+    },
+    {
+      id: "hb-apparel-quarter-zip",
+      name: "Member Quarter-Zip — Heather Grey",
+      description: "Lightweight layer for cool mornings on Pine, Cypress, or Oak.",
+      price: 74,
+      category: "Outerwear",
+      sizesJson: '["S","M","L","XL","XXL"]',
+      imageUrl: "/brand/apparel/hb-apparel-quarter-zip.png",
+    },
+    {
+      id: "hb-apparel-cap-white",
+      name: "Structured Cap — White",
+      description: "Adjustable performance cap with embroidered crest.",
+      price: 30,
+      category: "Accessories",
+      sizesJson: '["One Size"]',
+      imageUrl: "/brand/apparel/hb-apparel-cap-white.png",
+    },
+    {
+      id: "hb-apparel-visor-black",
+      name: "Tour Visor — Black",
+      description: "Lightweight visor with gold Heritage Bay crest.",
+      price: 26,
+      category: "Accessories",
+      sizesJson: '["One Size"]',
+      imageUrl: "/brand/apparel/hb-apparel-visor-black.png",
+    },
+    {
+      id: "hb-apparel-golf-towel",
+      name: "Crest Golf Towel",
+      description: "Microfiber towel with carabiner clip and embroidered crest.",
+      price: 22,
+      category: "Accessories",
+      sizesJson: '["One Size"]',
+      imageUrl: "/brand/apparel/hb-apparel-golf-towel.png",
+    },
+  ] as const;
+
+  for (const item of apparel) {
+    await prisma.apparelProduct.upsert({
+      where: { id: item.id },
+      create: {
+        id: item.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        vendorName: proShop,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        category: item.category,
+        sizesJson: item.sizesJson,
+        imageUrl: item.imageUrl,
+        active: true,
+      },
+      update: {
+        vendorName: proShop,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        category: item.category,
+        sizesJson: item.sizesJson,
+        imageUrl: item.imageUrl,
+        active: true,
+      },
+    });
+  }
+}
+
 export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   if (!isDemoSeedAllowed()) return;
@@ -1842,6 +1930,7 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   await seedNearbyVendors();
   await seedGroups();
   await seedDocuments();
+  await seedApparel();
   await seedEngagement();
   await seedMessages();
 }
