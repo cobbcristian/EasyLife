@@ -1,0 +1,123 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { Menu } from "lucide-react";
+import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
+import { Logo } from "@/components/ui/logo";
+import { MemberSidebar } from "@/components/layout/member-sidebar";
+import { avatarForReviewer } from "@/lib/brand-assets";
+
+export interface CommunityBranding {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  appDisplayName: string;
+}
+
+export function MemberShell({
+  children,
+  branding,
+}: {
+  children: React.ReactNode;
+  branding: CommunityBranding | null;
+}) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [forceChromeless, setForceChromeless] = useState(false);
+  const [accountName, setAccountName] = useState("");
+  const [avatarSrc, setAvatarSrc] = useState<string | undefined>(undefined);
+  const pathname = usePathname();
+  // Home embeds its own blue header + UserAvatarMenu; messages can force chromeless.
+  // Every other member page uses the shared shell header so Log out is always available.
+  const isMemberHome = pathname === "/member";
+  const hideShellHeader = forceChromeless || isMemberHome;
+
+  useEffect(() => {
+    function openSidebar() {
+      setSidebarOpen(true);
+    }
+    function onChromeless(e: Event) {
+      const detail = (e as CustomEvent<{ chromeless?: boolean }>).detail;
+      setForceChromeless(Boolean(detail?.chromeless));
+    }
+    window.addEventListener("member:open-sidebar", openSidebar);
+    window.addEventListener("member:chromeless", onChromeless);
+    return () => {
+      window.removeEventListener("member:open-sidebar", openSidebar);
+      window.removeEventListener("member:chromeless", onChromeless);
+    };
+  }, []);
+
+  useEffect(() => {
+    let on = true;
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!on) return;
+        const name =
+          typeof d.name === "string" && d.name.trim() ? d.name : "Member";
+        setAccountName(name);
+        if (typeof d.avatarUrl === "string" && d.avatarUrl) {
+          setAvatarSrc(d.avatarUrl);
+        } else {
+          setAvatarSrc(avatarForReviewer(name));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      on = false;
+    };
+  }, []);
+
+  const brandStyle = branding?.primaryColor
+    ? ({ ["--brand-primary" as string]: branding.primaryColor } as React.CSSProperties)
+    : undefined;
+
+  return (
+    <div className="flex min-h-screen bg-white" style={brandStyle}>
+      <MemberSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        appName={branding?.appDisplayName}
+        logoUrl={branding?.logoUrl}
+        userName={accountName}
+        avatarSrc={avatarSrc}
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        {!hideShellHeader ? (
+          <>
+            <header className="sticky top-0 z-30 flex h-[72px] items-center gap-4 bg-white px-4 sm:px-6 lg:hidden">
+              <button
+                type="button"
+                className="rounded-lg p-2 text-gray-2 hover:bg-slate-100"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <Logo
+                size="sm"
+                productName={branding?.appDisplayName ?? "Easy Life"}
+                communityLogoSrc={branding?.logoUrl}
+                communityName={branding?.name}
+                showCommunityName={false}
+              />
+              <UserAvatarMenu
+                name={accountName}
+                avatarSrc={avatarSrc}
+                className="ml-auto"
+              />
+            </header>
+            <div className="sticky top-0 z-30 hidden h-14 items-center justify-end border-b border-border-2 bg-white px-8 lg:flex">
+              <UserAvatarMenu name={accountName} avatarSrc={avatarSrc} />
+            </div>
+          </>
+        ) : null}
+        <main id="main-content" className="flex-1">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

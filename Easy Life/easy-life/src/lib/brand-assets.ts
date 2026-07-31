@@ -9,10 +9,29 @@ export const brandAssets = {
   loginHeroIroncrest: "/brand/login-hero-ironcrest.png",
   loginHeroGoldenOcala: "/brand/login-hero-golden-ocala.png",
   loginHeroHeritageBay: "/brand/community-heritage-bay.png",
+  loginHeroHuntersRidge: "/brand/community-hunters-ridge.png",
+  loginHeroBonitaBay: "/brand/community-bonita-bay.png",
+  loginHeroShadowWood: "/brand/community-shadow-wood.png",
+  loginHeroHeronCreek: "/brand/community-heron-creek.png",
+  loginHeroDebary: "/brand/community-debary.png",
+  loginHeroJacaranda: "/brand/community-jacaranda.png",
+  loginHeroTheDunes: "/brand/community-the-dunes.png",
+  loginHeroMartinDowns: "/brand/community-martin-downs.png",
+  loginHeroTheNest: "/brand/community-the-nest.png",
+  loginHeroSeagate: "/brand/community-seagate.png",
+  loginHeroCopperleaf: "/brand/community-copperleaf.png",
+  loginHeroClubRenaissance: "/brand/community-club-renaissance.png",
+  loginHeroFallsClub: "/brand/community-falls-club.png",
+  loginHeroWorthington: "/brand/community-worthington.png",
+  loginHeroEstero: "/brand/community-estero.png",
+  loginHeroWildcatRun: "/brand/community-wildcat-run.png",
+  loginHeroHighlandWoods: "/brand/community-highland-woods.png",
+  loginHeroBonitaNational: "/brand/community-bonita-national.png",
+  loginHeroCarrollwood: "/brand/community-carrollwood.png",
+  loginHeroWindsor: "/brand/community-windsor.png",
   loginRingOuter: "/brand/login-ring-outer.svg",
   loginRingMid: "/brand/login-ring-mid.svg",
   loginRingInner: "/brand/login-ring-inner.svg",
-  loginFooter: "/brand/login-footer.png",
   /** Figma Login View (9750:8570) — IronCrest header mark */
   loginIroncrestLogo: "/brand/login-ironcrest-logo.png",
   chartGrid: "/brand/chart-bars.svg",
@@ -22,6 +41,31 @@ export const brandAssets = {
   /** RLR lion crest — Golden Ocala only. Do not use as a generic community/hero image. */
   communityGoldenOcala: "/brand/community-golden-ocala.png",
   communityHeritageBay: "/brand/community-heritage-bay.png",
+  communityHuntersRidge: "/brand/community-hunters-ridge.png",
+  communityBonitaBay: "/brand/community-bonita-bay.png",
+  communityShadowWood: "/brand/community-shadow-wood.png",
+  communityHeronCreek: "/brand/community-heron-creek.png",
+  communityDebary: "/brand/community-debary.png",
+  communityJacaranda: "/brand/community-jacaranda.png",
+  communityTheDunes: "/brand/community-the-dunes.png",
+  communityMartinDowns: "/brand/community-martin-downs.png",
+  communityTheNest: "/brand/community-the-nest.png",
+  communitySeagate: "/brand/community-seagate.png",
+  communityCopperleaf: "/brand/community-copperleaf.png",
+  communityClubRenaissance: "/brand/community-club-renaissance.png",
+  communityFallsClub: "/brand/community-falls-club.png",
+  communityWorthington: "/brand/community-worthington.png",
+  communityEstero: "/brand/community-estero.png",
+  communityWildcatRun: "/brand/community-wildcat-run.png",
+  communityHighlandWoods: "/brand/community-highland-woods.png",
+  communityBonitaNational: "/brand/community-bonita-national.png",
+  communityCarrollwood: "/brand/community-carrollwood.png",
+  communityWindsor: "/brand/community-windsor.png",
+  communitySpanishWells: "/brand/community-spanish-wells.png",
+  communitySpanishWellsWordmark: "/brand/community-spanish-wells-wordmark.png",
+  communityHarborPointe: "/brand/community-harbor-pointe.png",
+  communityWillowCreek: "/brand/community-willow-creek.png",
+  communityAlliant: "/brand/community-alliant.png",
   heritageBayAquaFit: "/brand/heritage-bay-aqua-fit.png",
   communityOceanside: "/brand/community-oceanside.png",
   /** IronCrest / The Club at Iron Lake (Ocala) — official nav mark from discoverironcrest.com */
@@ -47,6 +91,7 @@ export const brandAssets = {
   amenityLockerRoom: "/brand/amenity-locker-room.png",
   amenitySpa: "/brand/amenity-spa.png",
   amenityPickleball: "/brand/amenity-pickleball.png",
+  amenityBocce: "/brand/amenity-bocce.png",
   amenityLodging: "/brand/amenity-lodging.png",
   amenityEventSpace: "/brand/amenity-event-space.png",
   amenityProShop: "/brand/amenity-pro-shop.png",
@@ -80,6 +125,13 @@ export const brandAssets = {
   foodCaesarSalad: "/brand/food-caesar-salad.png",
   foodQuarryBurger: "/brand/food-quarry-burger.png",
   foodHouseSoup: "/brand/food-house-soup.png",
+  foodFilet: "/brand/food/food-filet.png",
+  foodKeyLime: "/brand/food/food-key-lime.png",
+  foodLobster: "/brand/food/food-lobster.png",
+  foodRisotto: "/brand/food/food-risotto.png",
+  foodSnapper: "/brand/food/food-snapper.png",
+  foodChickenWrap: "/brand/food/food-chicken-wrap.png",
+  foodSmoothie: "/brand/food/food-smoothie.png",
   iconStar: "/brand/icons/icon-star.svg",
   serviceDetailsHero: "/brand/service-details-hero.png",
   /** Marketplace demo listing covers — must match product titles. */
@@ -87,22 +139,31 @@ export const brandAssets = {
   marketplacePatioSet: "/brand/marketplace-patio-set.jpg",
   marketplaceGolfBalls: "/brand/marketplace-golf-balls.png",
   marketplaceKidsRacquet: "/brand/marketplace-kids-racquet.png",
+  marketplacePickleballPaddle: "/brand/marketplace-pickleball-paddle.png",
   gallery18thGreenDusk: "/brand/gallery-18th-green-dusk.png",
   galleryClubhouseTerrace: "/brand/gallery-clubhouse-terrace.png",
   /** Iron Lake Golf Shop apparel — crest embroidered product photos. */
   apparelClubPolo: "/brand/apparel-club-polo.png",
   apparelPerformanceCap: "/brand/apparel-performance-cap.png",
   apparelQuarterZip: "/brand/apparel-quarter-zip.png",
+  /** Bonita Bay Pro Shop — club-crest product photos. */
+  apparelBonitaBayPolo: "/brand/apparel/bb-apparel-polo-navy.png",
+  apparelBonitaBayCap: "/brand/apparel/bb-apparel-cap-navy.png",
+  apparelBonitaBayQuarterZip: "/brand/apparel/bb-apparel-quarter-zip.png",
+  /** Shadow Wood Pro Shop — club-crest product photos. */
+  apparelShadowWoodPolo: "/brand/apparel/sw-apparel-polo-navy.png",
+  apparelShadowWoodCap: "/brand/apparel/sw-apparel-cap-navy.png",
+  apparelShadowWoodQuarterZip: "/brand/apparel/sw-apparel-quarter-zip.png",
 } as const;
 
-/** Figma MVP home — two category tiles (Activities / Services). */
+/** Figma MVP home — category tiles (horizontal scroll: Fun / Services / Food / HOA). */
 export const homeCategoryTiles = [
   {
     key: "activities",
-    label: "Activities",
+    label: "Fun Stuff",
     bg: "#0047ff",
     image: brandAssets.activityBike,
-    href: "/member/bookings",
+    href: "/member/activities",
   },
   {
     key: "services",
@@ -110,6 +171,20 @@ export const homeCategoryTiles = [
     bg: "#00b3ff",
     image: brandAssets.serviceCleaningSupplies,
     href: "/member/vendors",
+  },
+  {
+    key: "food",
+    label: "Food",
+    bg: "#ff6b2c",
+    image: brandAssets.foodIceCream,
+    href: "/member/dining",
+  },
+  {
+    key: "hoa",
+    label: "HOA",
+    bg: "#1a7a4c",
+    image: brandAssets.amenityClubhouse,
+    href: "/member/payments",
   },
 ] as const;
 
@@ -132,6 +207,50 @@ export const homeFeaturedTiles = [
     price: "$",
     image: brandAssets.featuredTennis,
     href: "/member/bookings",
+  },
+] as const;
+
+/** Neutral featured row for white-label /go clubs (never IronCrest labels). */
+export const genericClubFeaturedTiles = [
+  {
+    key: "dining",
+    label: "Club Dining",
+    sub: "American · Club Dining",
+    rating: "4.8",
+    price: "$$",
+    image: brandAssets.featuredDining,
+    href: "/member/dining",
+  },
+  {
+    key: "tennis",
+    label: "Tennis",
+    sub: "Sports",
+    rating: "4.6",
+    price: "$",
+    image: brandAssets.featuredTennis,
+    href: "/member/bookings",
+  },
+] as const;
+
+/** Spanish Wells — golf club pitch: Championship Course must lead Featured. */
+export const spanishWellsFeaturedTiles = [
+  {
+    key: "golf",
+    label: "Championship Course",
+    sub: "27 holes · Bonita Springs",
+    rating: "4.9",
+    price: "$$",
+    image: brandAssets.featuredGolf,
+    href: "/member/bookings",
+  },
+  {
+    key: "dining",
+    label: "Club Dining",
+    sub: "Casual · Grill & Bar",
+    rating: "4.8",
+    price: "$$",
+    image: brandAssets.featuredDining,
+    href: "/member/dining",
   },
 ] as const;
 
@@ -178,8 +297,30 @@ export const heritageBayFeaturedTiles = [
 export const communityLogoById: Record<string, string> = {
   "golden-ocala": brandAssets.communityGoldenOcala,
   "heritage-bay": brandAssets.communityHeritageBay,
-  "harbor-pointe": brandAssets.communityOceanside,
-  "willow-creek": brandAssets.serviceCourt,
+  "hunters-ridge": brandAssets.communityHuntersRidge,
+  "bonita-bay": brandAssets.communityBonitaBay,
+  "shadow-wood": brandAssets.communityShadowWood,
+  "heron-creek": brandAssets.communityHeronCreek,
+  debary: brandAssets.communityDebary,
+  jacaranda: brandAssets.communityJacaranda,
+  "the-dunes": brandAssets.communityTheDunes,
+  "martin-downs": brandAssets.communityMartinDowns,
+  "the-nest": brandAssets.communityTheNest,
+  seagate: brandAssets.communitySeagate,
+  copperleaf: brandAssets.communityCopperleaf,
+  "club-renaissance": brandAssets.communityClubRenaissance,
+  "falls-club": brandAssets.communityFallsClub,
+  worthington: brandAssets.communityWorthington,
+  estero: brandAssets.communityEstero,
+  "wildcat-run": brandAssets.communityWildcatRun,
+  "highland-woods": brandAssets.communityHighlandWoods,
+  "bonita-national": brandAssets.communityBonitaNational,
+  carrollwood: brandAssets.communityCarrollwood,
+  windsor: brandAssets.communityWindsor,
+  "spanish-wells": brandAssets.communitySpanishWells,
+  "harbor-pointe": brandAssets.communityHarborPointe,
+  "willow-creek": brandAssets.communityWillowCreek,
+  alliant: brandAssets.communityAlliant,
   // SVG wordmark — the square PNG has huge padding and looks tiny in nav.
   "iron-lake": brandAssets.communityIroncrestSvg,
 };
@@ -222,9 +363,142 @@ const FEMALE_AVATAR_KEYS = new Set([
   "member.demo@golfheritagebay.com",
   "kelly jewart",
   "kellyj@golfheritagebay.com",
+  "linda",
+  "linda chen",
+  "member.tennis@golfheritagebay.com",
   "stephanie",
   "stephanie mcintosh",
   "admin@golfheritagebay.com",
+  "grace",
+  "grace holloway",
+  "member.demo@huntersridge-ca.com",
+  "rachel",
+  "rachel delgado",
+  "rachel@huntersridge-ca.com",
+  "avery",
+  "avery quinn",
+  "avery@huntersridge-ca.com",
+  "naomi",
+  "naomi weathers",
+  "pm.demo@huntersridge-ca.com",
+  "marsha",
+  "marsha lynn",
+  "marsha@huntersridge.net",
+  "claire",
+  "claire montgomery",
+  "member.demo@bonitabayclub.net",
+  "elena",
+  "elena vargas",
+  "pm.demo@bonitabayclub.net",
+  "natalie",
+  "natalie brooks",
+  "member.demo@shadowwoodcc.com",
+  "amanda",
+  "amanda reeves",
+  "pm.demo@shadowwoodcc.com",
+  "lauren",
+  "lauren price",
+  "danita",
+  "danita osborn",
+  "dosborn@shadowwoodcc.com",
+  "megan",
+  "megan torres",
+  "member.demo@heroncreekgcc.com",
+  "richelle",
+  "richelle harris",
+  "pm.demo@heroncreekgcc.com",
+  "laura",
+  "laura chen",
+  "casey",
+  "casey nguyen",
+  "member.social@debarycc.com",
+  "patricia",
+  "patricia owens",
+  "board.demo@debarycc.com",
+  "kathy",
+  "kathy gazda",
+  "board.demo@jacarandagolfclub.com",
+  "jamie",
+  "jamie chen",
+  "sam",
+  "sam patel",
+  "taylor",
+  "taylor brooks",
+  "taylor quinn",
+  "member.demo@sanibeldunesresort.com",
+  "dana",
+  "dana swanson",
+  "pm.demo@sanibeldunesresort.com",
+  "avery",
+  "avery brooks",
+  "member.social@martindownsgolfclub.com",
+  "jamie",
+  "jamie reed",
+  "pm.demo@martindownsgolfclub.com",
+  "robin",
+  "robin castillo",
+  "board.demo@martindownsgolfclub.com",
+  "riley",
+  "riley santos",
+  "member.social@nestgolf.com",
+  "casey",
+  "casey wells",
+  "member.social@seagatedelray.com",
+  "alex morgan",
+  "pm.demo@seagatedelray.com",
+  "taylor",
+  "taylor wells",
+  "member.social@copperleafgolf.com",
+  "chris coleman",
+  "pm.demo@copperleafgolf.com",
+  "pat",
+  "pat rivera",
+  "board.demo@seagatedelray.com",
+  "riley",
+  "riley chen",
+  "member.social@clubrenaissance.com",
+  "member.demo@thefallsclub.com",
+  "member.social@thefallsclub.com",
+  "pm.demo@thefallsclub.com",
+  "board.demo@thefallsclub.com",
+  "alexis",
+  "alexis macon",
+  "pm.demo@clubrenaissance.com",
+  "member.social@worthingtoncc.com",
+  "alex morgan",
+  "pm.demo@worthingtoncc.com",
+  "pat",
+  "pat rivera",
+  "board.demo@worthingtoncc.com",
+  "member.demo@esterocc.com",
+  "member.social@esterocc.com",
+  "pm.demo@esterocc.com",
+  "board.demo@esterocc.com",
+  "member.social@wildcatruncc.com",
+  "alex morgan",
+  "pm.demo@wildcatruncc.com",
+  "pat",
+  "pat rivera",
+  "board.demo@wildcatruncc.com",
+  "member.demo@hwgcc.com",
+  "member.social@hwgcc.com",
+  "pm.demo@hwgcc.com",
+  "board.demo@hwgcc.com",
+  "member.demo@spanishwellscountryclub.com",
+  "member.social@spanishwellscountryclub.com",
+  "pm.demo@spanishwellscountryclub.com",
+  "board.demo@spanishwellscountryclub.com",
+  "member.demo@harborpointehoa.com",
+  "member.social@harborpointehoa.com",
+  "pm.demo@harborpointehoa.com",
+  "board.demo@harborpointehoa.com",
+  "member.demo@willowcreekhoa.com",
+  "member.social@willowcreekhoa.com",
+  "pm.demo@willowcreekhoa.com",
+  "board.demo@willowcreekhoa.com",
+  "resident.demo@alliantproperty.com",
+  "pm.demo@alliantproperty.com",
+  "board.demo@alliantproperty.com",
 ]);
 
 const FEMALE_AVATAR_PREFIXES = [
@@ -236,7 +510,29 @@ const FEMALE_AVATAR_PREFIXES = [
   "emily ",
   "lisa ",
   "kelly ",
+  "linda ",
   "stephanie ",
+  "grace ",
+  "rachel ",
+  "avery ",
+  "naomi ",
+  "marsha ",
+  "claire ",
+  "amanda ",
+  "lauren ",
+  "danita ",
+  "megan ",
+  "richelle ",
+  "laura ",
+  "casey ",
+  "patricia ",
+  "kathy ",
+  "jamie ",
+  "taylor ",
+  "dana ",
+  "robin ",
+  "riley ",
+  "alexis ",
 ] as const;
 
 /**
@@ -258,14 +554,144 @@ const MALE_AVATAR_KEYS = new Set([
   "michael",
   "michael thompson",
   "m.thompson@oceanside.com",
+  "carlos",
+  "carlos martinez",
+  "member.social@golfheritagebay.com",
+  "peter",
+  "peter callahan",
+  "member.social@huntersridge-ca.com",
+  "steve",
+  "steve pinger",
+  "steve@huntersridge-ca.com",
+  "benjamin",
+  "benjamin gensmer",
+  "agp@huntersridge-ca.com",
+  "don",
+  "don huprich",
+  "board.demo@huntersridge-ca.com",
+  "jose",
+  "jose garcia",
+  "jose@huntersridge-ca.com",
+  "jordan",
+  "jordan blake",
+  "jordan@huntersridge-ca.com",
+  "robert",
+  "robert hale",
+  "member.social@bonitabayclub.net",
+  "james",
+  "james whitfield",
+  "board.demo@bonitabayclub.net",
+  "frederick",
+  "frederick fung",
+  "david",
+  "david chen",
+  "member.social@shadowwoodcc.com",
+  "richard",
+  "richard coleman",
+  "board.demo@shadowwoodcc.com",
+  "thomas",
+  "thomas brennan",
+  "kevin",
+  "kevin morales",
+  "ryan",
+  "ryan patel",
+  "member.social@heroncreekgcc.com",
+  "alan",
+  "alan briggs",
+  "board.demo@heroncreekgcc.com",
+  "marcus",
+  "marcus hale",
+  "chris",
+  "chris adler",
+  "jordan",
+  "jordan blake",
+  "member.demo@debarycc.com",
+  "dan",
+  "dan flood",
+  "pm.demo@debarycc.com",
+  "andrew",
+  "andrew michael",
+  "pm.demo@jacarandagolfclub.com",
+  "alex",
+  "alex rivera",
+  "member.demo@jacarandagolfclub.com",
+  "mike",
+  "mike torres",
+  "luis",
+  "luis ramirez",
+  "sam",
+  "sam ortiz",
+  "member.social@jacarandagolfclub.com",
+  "alex",
+  "alex rivera",
+  "morgan",
+  "morgan ellis",
+  "member.social@sanibeldunesresort.com",
+  "chris",
+  "chris nguyen",
+  "chris adler",
+  "board.demo@sanibeldunesresort.com",
+  "cameron",
+  "cameron walsh",
+  "member.demo@martindownsgolfclub.com",
+  "blake",
+  "blake avery",
+  "member.demo@nestgolf.com",
+  "aj",
+  "aj szymanski",
+  "pm.demo@nestgolf.com",
+  "jordan hale",
+  "board.demo@nestgolf.com",
+  "jordan",
+  "jordan blake",
+  "member.demo@seagatedelray.com",
+  "member.demo@worthingtoncc.com",
+  "member.demo@wildcatruncc.com",
+  "member.demo@hwgcc.com",
+  "member.demo@spanishwellscountryclub.com",
+  "member.demo@harborpointehoa.com",
+  "member.demo@willowcreekhoa.com",
+  "resident.demo@alliantproperty.com",
+  "morgan",
+  "morgan blake",
+  "member.demo@copperleafgolf.com",
+  "jordan rivera",
+  "board.demo@copperleafgolf.com",
+  "sam",
+  "sam parker",
+  "member.demo@clubrenaissance.com",
+  "drew",
+  "drew hoffman",
+  "board.demo@clubrenaissance.com",
 ]);
 
 const MALE_AVATAR_PREFIXES = [
+  "drew ",
   "marcus ",
   "david ",
   "robert ",
   "james ",
   "michael ",
+  "carlos ",
+  "peter ",
+  "steve ",
+  "benjamin ",
+  "don ",
+  "jose ",
+  "jordan ",
+  "ryan ",
+  "alan ",
+  "chris ",
+  "dan ",
+  "andrew ",
+  "alex ",
+  "mike ",
+  "luis ",
+  "sam ",
+  "morgan ",
+  "cameron ",
+  "blake ",
+  "aj ",
 ] as const;
 
 const MALE_AVATARS = [
@@ -363,6 +789,9 @@ export function imageForProviderCategory(
   if (c.includes("pickleball") || n.includes("pickleball") || n.includes("pickle")) {
     return brandAssets.amenityPickleball;
   }
+  if (c.includes("bocce") || n.includes("bocce")) {
+    return brandAssets.amenityBocce;
+  }
   if (c.includes("tennis") || (c.includes("court") && !n.includes("pickle"))) {
     return brandAssets.serviceCourt;
   }
@@ -407,6 +836,13 @@ export function imageForMarketplaceListing(title: string, category: string): str
   ) {
     return brandAssets.marketplaceGolfBalls;
   }
+  // Paddle product — never the court amenity photo.
+  if (
+    t.includes("paddle") ||
+    (t.includes("pickle") && (t.includes("selkirk") || t.includes("paddle")))
+  ) {
+    return brandAssets.marketplacePickleballPaddle;
+  }
   if (t.includes("racquet") || t.includes("racket")) {
     return brandAssets.marketplaceKidsRacquet;
   }
@@ -417,29 +853,89 @@ export function imageForMarketplaceListing(title: string, category: string): str
   return imageForProviderCategory(category, undefined, title);
 }
 
+/**
+ * Rewrite apparel image URLs that still point at another club's crest.
+ * Entity ids look like `hc-marketplace-polo` or `hc-apparel-polo-navy`.
+ */
+export function rewriteTenantApparelImageUrl(
+  entityId: string,
+  imageUrl?: string | null,
+): string | null | undefined {
+  const idMatch = entityId.match(/^([a-z]{2,3})-(?:marketplace|apparel)-/i);
+  if (!idMatch) return imageUrl;
+  const prefix = idMatch[1].toLowerCase();
+  const uploaded = imageUrl?.trim();
+
+  if (!uploaded) {
+    if (/polo/i.test(entityId)) {
+      return `/brand/apparel/${prefix}-apparel-polo-navy.png`;
+    }
+    return imageUrl;
+  }
+
+  const apparelMatch = uploaded.match(
+    /\/brand\/apparel\/([a-z]{2,3})-apparel-(.+)$/i,
+  );
+  if (apparelMatch) {
+    const currentPrefix = apparelMatch[1].toLowerCase();
+    const garment = apparelMatch[2];
+    if (currentPrefix !== prefix) {
+      return `/brand/apparel/${prefix}-apparel-${garment}`;
+    }
+    return uploaded;
+  }
+
+  // Legacy generic IronCrest / unprefixed apparel assets on club-specific rows.
+  if (
+    uploaded.includes("/brand/apparel-club-polo") ||
+    uploaded.includes("/brand/apparel-performance-cap") ||
+    uploaded.includes("/brand/apparel-quarter-zip")
+  ) {
+    if (/polo/i.test(entityId) || uploaded.includes("polo")) {
+      return `/brand/apparel/${prefix}-apparel-polo-navy.png`;
+    }
+    if (/cap/i.test(entityId) || uploaded.includes("cap")) {
+      return `/brand/apparel/${prefix}-apparel-cap-navy.png`;
+    }
+    if (/zip|quarter/i.test(entityId) || uploaded.includes("quarter")) {
+      return `/brand/apparel/${prefix}-apparel-quarter-zip.png`;
+    }
+  }
+
+  return uploaded;
+}
+
 /** Prefer product cover for known listings; never keep amenity/course fallbacks. */
 export function resolveMarketplaceListingImage(
   title: string,
   category: string,
   imageUrl?: string | null,
+  listingId?: string | null,
 ): string {
+  const corrected = listingId
+    ? rewriteTenantApparelImageUrl(listingId, imageUrl)
+    : imageUrl;
   const productCover = imageForMarketplaceListing(title, category);
   const t = title.toLowerCase();
+  const isPaddleProduct =
+    t.includes("paddle") ||
+    (t.includes("pickle") && t.includes("selkirk"));
   const isKnownProduct =
     t.includes("pro v1") ||
     t.includes("golf ball") ||
     (t.includes("titleist") && (t.includes("dozen") || t.includes("ball"))) ||
     t.includes("racquet") ||
     t.includes("racket") ||
+    isPaddleProduct ||
     t.includes("peloton") ||
     (t.includes("patio") && (t.includes("dining") || t.includes("set")));
 
+  // Never keep a court/amenity shot on a known product listing.
   if (isKnownProduct) {
-    // Always show the product photo for seeded catalog items, even if an older
-    // deploy stored a course/court amenity URL on the listing row.
     if (
       productCover === brandAssets.marketplaceGolfBalls ||
       productCover === brandAssets.marketplaceKidsRacquet ||
+      productCover === brandAssets.marketplacePickleballPaddle ||
       productCover === brandAssets.marketplacePeloton ||
       productCover === brandAssets.marketplacePatioSet
     ) {
@@ -447,7 +943,10 @@ export function resolveMarketplaceListingImage(
     }
   }
 
-  const uploaded = imageUrl?.trim();
+  const uploaded = corrected?.trim();
+  if (uploaded && looksLikeAmenityFallback(uploaded) && isPaddleProduct) {
+    return brandAssets.marketplacePickleballPaddle;
+  }
   if (uploaded && isMarketplaceProductCover(uploaded)) return uploaded;
   if (uploaded && !looksLikeAmenityFallback(uploaded)) return uploaded;
   return productCover;
@@ -474,6 +973,7 @@ export function isMarketplaceProductCover(coverUrl: string): boolean {
     brandAssets.marketplacePatioSet,
     brandAssets.marketplaceGolfBalls,
     brandAssets.marketplaceKidsRacquet,
+    brandAssets.marketplacePickleballPaddle,
   ]);
   return productCovers.has(coverUrl);
 }
@@ -483,6 +983,7 @@ export function imageForTournament(sport: string): string {
   const s = sport.toLowerCase();
   if (s.includes("golf")) return brandAssets.serviceGolf;
   if (s.includes("pickle")) return brandAssets.amenityPickleball;
+  if (s.includes("bocce")) return brandAssets.amenityBocce;
   if (s.includes("swim") || s.includes("pool")) return brandAssets.servicePool;
   if (s.includes("yoga") || s.includes("wellness") || s.includes("spa")) {
     return brandAssets.amenitySpa;
@@ -499,6 +1000,7 @@ export function imageForAmenity(kind: string, name?: string): string {
 
   if (n.includes("summer aqua fit")) return brandAssets.heritageBayAquaFit;
   if (n.includes("pickle")) return brandAssets.amenityPickleball;
+  if (n.includes("bocce")) return brandAssets.amenityBocce;
   if (
     n.includes("tennis") ||
     n.includes("har-tru") ||
@@ -582,6 +1084,7 @@ export function imageForBookingRow(amenityOrService: string): string {
     return brandAssets.amenityTennisClay;
   }
   if (label.includes("pickle")) return brandAssets.amenityPickleball;
+  if (label.includes("bocce")) return brandAssets.amenityBocce;
   if (label.includes("tennis") || label.includes("har-tru") || label.includes("racquet")) {
     return brandAssets.amenityTennisClay;
   }
@@ -627,13 +1130,24 @@ const FOOD_PHOTO_RULES: Array<[patterns: string[], image: string]> = [
   [["cauliflower"], "/brand/food/food-cauliflower.png"],
   [["bao"], "/brand/food/food-bao-buns.png"],
   [["wedge salad", "wedge"], "/brand/food/food-wedge-salad.png"],
+  [["cobb"], "/brand/food/food-cobb-salad.png"],
+  [["caprese"], "/brand/food/food-caprese.png"],
   [["garden salad"], "/brand/food/food-garden-salad.png"],
   [["strawberry"], "/brand/food/food-strawberry-salad.png"],
   [["oriental chicken", "asian chicken", "chicken salad"], "/brand/food/food-asian-chicken-salad.png"],
   [["club sandwich"], "/brand/food/food-club-sandwich.png"],
+  [["blt"], "/brand/food/food-blt.png"],
+  [["reuben"], "/brand/food/food-reuben.png"],
   [["korean chicken"], "/brand/food/food-korean-chicken.png"],
+  [["fish taco", "fish tacos"], "/brand/food/food-fish-tacos.png"],
   [["grouper sandwich"], "/brand/food/food-grouper-sandwich.png"],
   [["grouper"], "/brand/food/food-crusted-grouper.png"],
+  [["lobster"], "/brand/food/food-lobster.png"],
+  [["risotto"], "/brand/food/food-risotto.png"],
+  [["snapper"], "/brand/food/food-snapper.png"],
+  [["ceviche"], "/brand/food/food-coconut-shrimp.png"],
+  [["wrap"], "/brand/food/food-chicken-wrap.png"],
+  [["smoothie", "açaí", "acai"], "/brand/food/food-smoothie.png"],
   [["hibachi"], "/brand/food/food-hibachi-bowl.png"],
   [["poke"], "/brand/food/food-poke-bowl.png"],
   [["cheesecake"], "/brand/food/food-cheesecake.png"],
@@ -643,6 +1157,7 @@ const FOOD_PHOTO_RULES: Array<[patterns: string[], image: string]> = [
   [["salmon"], "/brand/food/food-salmon.png"],
   [["steak frites"], "/brand/food/food-steak-frites.png"],
   [["filet"], "/brand/food/food-filet.png"],
+  [["airline chicken", "chicken breast", "roasted chicken"], "/brand/food/food-chicken-breast.png"],
   [["gnocchi"], "/brand/food/food-gnocchi.png"],
   [["marsala"], "/brand/food/food-chicken-marsala.png"],
   [["pork chop"], "/brand/food/food-pork-chop.png"],
@@ -650,68 +1165,68 @@ const FOOD_PHOTO_RULES: Array<[patterns: string[], image: string]> = [
   [["cioppino"], "/brand/food/food-cioppino.png"],
   [["panna cotta"], "/brand/food/food-panna-cotta.png"],
   [["lava cake", "lava"], "/brand/food/food-lava-cake.png"],
-  [["key lime"], "/brand/food/food-key-lime.png"],
+  [["key lime", "tart"], "/brand/food/food-key-lime.png"],
   [["brownie"], "/brand/food/food-brownie-sundae.png"],
+  // Drinks — keep before generic beverage fallback
+  [["draft beer", "beer"], "/brand/food/food-draft-beer.png"],
+  [["house wine", "wine"], "/brand/food/food-house-wine.png"],
+  [["margarita"], "/brand/food/food-margarita.png"],
 ];
 
+/**
+ * Resolve a plated-food photo for a menu dish.
+ * Never use the clubhouse / dining-room interior for a dish thumbnail —
+ * category labels like "Fine Dining" must not override food matching.
+ */
 export function imageForFoodItem(name: string, category?: string): string {
+  const dish = name.toLowerCase();
   const label = `${name} ${category ?? ""}`.toLowerCase();
-  if (
-    label.includes("aromas") ||
-    label.includes("peru") ||
-    label.includes("fine dining") ||
-    label.includes("clubhouse restaurant") ||
-    label.includes("club dining")
-  ) {
-    return brandAssets.featuredDining;
-  }
+
   for (const [patterns, image] of FOOD_PHOTO_RULES) {
-    if (patterns.some((p) => label.includes(p))) return image;
+    if (patterns.some((p) => dish.includes(p) || label.includes(p))) return image;
   }
-  if (label.includes("burger") || label.includes("quarry burger")) {
+  if (dish.includes("burger") || label.includes("quarry burger")) {
     return brandAssets.foodQuarryBurger;
   }
-  if (label.includes("soup") || label.includes("bisque") || label.includes("chowder")) {
+  if (dish.includes("soup") || dish.includes("bisque") || dish.includes("chowder")) {
     return brandAssets.foodHouseSoup;
   }
-  if (label.includes("caesar") || (label.includes("salad") && !label.includes("fruit"))) {
+  if (dish.includes("caesar") || (dish.includes("salad") && !dish.includes("fruit"))) {
     return brandAssets.foodCaesarSalad;
   }
   if (
-    label.includes("catch of the day") ||
-    label.includes("catch of day") ||
-    label.includes("fish") ||
-    label.includes("salmon") ||
-    label.includes("seafood")
+    dish.includes("catch of the day") ||
+    dish.includes("catch of day") ||
+    dish.includes("fish") ||
+    dish.includes("salmon") ||
+    dish.includes("seafood") ||
+    dish.includes("shrimp") ||
+    dish.includes("lobster")
   ) {
     return brandAssets.foodCatchOfDay;
   }
   if (
-    label.includes("iced tea") ||
-    label.includes("ice tea") ||
-    (label.includes("tea") && label.includes("beverage"))
+    dish.includes("iced tea") ||
+    dish.includes("ice tea") ||
+    (dish.includes("tea") && label.includes("beverage"))
   ) {
     return brandAssets.foodIcedTea;
   }
-  if (label.includes("tennis") || label.includes("sport")) {
-    return brandAssets.featuredTennis;
-  }
-  // Ice cream / dessert only — do not match "iced tea"
   if (
-    label.includes("ice cream") ||
-    label.includes("gelato") ||
-    label.includes("dessert") ||
-    label.includes("ceviche")
+    dish.includes("ice cream") ||
+    dish.includes("gelato") ||
+    dish.includes("sundae")
   ) {
     return brandAssets.foodIceCream;
   }
-  if (label.includes("entree") || label.includes("entrée")) {
-    return brandAssets.foodCatchOfDay;
+  if (label.includes("dessert") || dish.includes("cake") || dish.includes("tart")) {
+    return brandAssets.foodKeyLime;
   }
-  if (label.includes("beverage") || label.includes("drink")) {
+  if (label.includes("beverage") || label.includes("drink") || dish.includes("tea")) {
     return brandAssets.foodIcedTea;
   }
-  return brandAssets.featuredDining;
+  // Generic plated entrée — never the dining-room interior shot.
+  return brandAssets.foodFilet;
 }
 
 /** Calendar event list thumbnails by category/title. */
@@ -728,6 +1243,7 @@ export function imageForEvent(category: string, title?: string): string {
   }
 
   if (label.includes("pickle")) return brandAssets.amenityPickleball;
+  if (label.includes("bocce")) return brandAssets.amenityBocce;
   if (
     label.includes("golf") ||
     label.includes("tee") ||

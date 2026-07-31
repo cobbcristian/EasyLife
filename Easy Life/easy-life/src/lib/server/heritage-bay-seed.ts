@@ -13,6 +13,14 @@ import { easternDateOffset } from "@/lib/weather";
 export const HERITAGE_BAY_COMMUNITY_ID = "heritage-bay";
 const MEMBER_EMAIL = "member.demo@golfheritagebay.com";
 const MEMBER_NAME = "Kelly Anderson";
+const SOCIAL_EMAIL = "member.social@golfheritagebay.com";
+const SOCIAL_NAME = "Carlos Martinez";
+const TENNIS_EMAIL = "member.tennis@golfheritagebay.com";
+const TENNIS_NAME = "Linda Chen";
+const PM_EMAIL = "admin@golfheritagebay.com";
+const PM_NAME = "Stephanie McIntosh";
+const BOARD_EMAIL = "board.demo@golfheritagebay.com";
+const BOARD_NAME = "Doug Brown";
 const CLUB_PHONE = "(239) 353-7056";
 const DINING_EMAIL = "dining@golfheritagebay.com";
 
@@ -118,11 +126,11 @@ const amenities: AmenitySeed[] = [
     id: "hb-amenity-tennis",
     name: "Tennis Courts",
     description:
-      "Seven tennis courts. Private lessons with Sofia Reyes and Brett Callahan.",
+      "Seven Har-Tru green clay tennis courts. Private lessons with Sofia Reyes and Brett Callahan.",
     kind: "court",
     unitCount: 7,
     holes: null,
-    surface: "hard",
+    surface: "green_clay",
     hoursJson: racquetHours,
   },
   {
@@ -133,7 +141,7 @@ const amenities: AmenitySeed[] = [
     kind: "court",
     unitCount: 2,
     holes: null,
-    surface: "hard",
+    surface: "hard_court",
     hoursJson: racquetHours,
   },
   {
@@ -410,7 +418,7 @@ const lessonPros = [
     email: "sofia.reyes@golfheritagebay.com",
     category: "tennis",
     description:
-      "Head Tennis Professional. Private and semi-private lessons on all seven courts — adults and juniors.",
+      "Head Tennis Professional. Member lessons: 30 min $40 · 1 hr $70. Clinics, mixers, and USTA team prep.",
   },
   {
     id: "hb-pro-brett",
@@ -418,7 +426,7 @@ const lessonPros = [
     email: "brett.callahan@golfheritagebay.com",
     category: "tennis",
     description:
-      "Assistant Tennis Professional. Stroke clinics, match play coaching, and USTA team prep.",
+      "Assistant Tennis Professional. Member lessons: 30 min $40 · 1 hr $70. Stroke clinics and match play coaching.",
   },
   {
     id: "hb-pro-dana",
@@ -426,7 +434,7 @@ const lessonPros = [
     email: "dana.kim@golfheritagebay.com",
     category: "pickleball",
     description:
-      "Pickleball Director. Private lessons, open-play clinics, and paddle fitting on both courts.",
+      "Pickleball Director. Lessons: 30 min $30 · 1 hr $50. Open-play clinics, mixers, and paddle rental $5.",
   },
   {
     id: "hb-pro-tyler",
@@ -434,7 +442,7 @@ const lessonPros = [
     email: "tyler.brooks@golfheritagebay.com",
     category: "pickleball",
     description:
-      "Pickleball Instructor. Beginner-friendly lessons and competitive drill sessions.",
+      "Pickleball Instructor. Lessons: 30 min $30 · 1 hr $50. Beginner-friendly drills and competitive sessions.",
   },
 ] as const;
 
@@ -684,7 +692,7 @@ async function seedEventsAndBookings() {
       id: "hb-booking-tennis",
       amenityId: "hb-amenity-tennis",
       unitNumber: 3,
-      amenity: "Tennis Court 3",
+      amenity: "Tennis Courts",
       date: easternDateOffset(2),
       startTime: "09:00",
       endTime: "10:30",
@@ -693,7 +701,7 @@ async function seedEventsAndBookings() {
       id: "hb-booking-pine",
       amenityId: "hb-amenity-pine",
       unitNumber: 1,
-      amenity: "Pine Course — Tee Time",
+      amenity: "Pine Course",
       date: easternDateOffset(1),
       startTime: "08:12",
       endTime: "12:00",
@@ -702,7 +710,7 @@ async function seedEventsAndBookings() {
       id: "hb-booking-pickle",
       amenityId: "hb-amenity-pickleball",
       unitNumber: 1,
-      amenity: "Pickleball Court 1",
+      amenity: "Pickleball Courts",
       date: easternDateOffset(4),
       startTime: "16:00",
       endTime: "17:00",
@@ -988,8 +996,8 @@ async function seedEngagement() {
     {
       id: "hb-charge-dues",
       category: "dues",
-      description: "Monthly membership dues — July",
-      amount: 485,
+      description: "2026 Annual Assessment installment — July (Operating + Reserve + Cable)",
+      amount: 851.33,
       status: "due",
       dueDate: easternDateOffset(10),
     },
@@ -1008,6 +1016,14 @@ async function seedEngagement() {
       amount: 110,
       status: "due",
       dueDate: easternDateOffset(5),
+    },
+    {
+      id: "hb-charge-cart",
+      category: "golf",
+      description: "Member cart fee — 18 holes (Pine)",
+      amount: 29,
+      status: "due",
+      dueDate: easternDateOffset(1),
     },
     {
       id: "hb-charge-grille",
@@ -1088,7 +1104,7 @@ async function seedEngagement() {
   }
 
   const fbSpent = 113; // cabana + grille completed orders
-  const fbRequired = 500;
+  const fbRequired = 1000; // 2026 Annual Food and Beverage Minimum
   await prisma.memberFbPeriod.upsert({
     where: {
       communityId_memberEmail_periodStart: {
@@ -1146,30 +1162,33 @@ async function seedEngagement() {
 
   const residents = [
     {
+      id: "hb-member-martinez",
+      name: SOCIAL_NAME,
+      role: "Social Member",
+      email: SOCIAL_EMAIL,
+      accountRole: "member",
+      unit: "Veranda 1203",
+      membershipTier: "social",
+      isManagement: false,
+    },
+    {
+      id: "hb-member-chen",
+      name: TENNIS_NAME,
+      role: "Tennis Member",
+      email: TENNIS_EMAIL,
+      accountRole: "member",
+      unit: "Coach Home 731",
+      membershipTier: "tennis",
+      isManagement: false,
+    },
+    {
       id: "hb-member-kelly",
       name: MEMBER_NAME,
       role: "Golf Member",
       email: MEMBER_EMAIL,
       accountRole: "member",
       unit: "Residence 214",
-      isManagement: false,
-    },
-    {
-      id: "hb-member-martinez",
-      name: "Carlos Martinez",
-      role: "Social Member",
-      email: "carlos.martinez@golfheritagebay.com",
-      accountRole: "member",
-      unit: "Veranda 1203",
-      isManagement: false,
-    },
-    {
-      id: "hb-member-chen",
-      name: "Linda Chen",
-      role: "Tennis Member",
-      email: "linda.chen@golfheritagebay.com",
-      accountRole: "member",
-      unit: "Coach Home 731",
+      membershipTier: "golf",
       isManagement: false,
     },
     {
@@ -1365,12 +1384,14 @@ async function seedEngagement() {
         directoryVisible: true,
         residencyStatus: "resident",
         paysHoa: true,
+        ...("membershipTier" in r ? { membershipTier: r.membershipTier } : {}),
       },
       update: {
         unit: r.unit,
         directoryVisible: true,
         residencyStatus: "resident",
         paysHoa: true,
+        ...("membershipTier" in r ? { membershipTier: r.membershipTier } : {}),
       },
     });
   }
@@ -1437,14 +1458,14 @@ async function seedEngagement() {
       endTime: "11:00",
       amenityId: "hb-amenity-tennis",
       status: "confirmed",
-      fee: 85,
+      fee: 70,
       notes: "Court 3 — serve and return focus",
     },
     update: {
       date: easternDateOffset(5),
       startTime: "10:00",
       endTime: "11:00",
-      fee: 85,
+      fee: 70,
       status: "confirmed",
     },
   });
@@ -1457,23 +1478,24 @@ async function seedEngagement() {
       providerId: "hb-pro-dana",
       providerName: "Dana Kim",
       proEmail: "dana.kim@golfheritagebay.com",
-      offeringName: "Private Pickleball Lesson (45 min)",
+      offeringName: "Private Pickleball Lesson (1 Hour)",
       sport: "pickleball",
       memberEmail: MEMBER_EMAIL,
       memberName: MEMBER_NAME,
       date: easternDateOffset(6),
       startTime: "16:00",
-      endTime: "16:45",
+      endTime: "17:00",
       amenityId: "hb-amenity-pickleball",
       status: "confirmed",
-      fee: 65,
+      fee: 50,
       notes: "Court 1 — dinking and kitchen play",
     },
     update: {
+      offeringName: "Private Pickleball Lesson (1 Hour)",
       date: easternDateOffset(6),
       startTime: "16:00",
-      endTime: "16:45",
-      fee: 65,
+      endTime: "17:00",
+      fee: 50,
       status: "confirmed",
     },
   });
@@ -1557,6 +1579,38 @@ async function seedGroups() {
     });
   }
 
+  for (const groupId of ["hb-group-neighbors", "hb-group-bocce"]) {
+    await prisma.groupMembership.upsert({
+      where: {
+        groupId_userEmail: {
+          groupId,
+          userEmail: SOCIAL_EMAIL,
+        },
+      },
+      create: {
+        groupId,
+        userEmail: SOCIAL_EMAIL,
+      },
+      update: {},
+    });
+  }
+
+  for (const groupId of ["hb-group-racquets", "hb-group-nine-wine"]) {
+    await prisma.groupMembership.upsert({
+      where: {
+        groupId_userEmail: {
+          groupId,
+          userEmail: TENNIS_EMAIL,
+        },
+      },
+      create: {
+        groupId,
+        userEmail: TENNIS_EMAIL,
+      },
+      update: {},
+    });
+  }
+
   const posts = [
     {
       id: "hb-group-post-golf-pairing",
@@ -1569,24 +1623,24 @@ async function seedGroups() {
     {
       id: "hb-group-post-nine-wine",
       groupId: "hb-group-nine-wine",
-      authorEmail: "linda.chen@golfheritagebay.com",
-      authorName: "Linda Chen",
+      authorEmail: TENNIS_EMAIL,
+      authorName: TENNIS_NAME,
       body: "Our next Nine & Wine is Tuesday at 3:30 PM on Oak. Please reply if you can stay for happy hour afterward!",
       hoursAgo: 19,
     },
     {
       id: "hb-group-post-racquet",
       groupId: "hb-group-racquets",
-      authorEmail: "carlos.martinez@golfheritagebay.com",
-      authorName: "Carlos Martinez",
+      authorEmail: "elena.ramirez@golfheritagebay.com",
+      authorName: "Elena Ramirez",
       body: "Beginner pickleball open play has room for four more Saturday at 9:00 AM. Paddles are available at the courts.",
       hoursAgo: 27,
     },
     {
       id: "hb-group-post-neighbors",
       groupId: "hb-group-neighbors",
-      authorEmail: "linda.chen@golfheritagebay.com",
-      authorName: "Linda Chen",
+      authorEmail: TENNIS_EMAIL,
+      authorName: TENNIS_NAME,
       body: "Welcome to our new neighbors on Gator Bay Court! A few of us are bringing dessert by Friday evening.",
       hoursAgo: 42,
     },
@@ -1645,14 +1699,14 @@ async function seedGroups() {
     {
       id: "hb-group-message-nine-1",
       groupId: "hb-group-nine-wine",
-      author: "Linda Chen",
+      author: TENNIS_NAME,
       body: "I reserved two tables at The Grille Room for Tuesday after the round.",
       hoursAgo: 17,
     },
     {
       id: "hb-group-message-racquet-1",
       groupId: "hb-group-racquets",
-      author: "Carlos Martinez",
+      author: TENNIS_NAME,
       body: "Court 4 is open at 6 tonight if anyone wants a doubles warm-up.",
       hoursAgo: 4,
     },
@@ -1689,12 +1743,12 @@ async function seedDocuments() {
       daysAgo: 2,
     },
     {
-      id: "hb-document-fees-2025",
-      title: "Annual Dues & User Fees Schedule",
+      id: "hb-document-fees-2026",
+      title: "2026 Annual Dues & User Fees Schedule",
       category: "financial",
-      url: "https://www.golfheritagebay.com/files/2025%20Schedule%20of%20User%20Fees%20for%20Heritage%20Bay%20Golf%20and%20Country%20Club.pdf",
+      url: "/brand/hb-2026-dues-user-fees.pdf",
       uploadedBy: "Club Administration",
-      daysAgo: 8,
+      daysAgo: 1,
     },
     {
       id: "hb-document-transfer-2026",
@@ -1746,6 +1800,13 @@ async function seedDocuments() {
       },
     });
   }
+
+  await prisma.communityDocument.deleteMany({
+    where: {
+      communityId: HERITAGE_BAY_COMMUNITY_ID,
+      id: "hb-document-fees-2025",
+    },
+  });
 }
 
 async function seedApparel() {
@@ -1954,6 +2015,20 @@ async function seedProperties() {
       type: "Investment property",
       owner: true,
     },
+    {
+      id: "hb-property-carlos-primary",
+      userEmail: SOCIAL_EMAIL,
+      address: "Veranda 1203, 10154 Heritage Bay Boulevard, Naples, FL 34120",
+      type: "Primary residence",
+      owner: true,
+    },
+    {
+      id: "hb-property-linda-primary",
+      userEmail: TENNIS_EMAIL,
+      address: "Coach Home 731, Gator Bay Court, Naples, FL 34120",
+      type: "Primary residence",
+      owner: true,
+    },
   ] as const;
 
   for (const property of properties) {
@@ -2112,7 +2187,7 @@ async function seedMarketplaceAndBlog() {
       description: "Barely used Bike+ with mat and two pairs of cycling shoes. Pickup from Coach Home 731.",
       price: 650,
       category: "Fitness",
-      seller: "Linda Chen",
+      seller: TENNIS_NAME,
       unit: "Coach Home 731",
       imageUrl: brandAssets.marketplacePeloton,
       daysAgo: 1,
@@ -2297,13 +2372,13 @@ async function seedMarketplaceAndBlog() {
     {
       id: "hb-blog-comment-cabana-1",
       postId: "hb-blog-cabana",
-      author: "Carlos Martinez",
+      author: SOCIAL_NAME,
       body: "The tuna poke bowl is already my summer favorite.",
     },
     {
       id: "hb-blog-comment-nine-1",
       postId: "hb-blog-nine-wine",
-      author: "Linda Chen",
+      author: TENNIS_NAME,
       body: "Such a fun afternoon. Please count me in for the next one!",
     },
   ] as const;
@@ -2358,6 +2433,18 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
       name: MEMBER_NAME,
     },
     {
+      id: "u-hb-member-social",
+      email: SOCIAL_EMAIL,
+      role: "member",
+      name: SOCIAL_NAME,
+    },
+    {
+      id: "u-hb-member-tennis",
+      email: TENNIS_EMAIL,
+      role: "member",
+      name: TENNIS_NAME,
+    },
+    {
       id: "u-hb-pm",
       email: "admin@golfheritagebay.com",
       role: "pm",
@@ -2388,26 +2475,56 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
     });
   }
 
-  await prisma.memberProfileExt.upsert({
-    where: { userEmail: MEMBER_EMAIL },
-    create: {
-      userEmail: MEMBER_EMAIL,
-      membershipTier: "full_golf",
-      residencyStatus: "resident",
-      paysHoa: true,
+  for (const profile of [
+    {
+      email: MEMBER_EMAIL,
+      membershipTier: "golf",
       unit: "Residence 214",
       householdAddress: "10154 Heritage Bay Boulevard, Naples, FL 34120",
     },
-    update: {
-      membershipTier: "full_golf",
-      residencyStatus: "resident",
-      paysHoa: true,
-      unit: "Residence 214",
-      householdAddress: "10154 Heritage Bay Boulevard, Naples, FL 34120",
+    {
+      email: SOCIAL_EMAIL,
+      membershipTier: "social",
+      unit: "Veranda 1203",
+      householdAddress: "Veranda 1203, Heritage Bay Boulevard, Naples, FL 34120",
     },
-  });
+    {
+      email: TENNIS_EMAIL,
+      membershipTier: "tennis",
+      unit: "Coach Home 731",
+      householdAddress: "Coach Home 731, Gator Bay Court, Naples, FL 34120",
+    },
+  ] as const) {
+    await prisma.memberProfileExt.upsert({
+      where: { userEmail: profile.email },
+      create: {
+        userEmail: profile.email,
+        membershipTier: profile.membershipTier,
+        residencyStatus: "resident",
+        paysHoa: true,
+        unit: profile.unit,
+        householdAddress: profile.householdAddress,
+        directoryVisible: true,
+      },
+      update: {
+        membershipTier: profile.membershipTier,
+        residencyStatus: "resident",
+        paysHoa: true,
+        unit: profile.unit,
+        householdAddress: profile.householdAddress,
+        directoryVisible: true,
+      },
+    });
+  }
 
   await ensureMembershipTiersSeeded(HERITAGE_BAY_COMMUNITY_ID);
+  await prisma.membershipTierConfig.updateMany({
+    where: { communityId: HERITAGE_BAY_COMMUNITY_ID },
+    data: {
+      fbMinimumAmount: 1000,
+      fbMinimumPeriod: "annual",
+    },
+  });
   await seedAmenities();
   await seedStaffAndPros();
   await seedEventsAndBookings();
@@ -2421,17 +2538,1180 @@ export async function ensureHeritageBayDemoSeeded(): Promise<void> {
   await seedProperties();
   await seedRealEstate();
   await seedEngagement();
+  await seedDemoPersonas();
+  await seedPmAndBoardOperations();
   await seedMessages();
 }
 
-/** Mock Messages inbox for Kelly — pros, Events Desk, and a neighbor. */
+/** PM + Board portal fixtures — service desk, governance, invoices, messages. */
+async function seedPmAndBoardOperations() {
+  const cid = HERITAGE_BAY_COMMUNITY_ID;
+  const demoPdf =
+    "https://www.golfheritagebay.com/files/2.27.26%20Rules%20and%20Regulations%20of%20Heritage%20Bay%20Golf%20and%20Country%20Club%20.pdf";
+
+  const serviceRequests = [
+    {
+      memberEmail: MEMBER_EMAIL,
+      memberName: MEMBER_NAME,
+      unit: "Residence 214",
+      title: "Gate transponder not recognizing vehicle",
+      category: "Access",
+      description:
+        "Primary vehicle transponder fails at the Gator Bay gate after 6pm. Guest PIN still works.",
+      status: "open",
+      daysAgo: 2,
+    },
+    {
+      memberEmail: MEMBER_EMAIL,
+      memberName: MEMBER_NAME,
+      unit: "Residence 214",
+      title: "Cypress Course irrigation overspray on driveway",
+      category: "Landscaping",
+      description:
+        "Common-area heads near Residence 214 soak the driveway every morning around 5:30am.",
+      status: "in_progress",
+      daysAgo: 5,
+    },
+    {
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+      unit: "Veranda 1203",
+      title: "Cabana patio string lights out",
+      category: "Maintenance",
+      description: "Half the patio string lights are dark on the west Cabana deck after dusk.",
+      status: "in_progress",
+      daysAgo: 1,
+    },
+    {
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      unit: "Coach Home 731",
+      title: "Main Pool locker key replacement",
+      category: "Amenities",
+      description: "Lost women's locker key #22 — please deactivate and issue a replacement.",
+      status: "resolved",
+      daysAgo: 8,
+    },
+  ] as const;
+
+  for (const row of serviceRequests) {
+    const existing = await prisma.serviceRequest.findFirst({
+      where: {
+        communityId: cid,
+        memberEmail: row.memberEmail,
+        title: row.title,
+      },
+    });
+    if (existing) {
+      if (existing.status !== row.status) {
+        await prisma.serviceRequest.update({
+          where: { id: existing.id },
+          data: { status: row.status, description: row.description },
+        });
+      }
+      continue;
+    }
+    await prisma.serviceRequest.create({
+      data: {
+        communityId: cid,
+        memberEmail: row.memberEmail,
+        memberName: row.memberName,
+        unit: row.unit,
+        title: row.title,
+        category: row.category,
+        description: row.description,
+        status: row.status,
+        createdAt: new Date(Date.now() - row.daysAgo * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  const maintenanceTasks = [
+    {
+      id: "hb-maint-cabana-lights",
+      title: "Repair Cabana patio lighting",
+      area: "The Cabana",
+      assignedTo: "Facilities",
+      status: "in_progress",
+      due: easternDateOffset(4),
+    },
+    {
+      id: "hb-maint-pool-pump",
+      title: "Inspect Main Pool circulation pump",
+      area: "Main Pool",
+      assignedTo: "Gulf Coast Pool Service",
+      status: "open",
+      due: easternDateOffset(7),
+    },
+    {
+      id: "hb-maint-gate-reader",
+      title: "Reprogram north gate reader",
+      area: "Access control",
+      assignedTo: "Bayview Access Systems",
+      status: "in_progress",
+      due: easternDateOffset(3),
+    },
+  ] as const;
+
+  for (const task of maintenanceTasks) {
+    await prisma.maintenanceTask.upsert({
+      where: { id: task.id },
+      create: {
+        id: task.id,
+        communityId: cid,
+        title: task.title,
+        area: task.area,
+        assignedTo: task.assignedTo,
+        status: task.status,
+        due: task.due,
+      },
+      update: {
+        title: task.title,
+        area: task.area,
+        assignedTo: task.assignedTo,
+        status: task.status,
+        due: task.due,
+      },
+    });
+  }
+
+  const checkins = [
+    {
+      id: "hb-checkin-lawn",
+      name: "Cypress Lawn & Landscape",
+      type: "vendor",
+      host: "Common grounds · plate FL-CYL441",
+      unit: "Common",
+      status: "checked_in",
+    },
+    {
+      id: "hb-checkin-pool",
+      name: "Gulf Coast Pool Service",
+      type: "vendor",
+      host: "Main Pool · plate FL-GCP882",
+      unit: "Main Pool",
+      status: "checked_in",
+    },
+    {
+      id: "hb-checkin-guest-dinner",
+      name: "Maria Alvarez",
+      type: "guest",
+      host: "The Grille Room · Kelly Anderson",
+      unit: "Residence 214",
+      status: "expected",
+    },
+    {
+      id: "hb-checkin-guest-golf",
+      name: "Tom Brennan",
+      type: "guest",
+      host: "Pine Course · James Wilson",
+      unit: "Estate Home 48",
+      status: "expected",
+    },
+    {
+      id: "hb-checkin-ups",
+      name: "UPS Delivery",
+      type: "vendor",
+      host: "Clubhouse lobby · plate FL-UPS019",
+      unit: "Lobby",
+      status: "checked_out",
+    },
+  ] as const;
+
+  for (const row of checkins) {
+    await prisma.checkin.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        communityId: cid,
+        name: row.name,
+        type: row.type,
+        host: row.host,
+        unit: row.unit,
+        status: row.status,
+      },
+      update: {
+        name: row.name,
+        type: row.type,
+        host: row.host,
+        unit: row.unit,
+        status: row.status,
+      },
+    });
+  }
+
+  const registrations = [
+    {
+      id: "hb-reg-kelly",
+      resident: MEMBER_NAME,
+      unit: "Residence 214",
+      vehicle: true,
+      pet: true,
+      fingerprint: true,
+    },
+    {
+      id: "hb-reg-carlos",
+      resident: SOCIAL_NAME,
+      unit: "Veranda 1203",
+      vehicle: true,
+      pet: false,
+      fingerprint: false,
+    },
+    {
+      id: "hb-reg-linda",
+      resident: TENNIS_NAME,
+      unit: "Coach Home 731",
+      vehicle: true,
+      pet: true,
+      fingerprint: false,
+    },
+    {
+      id: "hb-reg-wilson",
+      resident: "James Wilson",
+      unit: "Estate Home 48",
+      vehicle: true,
+      pet: false,
+      fingerprint: true,
+    },
+  ] as const;
+
+  for (const row of registrations) {
+    await prisma.registrationChecklist.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        communityId: cid,
+        resident: row.resident,
+        unit: row.unit,
+        vehicle: row.vehicle,
+        pet: row.pet,
+        fingerprint: row.fingerprint,
+      },
+      update: {
+        resident: row.resident,
+        unit: row.unit,
+        vehicle: row.vehicle,
+        pet: row.pet,
+        fingerprint: row.fingerprint,
+      },
+    });
+  }
+
+  const invoices = [
+    {
+      id: "hb-invoice-landscape",
+      vendor: "Cypress Lawn & Landscape",
+      description: "July common-ground landscape contract — Heritage Bay",
+      amount: 9800,
+      status: "pending",
+      submittedBy: PM_NAME,
+    },
+    {
+      id: "hb-invoice-pool",
+      vendor: "Gulf Coast Pool Service",
+      description: "Main Pool chemical service — June",
+      amount: 1450,
+      status: "approved",
+      submittedBy: PM_NAME,
+    },
+    {
+      id: "hb-invoice-cabana-fridge",
+      vendor: "Collier Climate Control",
+      description: "Cabana walk-in refrigeration repair call",
+      amount: 875,
+      status: "pending",
+      submittedBy: "Events & Activities Desk",
+    },
+  ] as const;
+
+  for (const invoice of invoices) {
+    await prisma.invoice.upsert({
+      where: { id: invoice.id },
+      create: {
+        id: invoice.id,
+        communityId: cid,
+        vendor: invoice.vendor,
+        description: invoice.description,
+        amount: invoice.amount,
+        status: invoice.status,
+        submittedBy: invoice.submittedBy,
+      },
+      update: {
+        vendor: invoice.vendor,
+        description: invoice.description,
+        amount: invoice.amount,
+        status: invoice.status,
+        submittedBy: invoice.submittedBy,
+      },
+    });
+  }
+
+  const guestFeeExisting = await prisma.memberCharge.findFirst({
+    where: {
+      communityId: cid,
+      referenceType: "court_guest_fee",
+      referenceId: "hb-usta-demo-riley",
+    },
+  });
+  if (!guestFeeExisting) {
+    await prisma.memberCharge.create({
+      data: {
+        communityId: cid,
+        memberEmail: "riley.nguyen.usta@gmail.com",
+        memberName: "Riley Nguyen",
+        category: "racquets",
+        description:
+          "USTA Fee — Day · Host: Linda Chen · Match date: 2026-07-24 · Non-member (2026 Racquets schedule)",
+        amount: 35,
+        status: "due",
+        dueDate: "2026-07-24",
+        referenceType: "court_guest_fee",
+        referenceId: "hb-usta-demo-riley",
+        payToken: "demo-hb-riley-nguyen-court-fee",
+      },
+    });
+  } else {
+    await prisma.memberCharge.update({
+      where: { id: guestFeeExisting.id },
+      data: {
+        description:
+          "USTA Fee — Day · Host: Linda Chen · Match date: 2026-07-24 · Non-member (2026 Racquets schedule)",
+        amount: 35,
+        status: "due",
+        dueDate: "2026-07-24",
+      },
+    });
+  }
+
+  const boardEvents = [
+    {
+      id: "hb-event-board-monthly",
+      title: "Monthly Board Meeting",
+      description:
+        "Regular Heritage Bay board session — financials, amenity updates, and open member comments.",
+      date: easternDateOffset(12),
+      time: "6:00 PM",
+      endTime: "7:30 PM",
+      location: "Clubhouse — Board Room",
+      createdBy: BOARD_NAME,
+    },
+    {
+      id: "hb-event-board-budget",
+      title: "2027 Budget Workshop",
+      description:
+        "Draft operating budget and capital reserve discussion ahead of membership notice.",
+      date: easternDateOffset(26),
+      time: "5:30 PM",
+      endTime: "7:00 PM",
+      location: "Clubhouse — Board Room",
+      createdBy: BOARD_NAME,
+    },
+    {
+      id: "hb-event-board-capital",
+      title: "Golf Course & Common Grounds Capital Planning",
+      description:
+        "Review Cypress irrigation upgrades and Main Pool deck resurfacing options.",
+      date: easternDateOffset(19),
+      time: "4:00 PM",
+      endTime: "5:30 PM",
+      location: "Golf Shop Conference Room",
+      createdBy: PM_NAME,
+    },
+  ] as const;
+
+  for (const event of boardEvents) {
+    await prisma.communityEvent.upsert({
+      where: { id: event.id },
+      create: {
+        id: event.id,
+        communityId: cid,
+        title: event.title,
+        description: event.description,
+        date: event.date,
+        time: event.time,
+        endTime: event.endTime,
+        location: event.location,
+        category: "board",
+        createdBy: event.createdBy,
+      },
+      update: {
+        title: event.title,
+        description: event.description,
+        date: event.date,
+        time: event.time,
+        endTime: event.endTime,
+        location: event.location,
+        category: "board",
+        createdBy: event.createdBy,
+      },
+    });
+  }
+
+  const surveys = [
+    {
+      id: "hb-survey-cabana-hours",
+      title: "Extend Cabana summer dinner hours",
+      description: "Should The Cabana keep dinner service through Labor Day on weeknights?",
+      closes: "2026-08-20",
+      options: [
+        { id: "hb-survey-cabana-yes", label: "Yes — extend weeknight dinner", votes: 14 },
+        { id: "hb-survey-cabana-no", label: "No — keep current hours", votes: 6 },
+        { id: "hb-survey-cabana-more", label: "Need more member feedback", votes: 3 },
+      ],
+    },
+    {
+      id: "hb-survey-pool-deck",
+      title: "Approve reserve draw for pool-deck resurfacing",
+      description: "Approve drawing from reserves for Main Pool deck resurfacing in Q4.",
+      closes: "2026-09-01",
+      options: [
+        { id: "hb-survey-pool-approve", label: "Approve reserve draw", votes: 9 },
+        { id: "hb-survey-pool-defer", label: "Defer to 2027 budget", votes: 5 },
+        { id: "hb-survey-pool-assess", label: "Seek member assessment instead", votes: 2 },
+      ],
+    },
+  ] as const;
+
+  for (const survey of surveys) {
+    await prisma.survey.upsert({
+      where: { id: survey.id },
+      create: {
+        id: survey.id,
+        communityId: cid,
+        title: survey.title,
+        description: survey.description,
+        status: "open",
+        closes: survey.closes,
+        options: {
+          create: survey.options.map((option) => ({
+            id: option.id,
+            label: option.label,
+            votes: option.votes,
+          })),
+        },
+      },
+      update: {
+        title: survey.title,
+        description: survey.description,
+        status: "open",
+        closes: survey.closes,
+      },
+    });
+    for (const option of survey.options) {
+      await prisma.surveyOption.upsert({
+        where: { id: option.id },
+        create: {
+          id: option.id,
+          surveyId: survey.id,
+          label: option.label,
+          votes: option.votes,
+        },
+        update: {
+          label: option.label,
+          votes: option.votes,
+        },
+      });
+    }
+  }
+
+  const bids = [
+    {
+      id: "hb-bid-gate",
+      project: "Gate & access control upgrade",
+      vendor: "Bayview Access Systems",
+      amount: 42500,
+      status: "under_review",
+    },
+    {
+      id: "hb-bid-cabana-hvac",
+      project: "Cabana refrigeration replacement",
+      vendor: "Collier Climate Control",
+      amount: 28600,
+      status: "received",
+    },
+    {
+      id: "hb-bid-pool-deck",
+      project: "Main Pool deck resurfacing",
+      vendor: "Gulf Coast Pool Service",
+      amount: 19800,
+      status: "accepted",
+    },
+  ] as const;
+
+  for (const bid of bids) {
+    await prisma.bid.upsert({
+      where: { id: bid.id },
+      create: {
+        id: bid.id,
+        communityId: cid,
+        project: bid.project,
+        vendor: bid.vendor,
+        amount: bid.amount,
+        status: bid.status,
+      },
+      update: {
+        project: bid.project,
+        vendor: bid.vendor,
+        amount: bid.amount,
+        status: bid.status,
+      },
+    });
+  }
+
+  const desiredBudget = [
+    { category: "Golf course operations", budgeted: 620000, spent: 298000 },
+    { category: "Clubhouse & dining", budgeted: 410000, spent: 188000 },
+    { category: "Common-ground landscaping", budgeted: 185000, spent: 92000 },
+    { category: "Pool & fitness", budgeted: 142000, spent: 61000 },
+    { category: "Racquets (tennis & pickleball)", budgeted: 96000, spent: 44000 },
+    { category: "Security & gate access", budgeted: 78000, spent: 39000 },
+    { category: "Insurance & legal", budgeted: 115000, spent: 115000 },
+    { category: "Events & member programs", budgeted: 72000, spent: 31000 },
+    { category: "Capital reserves", budgeted: 250000, spent: 48000 },
+  ] as const;
+
+  const existingBudget = await prisma.budgetLine.findMany({
+    where: { communityId: cid, year: 2026 },
+    select: { category: true },
+  });
+  const haveBudget = new Set(existingBudget.map((row) => row.category));
+  const missingBudget = desiredBudget.filter((row) => !haveBudget.has(row.category));
+  if (missingBudget.length > 0) {
+    await prisma.budgetLine.createMany({
+      data: missingBudget.map((row) => ({
+        communityId: cid,
+        category: row.category,
+        budgeted: row.budgeted,
+        spent: row.spent,
+        year: 2026,
+      })),
+    });
+  }
+
+  const boardDocuments = [
+    {
+      id: "hb-doc-board-minutes",
+      title: "June 2026 Board Minutes",
+      category: "minutes",
+      uploadedBy: "Board Secretary",
+    },
+    {
+      id: "hb-doc-board-budget",
+      title: "FY2026 Operating Budget packet",
+      category: "financial",
+      uploadedBy: "Treasurer",
+    },
+    {
+      id: "hb-doc-board-2027",
+      title: "2027 Budget Draft",
+      category: "financial",
+      uploadedBy: BOARD_NAME,
+    },
+    {
+      id: "hb-doc-board-reserve",
+      title: "Reserve Study Update — Pool Deck",
+      category: "financial",
+      uploadedBy: PM_NAME,
+    },
+  ] as const;
+
+  for (const document of boardDocuments) {
+    await prisma.communityDocument.upsert({
+      where: { id: document.id },
+      create: {
+        id: document.id,
+        communityId: cid,
+        title: document.title,
+        category: document.category,
+        url: demoPdf,
+        sizeLabel: "PDF",
+        audience: "board",
+        uploadedBy: document.uploadedBy,
+      },
+      update: {
+        title: document.title,
+        category: document.category,
+        url: demoPdf,
+        sizeLabel: "PDF",
+        audience: "board",
+        uploadedBy: document.uploadedBy,
+      },
+    });
+  }
+
+  await prisma.announcement.upsert({
+    where: { id: "hb-announcement-pm-gate" },
+    create: {
+      id: "hb-announcement-pm-gate",
+      communityId: cid,
+      title: "North gate reader maintenance this week",
+      body: "Bayview Access Systems will reprogram the north gate reader Wednesday 9am–noon. Please allow extra time or use the guest PIN lane during the window.",
+      author: PM_NAME,
+      priority: "important",
+    },
+    update: {
+      title: "North gate reader maintenance this week",
+      body: "Bayview Access Systems will reprogram the north gate reader Wednesday 9am–noon. Please allow extra time or use the guest PIN lane during the window.",
+      author: PM_NAME,
+      priority: "important",
+    },
+  });
+
+  await prisma.announcement.upsert({
+    where: { id: "hb-announcement-board-packet" },
+    create: {
+      id: "hb-announcement-board-packet",
+      communityId: cid,
+      title: "July board packet is available",
+      body: "Directors: minutes, FY2026 budget packet, and the pool-deck reserve memo are posted in Board Documents. Please review before the monthly meeting.",
+      author: BOARD_NAME,
+      priority: "normal",
+    },
+    update: {
+      title: "July board packet is available",
+      body: "Directors: minutes, FY2026 budget packet, and the pool-deck reserve memo are posted in Board Documents. Please review before the monthly meeting.",
+      author: BOARD_NAME,
+      priority: "normal",
+    },
+  });
+
+  const privateLines = [
+    {
+      id: "hb-priv-board-packet",
+      channel: "board",
+      author: BOARD_NAME,
+      body: "Board packet for the next monthly meeting is in Documents. Please review the 2027 Budget Draft and pool-deck reserve memo before Thursday.",
+      hoursAgo: 72,
+    },
+    {
+      id: "hb-priv-board-gate",
+      channel: "board",
+      author: PM_NAME,
+      body: "North gate reader work is scheduled Wednesday. I've posted a member announcement and alerted Front Desk. Bids for the full access-control upgrade are under review at $42,500.",
+      hoursAgo: 48,
+    },
+    {
+      id: "hb-priv-board-bids",
+      channel: "board",
+      author: PM_NAME,
+      body: "Vendor bids ready for review: Bayview Access Systems — gate upgrade ($42,500, under review) and Collier Climate — Cabana refrigeration ($28,600, received). Pool deck resurfacing with Gulf Coast is already accepted.",
+      hoursAgo: 20,
+    },
+    {
+      id: "hb-priv-board-reply",
+      channel: "board",
+      author: BOARD_NAME,
+      body: "Thanks Stephanie — I'll flag refrigeration for a deep dive at the meeting. Elaine, please bring the membership transfer memo. Gate notice looks good; no board action needed.",
+      hoursAgo: 6,
+    },
+    {
+      id: "hb-priv-board-finance",
+      channel: "board",
+      author: "Elaine Foster",
+      body: "Treasurer note: FY2026 dining is tracking under budget YTD. Recommend we still hold the Cabana dinner-hours survey open through Aug 20 before changing summer hours permanently.",
+      hoursAgo: 30,
+    },
+    {
+      id: "hb-priv-pm-invoices",
+      channel: "pm",
+      author: PM_NAME,
+      body: "July landscape invoice from Cypress Lawn ($9,800) and the Cabana refrigeration repair ($875) are in Approvals for board sign-off. Main Pool chemical service already cleared.",
+      hoursAgo: 28,
+    },
+    {
+      id: "hb-priv-pm-reply",
+      channel: "pm",
+      author: BOARD_NAME,
+      body: "Approved the Cypress Lawn invoice on my end. Hold the Cabana refrigeration line until we compare it against the full replacement bid — don't want to double-pay diagnostics.",
+      hoursAgo: 12,
+    },
+    {
+      id: "hb-priv-pm-gate",
+      channel: "pm",
+      author: PM_NAME,
+      body: "Bayview Access confirmed Wednesday morning for the north gate reader. Front Desk has guest PIN cards ready if members need them.",
+      hoursAgo: 4,
+    },
+  ] as const;
+
+  for (const line of privateLines) {
+    const existing = await prisma.privateMessage.findUnique({ where: { id: line.id } });
+    if (existing) {
+      await prisma.privateMessage.update({
+        where: { id: line.id },
+        data: {
+          channel: line.channel,
+          author: line.author,
+          body: line.body,
+          createdAt: new Date(Date.now() - line.hoursAgo * 60 * 60 * 1000),
+        },
+      });
+      continue;
+    }
+    await prisma.privateMessage.create({
+      data: {
+        id: line.id,
+        communityId: cid,
+        channel: line.channel,
+        author: line.author,
+        body: line.body,
+        createdAt: new Date(Date.now() - line.hoursAgo * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  const helpTickets = [
+    {
+      id: "hb-ticket-kelly-gate",
+      userName: MEMBER_NAME,
+      email: MEMBER_EMAIL,
+      subject: "Gate transponder still failing evenings",
+      priority: "High",
+      message:
+        "Opened a service request two days ago — still can't get through after 6pm with the primary transponder.",
+      status: "open",
+    },
+    {
+      id: "hb-ticket-carlos-cabana",
+      userName: SOCIAL_NAME,
+      email: SOCIAL_EMAIL,
+      subject: "Cabana patio lighting",
+      priority: "Medium",
+      message: "Wanted to confirm Facilities received the patio lighting report from Veranda 1203.",
+      status: "open",
+    },
+    {
+      id: "hb-ticket-linda-locker",
+      userName: TENNIS_NAME,
+      email: TENNIS_EMAIL,
+      subject: "Locker key replacement confirmation",
+      priority: "Low",
+      message: "Thanks for replacing locker key #22 — please close out my request when convenient.",
+      status: "resolved",
+    },
+  ] as const;
+
+  for (const ticket of helpTickets) {
+    await prisma.helpTicket.upsert({
+      where: { id: ticket.id },
+      create: {
+        id: ticket.id,
+        communityId: cid,
+        userName: ticket.userName,
+        email: ticket.email,
+        subject: ticket.subject,
+        priority: ticket.priority,
+        message: ticket.message,
+        status: ticket.status,
+      },
+      update: {
+        userName: ticket.userName,
+        email: ticket.email,
+        subject: ticket.subject,
+        priority: ticket.priority,
+        message: ticket.message,
+        status: ticket.status,
+      },
+    });
+  }
+}
+
+/** Social + Tennis lifestyle seeds — bookings, F&B, favorites, lessons. */
+async function seedDemoPersonas() {
+  const personaBookings = [
+    {
+      id: "hb-booking-carlos-cabana",
+      amenityId: "hb-amenity-cabana",
+      unitNumber: 2,
+      amenity: "The Cabana — Lunch",
+      date: easternDateOffset(1),
+      startTime: "12:00",
+      endTime: "13:30",
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+    },
+    {
+      id: "hb-booking-carlos-bocce",
+      amenityId: "hb-amenity-bocce",
+      unitNumber: 1,
+      amenity: "Bocce Court",
+      date: easternDateOffset(3),
+      startTime: "17:00",
+      endTime: "18:00",
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+    },
+    {
+      id: "hb-booking-carlos-aqua",
+      amenityId: "hb-amenity-aqua-fit",
+      unitNumber: 1,
+      amenity: "Summer Aqua Fit",
+      date: easternDateOffset(2),
+      startTime: "10:00",
+      endTime: "11:00",
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+    },
+    {
+      id: "hb-booking-carlos-grille",
+      amenityId: "hb-amenity-grille",
+      unitNumber: 5,
+      amenity: "The Grille Room — Dinner",
+      date: easternDateOffset(5),
+      startTime: "18:30",
+      endTime: "20:00",
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+    },
+    {
+      id: "hb-booking-linda-tennis",
+      amenityId: "hb-amenity-tennis",
+      unitNumber: 2,
+      amenity: "Tennis Courts",
+      date: easternDateOffset(1),
+      startTime: "08:00",
+      endTime: "09:30",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+    },
+    {
+      id: "hb-booking-linda-pickle",
+      amenityId: "hb-amenity-pickleball",
+      unitNumber: 2,
+      amenity: "Pickleball Courts",
+      date: easternDateOffset(3),
+      startTime: "16:00",
+      endTime: "17:00",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+    },
+    {
+      id: "hb-booking-linda-fitness",
+      amenityId: "hb-amenity-fitness",
+      unitNumber: 1,
+      amenity: "Fitness Center",
+      date: easternDateOffset(2),
+      startTime: "07:00",
+      endTime: "08:00",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+    },
+    {
+      id: "hb-booking-linda-cabana",
+      amenityId: "hb-amenity-cabana",
+      unitNumber: 4,
+      amenity: "The Cabana — Happy Hour",
+      date: easternDateOffset(4),
+      startTime: "16:00",
+      endTime: "17:30",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+    },
+  ] as const;
+
+  for (const b of personaBookings) {
+    await prisma.booking.upsert({
+      where: { id: b.id },
+      create: {
+        id: b.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        amenityId: b.amenityId,
+        unitNumber: b.unitNumber,
+        memberEmail: b.memberEmail,
+        memberName: b.memberName,
+        amenity: b.amenity,
+        date: b.date,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: "confirmed",
+      },
+      update: {
+        amenityId: b.amenityId,
+        unitNumber: b.unitNumber,
+        memberEmail: b.memberEmail,
+        memberName: b.memberName,
+        amenity: b.amenity,
+        date: b.date,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: "confirmed",
+      },
+    });
+  }
+
+  await prisma.lessonBooking.upsert({
+    where: { id: "hb-lesson-linda-sofia" },
+    create: {
+      id: "hb-lesson-linda-sofia",
+      communityId: HERITAGE_BAY_COMMUNITY_ID,
+      providerId: "hb-pro-sofia",
+      providerName: "Sofia Reyes",
+      proEmail: "sofia.reyes@golfheritagebay.com",
+      offeringName: "Private Tennis Lesson (1 Hour)",
+      sport: "tennis",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      date: easternDateOffset(4),
+      startTime: "09:00",
+      endTime: "10:00",
+      amenityId: "hb-amenity-tennis",
+      status: "confirmed",
+      fee: 70,
+      notes: "Court 2 — volleys and net play",
+    },
+    update: {
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      date: easternDateOffset(4),
+      startTime: "09:00",
+      endTime: "10:00",
+      fee: 70,
+      status: "confirmed",
+    },
+  });
+
+  await prisma.lessonBooking.upsert({
+    where: { id: "hb-lesson-linda-dana" },
+    create: {
+      id: "hb-lesson-linda-dana",
+      communityId: HERITAGE_BAY_COMMUNITY_ID,
+      providerId: "hb-pro-dana",
+      providerName: "Dana Kim",
+      proEmail: "dana.kim@golfheritagebay.com",
+      offeringName: "Private Pickleball Lesson (1 Hour)",
+      sport: "pickleball",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      date: easternDateOffset(6),
+      startTime: "15:00",
+      endTime: "16:00",
+      amenityId: "hb-amenity-pickleball",
+      status: "confirmed",
+      fee: 50,
+      notes: "Court 2 — third-shot drops",
+    },
+    update: {
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      offeringName: "Private Pickleball Lesson (1 Hour)",
+      date: easternDateOffset(6),
+      startTime: "15:00",
+      endTime: "16:00",
+      fee: 50,
+      status: "confirmed",
+    },
+  });
+
+  const personaCharges = [
+    {
+      id: "hb-charge-carlos-dues",
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+      category: "dues",
+      description: "2026 Annual Assessment installment — July (Operating + Reserve + Cable)",
+      amount: 851.33,
+      status: "due",
+      dueDate: easternDateOffset(10),
+    },
+    {
+      id: "hb-charge-carlos-dining",
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+      category: "dining",
+      description: "The Cabana — lunch for 2",
+      amount: 52,
+      status: "due",
+      dueDate: easternDateOffset(3),
+    },
+    {
+      id: "hb-charge-linda-dues",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      category: "dues",
+      description: "2026 Annual Assessment installment — July (Operating + Reserve + Cable)",
+      amount: 851.33,
+      status: "due",
+      dueDate: easternDateOffset(10),
+    },
+    {
+      id: "hb-charge-linda-lesson",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      category: "lessons",
+      description: "Private tennis lesson (1 hour) — Sofia Reyes",
+      amount: 70,
+      status: "due",
+      dueDate: easternDateOffset(4),
+    },
+  ] as const;
+
+  for (const c of personaCharges) {
+    await prisma.memberCharge.upsert({
+      where: { id: c.id },
+      create: {
+        id: c.id,
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        memberEmail: c.memberEmail,
+        memberName: c.memberName,
+        category: c.category,
+        description: c.description,
+        amount: c.amount,
+        status: c.status,
+        dueDate: c.dueDate,
+      },
+      update: {
+        memberEmail: c.memberEmail,
+        memberName: c.memberName,
+        description: c.description,
+        amount: c.amount,
+        status: c.status,
+        dueDate: c.dueDate,
+      },
+    });
+  }
+
+  const personaOrders = [
+    {
+      key: "hb-order-carlos-cabana",
+      memberEmail: SOCIAL_EMAIL,
+      memberName: SOCIAL_NAME,
+      items:
+        "Tuna Poke Bowl, Heritage Blend Burger [demo:hb-order-carlos-cabana]",
+      total: 38,
+      restaurant: "The Cabana",
+      tableLabel: "Patio 6",
+    },
+    {
+      key: "hb-order-linda-grille",
+      memberEmail: TENNIS_EMAIL,
+      memberName: TENNIS_NAME,
+      items:
+        "Classic Caesar, Grilled Salmon [demo:hb-order-linda-grille]",
+      total: 44,
+      restaurant: "The Grille Room",
+      tableLabel: "Table 4",
+    },
+  ] as const;
+
+  for (const order of personaOrders) {
+    const existing = await prisma.diningOrder.findFirst({
+      where: {
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        memberEmail: order.memberEmail,
+        items: { contains: `[demo:${order.key}]` },
+      },
+    });
+    if (existing) continue;
+    await prisma.diningOrder.create({
+      data: {
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        memberEmail: order.memberEmail,
+        memberName: order.memberName,
+        items: order.items,
+        total: order.total,
+        fulfillment: "eat_in",
+        restaurant: order.restaurant,
+        status: "Completed",
+        tableLabel: order.tableLabel,
+      },
+    });
+  }
+
+  for (const fb of [
+    {
+      email: SOCIAL_EMAIL,
+      spent: 38,
+      required: 1000,
+    },
+    {
+      email: TENNIS_EMAIL,
+      spent: 44,
+      required: 1000,
+    },
+  ] as const) {
+    await prisma.memberFbPeriod.upsert({
+      where: {
+        communityId_memberEmail_periodStart: {
+          communityId: HERITAGE_BAY_COMMUNITY_ID,
+          memberEmail: fb.email,
+          periodStart: "2026-01-01",
+        },
+      },
+      create: {
+        communityId: HERITAGE_BAY_COMMUNITY_ID,
+        memberEmail: fb.email,
+        periodStart: "2026-01-01",
+        periodEnd: "2026-12-31",
+        periodKind: "annual",
+        requiredAmount: fb.required,
+        spentAmount: fb.spent,
+        status: "open",
+      },
+      update: {
+        spentAmount: fb.spent,
+        requiredAmount: fb.required,
+        periodEnd: "2026-12-31",
+        periodKind: "annual",
+        status: fb.spent >= fb.required ? "met" : "open",
+      },
+    });
+  }
+
+  const personaFavorites = [
+    {
+      email: SOCIAL_EMAIL,
+      favorites: [
+        { label: "The Cabana", href: "/member/dining" },
+        { label: "The Grille Room", href: "/member/dining" },
+        { label: "Bocce", href: "/member/bookings" },
+        { label: "Club calendar", href: "/member/calendar" },
+        { label: "Pay dues", href: "/member/payments" },
+      ],
+    },
+    {
+      email: TENNIS_EMAIL,
+      favorites: [
+        { label: "Book tennis", href: "/member/bookings" },
+        { label: "Pickleball", href: "/member/bookings" },
+        { label: "The Cabana", href: "/member/dining" },
+        { label: "Fitness", href: "/member/bookings" },
+        { label: "Pay dues", href: "/member/payments" },
+      ],
+    },
+  ] as const;
+
+  for (const persona of personaFavorites) {
+    for (const fav of persona.favorites) {
+      const existing = await prisma.memberFavorite.findFirst({
+        where: {
+          userEmail: persona.email,
+          label: fav.label,
+          href: fav.href,
+        },
+      });
+      if (existing) continue;
+      await prisma.memberFavorite.create({
+        data: {
+          userEmail: persona.email,
+          label: fav.label,
+          href: fav.href,
+        },
+      });
+    }
+  }
+}
+
+/** Mock Messages inbox for Golf / Social / Tennis demo personas. */
 async function seedMessages() {
   const kelly = { email: MEMBER_EMAIL, name: MEMBER_NAME };
+  const carlos = { email: SOCIAL_EMAIL, name: SOCIAL_NAME };
+  const linda = { email: TENNIS_EMAIL, name: TENNIS_NAME };
   const john = { email: "john.damon@golfheritagebay.com", name: "John Damon, PGA" };
   const sofia = { email: "sofia.reyes@golfheritagebay.com", name: "Sofia Reyes" };
   const dana = { email: "dana.kim@golfheritagebay.com", name: "Dana Kim" };
-  const events = { email: "admin@golfheritagebay.com", name: "Events & Activities Desk" };
-  const linda = { email: "linda.chen@golfheritagebay.com", name: "Linda Chen" };
+  const events = { email: PM_EMAIL, name: "Events & Activities Desk" };
+  const stephanie = { email: PM_EMAIL, name: PM_NAME };
+  const doug = { email: BOARD_EMAIL, name: BOARD_NAME };
 
   const threads: Array<{
     id: string;
@@ -2554,15 +3834,147 @@ async function seedMessages() {
         },
       ],
     },
+    {
+      id: "hb-chat-carlos-events",
+      createdBy: carlos.email,
+      participants: [carlos, events],
+      messages: [
+        {
+          author: carlos,
+          body: "Can we reserve a patio table at The Cabana Sunday for four? Visiting family.",
+          hoursAgo: 18,
+        },
+        {
+          author: events,
+          body: "Absolutely — Patio 6 at noon is held for you. The tuna poke bowl has been popular this week.",
+          hoursAgo: 16,
+        },
+        {
+          author: carlos,
+          body: "Perfect, thank you!",
+          hoursAgo: 15,
+        },
+      ],
+    },
+    {
+      id: "hb-chat-carlos-kelly",
+      createdBy: carlos.email,
+      participants: [carlos, kelly],
+      messages: [
+        {
+          author: carlos,
+          body: "Kelly — bocce tonight at 5 if you're free after golf. Loser buys Cabana wings?",
+          hoursAgo: 9,
+        },
+        {
+          author: kelly,
+          body: "Tempting! I've got Aqua Fit in the morning though — rain check for Thursday?",
+          hoursAgo: 8,
+        },
+        {
+          author: carlos,
+          body: "Thursday works. See you on the courts.",
+          hoursAgo: 7,
+        },
+      ],
+    },
+    {
+      id: "hb-chat-linda-sofia",
+      createdBy: linda.email,
+      participants: [linda, sofia],
+      messages: [
+        {
+          author: linda,
+          body: "Sofia — can we focus on volleys in Thursday's lesson? My net game has been shaky in doubles.",
+          hoursAgo: 20,
+        },
+        {
+          author: sofia,
+          body: "Yes — Court 2 at 9. Bring both rackets; we'll do closed-feed drills then live points.",
+          hoursAgo: 18,
+        },
+        {
+          author: linda,
+          body: "See you then!",
+          hoursAgo: 17,
+        },
+      ],
+    },
+    {
+      id: "hb-chat-linda-dana",
+      createdBy: dana.email,
+      participants: [linda, dana],
+      messages: [
+        {
+          author: dana,
+          body: "Linda — open play Saturday still on. Want to hit a few third-shot drops before the mixer?",
+          hoursAgo: 6,
+        },
+        {
+          author: linda,
+          body: "Yes please. I'll be on Court 2 at 3.",
+          hoursAgo: 5,
+        },
+      ],
+    },
+    {
+      id: "hb-chat-kelly-stephanie",
+      createdBy: kelly.email,
+      participants: [kelly, stephanie],
+      messages: [
+        {
+          author: kelly,
+          body: "Stephanie — my gate transponder still fails after 6pm. I submitted a service request yesterday.",
+          hoursAgo: 16,
+        },
+        {
+          author: stephanie,
+          body: "Thanks Kelly — Bayview is on-site Wednesday to reprogram the north reader. I'll leave a temporary guest PIN at Front Desk for you this evening.",
+          hoursAgo: 14,
+        },
+        {
+          author: kelly,
+          body: "Appreciate it — that gets me through the week.",
+          hoursAgo: 13,
+        },
+      ],
+    },
+    {
+      id: "hb-chat-doug-kelly",
+      createdBy: doug.email,
+      participants: [doug, kelly],
+      messages: [
+        {
+          author: doug,
+          body: "Kelly — any member comments you'd like on the July board agenda? We're covering Cabana hours and the pool-deck reserve draw.",
+          hoursAgo: 40,
+        },
+        {
+          author: kelly,
+          body: "Please keep the Cabana dinner survey open through August — a few of us want weeknight service through Labor Day.",
+          hoursAgo: 36,
+        },
+        {
+          author: doug,
+          body: "Noted. I'll make sure Elaine has that for the packet.",
+          hoursAgo: 34,
+        },
+      ],
+    },
   ];
 
-  for (const thread of threads) {
-    const existing = await prisma.chatThread.findUnique({
-      where: { id: thread.id },
-      select: { id: true },
-    });
-    if (existing) continue;
+  const threadIds = threads.map((t) => t.id);
+  await prisma.chatMessage.deleteMany({
+    where: { threadId: { in: threadIds } },
+  });
+  await prisma.chatParticipant.deleteMany({
+    where: { threadId: { in: threadIds } },
+  });
+  await prisma.chatThread.deleteMany({
+    where: { id: { in: threadIds } },
+  });
 
+  for (const thread of threads) {
     const lastHoursAgo = Math.min(...thread.messages.map((m) => m.hoursAgo));
     await prisma.chatThread.create({
       data: {

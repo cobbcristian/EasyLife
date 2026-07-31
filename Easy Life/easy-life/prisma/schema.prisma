@@ -1,0 +1,1305 @@
+// Production: PostgreSQL (Vercel/Neon). Local dev can use Neon free tier or
+// temporarily switch provider back to "sqlite" with DATABASE_URL="file:./dev.db".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  role        String
+  name        String
+  avatarUrl   String?
+  communityId String?
+  /// active | frozen — frozen accounts cannot log in
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+}
+
+model Community {
+  id             String            @id
+  name           String
+  location       String
+  residentCount  Int               @default(0)
+  serviceCount   Int               @default(0)
+  activityCount  Int               @default(0)
+  coverColor     String            @default("from-brand-400 to-brand-600")
+  inviteCode     String?           @unique
+  logoUrl        String?
+  primaryColor   String?
+  appDisplayName String?
+  customDomain   String?
+  stagingMode    Boolean           @default(false)
+  posProvider    String?
+  posLastSyncAt  DateTime?
+  /// Demo / ops weather state: { rainAdvisories:[{date,active,message}], rainUntil? }
+  weatherJson    String            @default("{}")
+  createdAt      DateTime          @default(now())
+  members        CommunityMember[]
+  providers      Provider[]
+}
+
+model CommunityMember {
+  id           String    @id @default(cuid())
+  community    Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId  String
+  name         String
+  role         String
+  isManagement Boolean   @default(false)
+}
+
+model Provider {
+  id                     String    @id @default(cuid())
+  community              Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId            String
+  name                   String
+  category               String
+  type                   String
+  rating                 Float?
+  description            String    @default("")
+  phone                  String?
+  email                  String?
+  imageUrl               String?
+  /// club | local_pro — local_pro = gardening, painting, pool, etc.
+  listingKind            String    @default("club")
+  escrowEnabled          Boolean   @default(false)
+  calendarSharingEnabled Boolean   @default(false)
+  calendarShareFeeCents  Int       @default(999)
+  escrowFeeCents         Int       @default(499)
+  /// active | frozen — frozen providers stay listed but cannot operate / linked user cannot log in
+  status                 String    @default("active")
+  createdAt              DateTime  @default(now())
+}
+
+model Booking {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  amenityId   String?
+  unitNumber  Int?
+  memberEmail String
+  memberName  String
+  amenity     String
+  date        String
+  startTime   String
+  endTime     String
+  status             String   @default("pending")
+  /// Max invitees who may accept (first N wins). Null = unlimited. Host is not counted.
+  inviteCapacity     Int?
+  addonsJson         String   @default("[]")
+  tournamentId       String?
+  tournamentMatchId  String?
+  /// amenity | lesson_hold
+  bookingKind        String   @default("amenity")
+  providerId         String?
+  lessonBookingId    String?
+  createdAt          DateTime @default(now())
+  invites            BookingInvite[]
+}
+
+model BookingInvite {
+  id          String   @id @default(cuid())
+  bookingId   String
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  memberEmail String
+  memberName  String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  @@unique([bookingId, memberEmail])
+  @@index([memberEmail])
+}
+
+model ServiceRequest {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  memberEmail String
+  memberName  String
+  unit        String
+  title       String
+  category    String
+  description String
+  status      String   @default("open")
+  createdAt   DateTime @default(now())
+}
+
+model MaintenanceTask {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  area        String
+  assignedTo  String
+  status      String   @default("open")
+  due         String
+  createdAt   DateTime @default(now())
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  body        String
+  author      String
+  priority    String   @default("normal")
+  createdAt   DateTime @default(now())
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  vendor      String
+  description String
+  amount      Float
+  status      String   @default("pending")
+  submittedBy String
+  createdAt   DateTime @default(now())
+}
+
+model GalleryImage {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  category    String
+  url         String
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+}
+
+model Listing {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  description String   @default("")
+  price       Float
+  category    String
+  seller      String
+  unit        String
+  imageUrl    String?
+  videoUrl    String?
+  createdAt   DateTime @default(now())
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  excerpt     String
+  body        String   @default("")
+  author      String
+  category    String
+  createdAt   DateTime @default(now())
+}
+
+model GroupMessage {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  groupId     String
+  author      String
+  body        String
+  createdAt   DateTime @default(now())
+}
+
+model Rental {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  memberEmail String
+  memberName  String
+  item        String
+  /// Catalog id (e.g. il-golf-clubs) — used for inventory capacity checks.
+  itemId      String?
+  /// Shaft flex when renting golf clubs: Ladies | Senior | Regular | Stiff
+  flex        String?
+  /// Inclusive rental window as YYYY-MM-DD (defaults derived from createdAt + days).
+  startDate   String?
+  endDate     String?
+  days        Int      @default(1)
+  total       Float
+  status      String   @default("reserved")
+  createdAt   DateTime @default(now())
+
+  @@index([communityId, itemId, flex, status])
+}
+
+model DiningOrder {
+  id            String   @id @default(cuid())
+  communityId   String   @default("golden-ocala")
+  memberEmail   String
+  memberName    String
+  items         String
+  total         Float
+  /// eat_in | takeout | delivery (legacy: pickup → treat as takeout)
+  fulfillment   String   @default("takeout")
+  address       String?
+  restaurant    String?
+  /// YYYY-MM-DD arrival / pickup date
+  arriveDate    String?
+  /// HH:MM arrival / pickup time
+  arriveTime    String?
+  partySize     Int?
+  reservationId String?
+  /// Assigned table for eat-in (e.g. "Table 4")
+  tableLabel    String?
+  /// HH:MM when kitchen should have food ready
+  readyBy       String?
+  status        String   @default("Preparing")
+  createdAt     DateTime @default(now())
+}
+
+model ApparelProduct {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  vendorName  String
+  name        String
+  description String   @default("")
+  price       Float
+  sizesJson   String   @default("[\"S\",\"M\",\"L\",\"XL\",\"XXL\"]")
+  category    String   @default("Polo")
+  imageUrl    String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model ApparelOrder {
+  id             String   @id @default(cuid())
+  communityId    String   @default("golden-ocala")
+  vendorName     String
+  orderType      String   @default("club")
+  orderedByEmail String
+  orderedByName  String
+  itemsJson      String
+  total          Float
+  notes          String?
+  status         String   @default("submitted")
+  createdAt      DateTime @default(now())
+}
+
+model Survey {
+  id          String         @id @default(cuid())
+  communityId String         @default("golden-ocala")
+  title       String
+  description String
+  status      String         @default("open")
+  closes      String?
+  createdAt   DateTime       @default(now())
+  options     SurveyOption[]
+  votes       SurveyVote[]
+}
+
+model SurveyOption {
+  id       String @id @default(cuid())
+  survey   Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  surveyId String
+  label    String
+  votes    Int    @default(0)
+}
+
+model SurveyVote {
+  id         String   @id @default(cuid())
+  survey     Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  surveyId   String
+  voterEmail String
+  optionId   String
+  createdAt  DateTime @default(now())
+
+  @@unique([surveyId, voterEmail])
+}
+
+model AccessLog {
+  id          String   @id @default(cuid())
+  communityId String?
+  userName    String
+  action      String
+  detail      String
+  createdAt   DateTime @default(now())
+}
+
+model Vehicle {
+  id     String @id @default(cuid())
+  userId String
+  make   String
+  model  String
+  color  String
+  plate  String
+  year   Int?
+  /// Declared registered owner name (should match member / ID).
+  ownerName String @default("")
+  registrationUrl String?
+  insuranceUrl    String?
+  /// Passport or driver's license image/PDF.
+  govIdUrl        String?
+  /// pending | verified | needs_review | rejected
+  verificationStatus String @default("pending")
+  /// JSON details from verifier (matches, scores, notes).
+  verificationJson   String @default("{}")
+  verifiedAt         DateTime?
+  createdAt          DateTime @default(now())
+}
+
+model Pet {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  type   String
+  breed  String
+}
+
+model Amenity {
+  id          String  @id @default(cuid())
+  communityId String  @default("golden-ocala")
+  name        String
+  description String
+  fee         Float   @default(0)
+  /// Human-readable hours summary (legacy / display fallback).
+  schedule    String
+  /// Structured weekly hours JSON: { mon:{open,close}|null, ... }.
+  hoursJson   String  @default("")
+  kind        String  @default("facility")
+  unitCount   Int     @default(1)
+  holes       Int?
+  surface     String?
+  /// club = owned by the club (courts, clubhouse). external = partner inventory (jet skis, boats).
+  ownership          String  @default("club")
+  partnerName        String?
+  playable           Boolean @default(true)
+  unplayableReason   String?
+  /// Optional YYYY-MM-DD when playability should resume.
+  unplayableUntil    String?
+}
+
+model MenuItem {
+  id            String  @id @default(cuid())
+  providerEmail String
+  name          String
+  price         Float
+  category      String
+  available     Boolean @default(true)
+  posExternalId String?
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userEmail String
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@unique([userEmail, endpoint])
+}
+
+model ExpoPushToken {
+  id        String   @id @default(cuid())
+  userEmail String
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([userEmail])
+}
+
+model Tournament {
+  id             String             @id @default(cuid())
+  communityId    String             @default("golden-ocala")
+  title          String
+  sport          String
+  courtSurface   String?
+  date           String
+  startTime      String?
+  format         String             @default("Single elimination")
+  scoringFormat  String             @default("Standard")
+  eventType      String             @default("Singles")
+  entryFee       Float              @default(25)
+  participants   Int                @default(8)
+  seedsJson      String?
+  winnersJson    String             @default("{}")
+  scheduleJson   String             @default("{}")
+  scoresJson     String             @default("{}")
+  tiebreakersJson String            @default("[\"head_to_head\",\"set_percentage\",\"game_percentage\"]")
+  noStartDefault    String           @default("manual")
+  createdAt      DateTime           @default(now())
+  players        TournamentPlayer[]
+}
+
+model TournamentPlayer {
+  id           String     @id @default(cuid())
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournamentId String
+  name         String
+  memberEmail  String?
+  ustaRating   String?
+  utrRating    Float?
+  handicap     Float?
+  partnerName  String?
+  /// Doubles partner contact for court SMS / push (optional).
+  partnerEmail String?
+  paid         Boolean    @default(false)
+  chargeId     String?
+  createdAt    DateTime   @default(now())
+}
+
+model MemberCharge {
+  id            String   @id @default(cuid())
+  communityId   String   @default("golden-ocala")
+  memberEmail   String?
+  memberName    String
+  category      String   @default("general")
+  description   String
+  amount        Float
+  status        String   @default("due")
+  dueDate       String?
+  referenceType String?
+  referenceId   String?
+  /** Public pay-by-link token for non-member guest invoices (USTA court fees, etc.). */
+  payToken      String?
+  createdAt     DateTime @default(now())
+
+  @@index([payToken])
+}
+
+model ContentTemplate {
+  id      String @id @default(cuid())
+  name    String
+  channel String
+  subject String
+}
+
+model RewardAccount {
+  userEmail String @id
+  points    Int    @default(1240)
+  tier      String @default("Gold")
+}
+
+model RewardTransaction {
+  id        String   @id @default(cuid())
+  userEmail String
+  label     String
+  points    Int
+  createdAt DateTime @default(now())
+}
+
+model Checkin {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  name        String
+  type        String
+  host        String
+  unit        String   @default("—")
+  status      String   @default("checked_in")
+  photoUrl    String?
+  createdAt   DateTime @default(now())
+}
+
+model RegistrationChecklist {
+  id          String  @id @default(cuid())
+  communityId String  @default("golden-ocala")
+  resident    String
+  unit        String
+  vehicle     Boolean @default(false)
+  pet         Boolean @default(false)
+  fingerprint Boolean @default(false)
+}
+
+model Promotion {
+  id            String  @id @default(cuid())
+  providerEmail String
+  communityId   String?
+  title         String
+  type          String
+  detail        String
+  status        String  @default("active")
+  redemptions   Int     @default(0)
+  /// Featured home card image (type = featured only).
+  imageUrl      String?
+  href          String?
+  subtitle      String?
+  rating        String?
+  priceLabel    String?
+  /// Must be > 0 to appear in member Featured (paid placement).
+  paidCents     Int     @default(0)
+}
+
+model RolePermission {
+  permission String @id
+  rolesJson  String
+}
+
+model HelpTicket {
+  id          String   @id @default(cuid())
+  communityId String?
+  userName    String
+  email       String
+  subject     String
+  priority    String   @default("Medium")
+  message     String
+  status      String   @default("open")
+  createdAt   DateTime @default(now())
+}
+
+model ContactMessage {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  senderName  String
+  senderEmail String
+  recipient   String
+  subject     String
+  message     String
+  status      String   @default("delivered")
+  createdAt   DateTime @default(now())
+}
+
+model PrivateMessage {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  channel     String
+  author      String
+  body        String
+  createdAt   DateTime @default(now())
+}
+
+model CommunityEvent {
+  id             String      @id @default(cuid())
+  communityId    String      @default("golden-ocala")
+  title          String
+  description    String      @default("")
+  date           String
+  time           String?
+  endTime        String?
+  location       String      @default("")
+  category       String      @default("community")
+  isPromoted     Boolean     @default(false)
+  capacity       Int?
+  requirePayment Boolean     @default(false)
+  feeCents       Int         @default(0)
+  createdBy      String
+  createdAt      DateTime    @default(now())
+  rsvps          EventRsvp[]
+}
+
+/// Member-initiated refund request for a paid booking/activity (Project Management #5).
+model RefundRequest {
+  id              String   @id @default(cuid())
+  communityId     String   @default("golden-ocala")
+  bookingId       String
+  bookingType     String   @default("activity")
+  title           String
+  memberEmail     String
+  memberName      String
+  providerEmail   String?
+  amountCents     Int
+  reason          String   @default("")
+  /// pending | approved | denied | refunded
+  status          String   @default("pending")
+  paymentLabel    String   @default("VISA ··· 7281")
+  dateLabel       String   @default("")
+  timeLabel       String   @default("")
+  locationLine1   String   @default("")
+  locationLine2   String   @default("")
+  rateLabel       String   @default("")
+  createdAt       DateTime @default(now())
+  resolvedAt      DateTime?
+
+  @@index([memberEmail])
+  @@index([providerEmail])
+  @@index([status])
+}
+
+model EventRsvp {
+  id          String         @id @default(cuid())
+  event       CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String
+  memberEmail String
+  memberName  String
+  createdAt   DateTime       @default(now())
+
+  @@unique([eventId, memberEmail])
+}
+
+model EventInvite {
+  id          String   @id @default(cuid())
+  eventId     String
+  memberEmail String
+  memberName  String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  @@unique([eventId, memberEmail])
+  @@index([memberEmail])
+}
+
+model GroupPost {
+  id          String             @id @default(cuid())
+  groupId     String
+  communityId String             @default("golden-ocala")
+  authorEmail String
+  authorName  String
+  body        String
+  imageUrl    String?
+  eventId     String?
+  createdAt   DateTime           @default(now())
+  likes       GroupPostLike[]
+  comments    GroupPostComment[]
+
+  @@index([groupId])
+}
+
+model GroupPostLike {
+  id          String    @id @default(cuid())
+  post        GroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId      String
+  memberEmail String
+  createdAt   DateTime  @default(now())
+
+  @@unique([postId, memberEmail])
+}
+
+model GroupPostComment {
+  id          String    @id @default(cuid())
+  post        GroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId      String
+  authorEmail String
+  authorName  String
+  body        String
+  createdAt   DateTime  @default(now())
+
+  @@index([postId])
+}
+
+model ProviderOffering {
+  id            String   @id @default(cuid())
+  providerEmail String
+  name          String
+  description   String   @default("")
+  /// activity | service
+  kind          String   @default("activity")
+  priceLabel    String   @default("Free")
+  priceCents    Int      @default(0)
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([providerEmail, kind])
+}
+
+model MemberInboxItem {
+  id        String   @id @default(cuid())
+  userEmail String
+  title     String
+  body      String
+  href      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userEmail, createdAt])
+}
+
+model CommunityDocument {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  category    String
+  url         String   @default("#")
+  sizeLabel   String   @default("PDF")
+  audience    String   @default("member")
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+}
+
+model RestaurantReservation {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  memberEmail String
+  memberName  String
+  restaurant  String
+  date        String
+  time        String
+  partySize   Int      @default(2)
+  /// Linked dining order when ordering ahead for eat-in
+  orderId     String?
+  tableLabel  String?
+  notes       String?
+  status      String   @default("confirmed")
+  createdAt   DateTime @default(now())
+}
+
+model Bid {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  project     String
+  vendor      String
+  amount      Float
+  status      String   @default("received")
+  createdAt   DateTime @default(now())
+}
+
+model BudgetLine {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  category    String
+  budgeted    Float
+  spent       Float
+  year        Int      @default(2026)
+}
+
+model CalendarAd {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  linkUrl     String?
+  sponsor     String
+  startsOn    String
+  endsOn      String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Newsletter {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  title       String
+  summary     String
+  body        String   @default("")
+  createdAt   DateTime @default(now())
+}
+
+model RealEstateListing {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  memberEmail String?
+  title       String
+  description String   @default("")
+  type        String
+  price       Float
+  beds        Int      @default(2)
+  baths       Float    @default(2)
+  sqft        Int      @default(1500)
+  unit        String
+  color       String   @default("from-brand-400 to-brand-600")
+  imagesJson  String   @default("[]")
+  createdAt   DateTime @default(now())
+}
+
+model MemberProperty {
+  id        String @id @default(cuid())
+  userEmail String
+  address   String
+  type      String @default("Primary residence")
+  owner     Boolean @default(true)
+}
+
+model MemberFavorite {
+  id        String @id @default(cuid())
+  userEmail String
+  label     String
+  href      String
+}
+
+model CommunityGroup {
+  id          String @id @default(cuid())
+  communityId String @default("golden-ocala")
+  name        String
+  description String @default("")
+  color       String @default("from-brand-400 to-brand-600")
+  members     Int    @default(0)
+}
+
+model GroupMembership {
+  id        String @id @default(cuid())
+  groupId   String
+  userEmail String
+
+  @@unique([groupId, userEmail])
+}
+
+model BlogComment {
+  id        String   @id @default(cuid())
+  postId    String
+  author    String
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model MemberProfileExt {
+  userEmail          String  @id
+  phone              String?
+  unit               String?
+  joined             String?
+  directoryVisible   Boolean @default(true)
+  commsEmail         Boolean @default(true)
+  commsSms           Boolean @default(true)
+  commsPush          Boolean @default(false)
+  householdRole      String  @default("owner")
+  paymentPreference  String  @default("always_prompt")
+  stripeCustomerId   String?
+  /// golf | national | tennis | social | social_tennis | social_gym
+  membershipTier     String  @default("social")
+  /// resident = lives on club property (may pay HOA). non_resident = outside (never HOA).
+  residencyStatus    String  @default("non_resident")
+  /// Explicit HOA flag; residents default true, non-residents always false.
+  paysHoa            Boolean @default(false)
+  /// Short member number for kiosk / grab-and-go entry.
+  memberNumber       String?
+  /// Club RFID fob / wristband UID for Grab & Go door unlock.
+  rfidUid            String? @unique
+  /// YYYY-MM-DD — used for junior / dependent age-out.
+  dateOfBirth        String?
+  /// Parent/sponsor account email when this profile is a dependent.
+  sponsorEmail       String?
+  /// Household mailing/property address for same-address dependent rules.
+  householdAddress   String?
+  /// active | warned | must_convert | terminated (for dependents)
+  dependentStatus    String  @default("active")
+  dependentWarnedAt  DateTime?
+  /// YYYY-MM-DD when dependent privileges end unless they join independently.
+  dependentDueDate   String?
+  /// active | resigned | deactivated — resigned may rejoin after wait; deactivated = not renewed.
+  membershipStatus   String    @default("active")
+  resignedAt         DateTime?
+  /// YYYY-MM-DD when the former member may reapply (null if policy off / still active).
+  rejoinEligibleOn   String?
+  /// YYYY-MM-DD — membership year end / renewal due. Past + not renewed → deactivated.
+  membershipExpiresOn String?
+}
+
+model StoredPaymentMethod {
+  id                    String   @id @default(cuid())
+  userEmail             String
+  stripePaymentMethodId String?
+  label                 String
+  brand                 String
+  last4                 String
+  expMonth              Int
+  expYear               Int
+  isDefault             Boolean  @default(false)
+  createdAt             DateTime @default(now())
+
+  @@index([userEmail])
+}
+
+model ScheduledNotification {
+  id            String   @id @default(cuid())
+  communityId   String?
+  userEmail     String
+  userName      String
+  channel       String
+  subject       String
+  body          String
+  sendAt        DateTime
+  sent          Boolean  @default(false)
+  referenceType String?
+  referenceId   String?
+  createdAt     DateTime @default(now())
+}
+
+model ProviderInquiry {
+  id            String   @id @default(cuid())
+  providerEmail String
+  fromName      String
+  fromEmail     String
+  subject       String
+  body          String
+  status        String   @default("unread")
+  createdAt     DateTime @default(now())
+}
+
+/// Member-to-member / group chat (GroupMe-style), separate from interest Groups.
+model ChatThread {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  /// dm | group
+  kind        String   @default("dm")
+  title       String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ChatParticipant {
+  id        String   @id @default(cuid())
+  threadId  String
+  userEmail String
+  userName  String
+  joinedAt  DateTime @default(now())
+
+  @@unique([threadId, userEmail])
+  @@index([userEmail])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  threadId   String
+  authorEmail String
+  authorName  String
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+model ProviderReview {
+  id           String   @id @default(cuid())
+  providerId   String
+  communityId  String   @default("golden-ocala")
+  memberEmail  String
+  memberName   String
+  /// 1–5 stars
+  rating       Int
+  comment      String   @default("")
+  createdAt    DateTime @default(now())
+
+  @@unique([providerId, memberEmail])
+  @@index([providerId])
+}
+
+/// Paid shared calendar between a member and a local pro.
+model SharedCalendar {
+  id              String   @id @default(cuid())
+  communityId     String   @default("golden-ocala")
+  providerId      String
+  memberEmail     String
+  memberName      String
+  providerName    String
+  status          String   @default("pending_payment")
+  feeCents        Int
+  chargeId        String?
+  stripeSessionId String?
+  createdAt       DateTime @default(now())
+
+  @@unique([providerId, memberEmail])
+  @@index([memberEmail])
+}
+
+model SharedCalendarEvent {
+  id         String   @id @default(cuid())
+  calendarId String
+  title      String
+  note       String   @default("")
+  startsAt   String
+  endsAt     String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@index([calendarId])
+}
+
+/// Provider SaaS subscription (Stripe Billing) — Monetization Phase 1.
+model ProviderSubscription {
+  id                   String    @id @default(cuid())
+  userEmail            String    @unique
+  businessName         String    @default("")
+  planId               String    @default("starter")
+  /// pending | active | past_due | canceled | incomplete
+  status               String    @default("pending")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  updatedAt            DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
+
+  @@index([status])
+}
+
+/// Job payment held until member releases or disputes.
+model EscrowJob {
+  id              String   @id @default(cuid())
+  communityId     String   @default("golden-ocala")
+  providerId      String
+  providerName    String
+  memberEmail     String
+  memberName      String
+  title           String
+  description     String   @default("")
+  amountCents     Int
+  platformFeeCents Int     @default(0)
+  /// pending_payment | held | released | refunded | disputed
+  status          String   @default("pending_payment")
+  chargeId        String?
+  stripeSessionId String?
+  heldAt          DateTime?
+  releasedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([memberEmail])
+  @@index([providerId])
+}
+
+/// Club membership level (Golf, National, Tennis, Social, etc.).
+model MembershipTierConfig {
+  id               String @id @default(cuid())
+  communityId      String
+  slug             String
+  name             String
+  /// JSON amenity kinds this tier may book: court, golf_course, driving_range, gym, facility, dining
+  accessKindsJson  String @default("[]")
+  fbMinimumAmount  Float  @default(0)
+  /// monthly | quarterly | semi_annual | annual
+  fbMinimumPeriod  String @default("monthly")
+
+  @@unique([communityId, slug])
+  @@index([communityId])
+}
+
+/// Private lesson with a club pro — auto-creates a linked amenity Booking hold.
+model LessonBooking {
+  id               String   @id @default(cuid())
+  communityId      String   @default("golden-ocala")
+  providerId       String
+  providerName     String
+  proEmail         String?
+  offeringName     String   @default("Private Lesson")
+  /// tennis | golf
+  sport            String
+  memberEmail      String
+  memberName       String
+  date             String
+  startTime        String
+  endTime          String
+  amenityId        String?
+  amenityBookingId String?
+  status           String   @default("confirmed")
+  fee              Float    @default(0)
+  chargeId         String?
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  @@index([memberEmail])
+  @@index([providerId, date])
+  @@index([communityId, date])
+}
+
+/// Food & beverage minimum progress for a billing period.
+model MemberFbPeriod {
+  id              String   @id @default(cuid())
+  communityId     String   @default("golden-ocala")
+  memberEmail     String
+  periodStart     String
+  periodEnd       String
+  /// monthly | quarterly | semi_annual | annual
+  periodKind      String   @default("monthly")
+  requiredAmount  Float
+  spentAmount     Float    @default(0)
+  /// open | met | shortfall_charged
+  status          String   @default("open")
+  createdAt       DateTime @default(now())
+
+  @@unique([communityId, memberEmail, periodStart])
+  @@index([memberEmail])
+}
+
+/// Club employees / department contacts (not resident directory).
+model ClubStaff {
+  id           String   @id @default(cuid())
+  communityId  String   @default("golden-ocala")
+  name         String
+  title        String
+  department   String
+  email        String?
+  phone        String?
+  extension    String?
+  /// tennis_pro | golf_pro | spa | dining | front_desk | management | other
+  category     String   @default("other")
+  sortOrder    Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([communityId, department])
+}
+
+/// Smart grab-and-go fridge / concession (Amazon Go–style).
+model GrabGoMachine {
+  id            String   @id @default(cuid())
+  communityId   String   @default("golden-ocala")
+  code          String   @unique
+  name          String
+  location      String
+  /// online | offline | maintenance
+  status        String   @default("online")
+  /// Camera / vision edge device id (integration placeholder).
+  cameraDeviceId String?
+  createdAt     DateTime @default(now())
+  products      GrabGoProduct[]
+  sessions      GrabGoSession[]
+
+  @@index([communityId])
+}
+
+model GrabGoProduct {
+  id          String @id @default(cuid())
+  machineId   String
+  machine     GrabGoMachine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  sku         String
+  name        String
+  price       Float
+  category    String @default("snacks")
+  stock       Int    @default(20)
+  /// Shelf / slot the vision system maps to.
+  shelfSlot   String @default("A1")
+  imageHint   String?
+  active      Boolean @default(true)
+
+  @@unique([machineId, sku])
+  @@index([machineId])
+}
+
+/// A visit from unlock → walk-out settle.
+model GrabGoSession {
+  id            String   @id @default(cuid())
+  machineId     String
+  machine       GrabGoMachine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  communityId   String   @default("golden-ocala")
+  memberEmail   String
+  memberName    String
+  memberNumber  String?
+  /// member_id | app_qr | card_tap | app_remote | rfid
+  unlockMethod  String
+  /// open | settling | closed | void
+  status        String   @default("open")
+  unlockedAt    DateTime @default(now())
+  closedAt      DateTime?
+  total         Float    @default(0)
+  chargeId      String?
+  /// JSON line items [{sku,name,qty,price,confidence}]
+  itemsJson     String   @default("[]")
+  events        GrabGoEvent[]
+
+  @@index([memberEmail, unlockedAt])
+  @@index([machineId, status])
+}
+
+/// Camera / vision events attributed to a session.
+model GrabGoEvent {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     GrabGoSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// unlock | grab | return | walk_out | vision_match
+  kind        String
+  sku         String?
+  productName String?
+  quantity    Int      @default(1)
+  /// 0–1 vision confidence
+  confidence  Float    @default(1)
+  cameraNote  String?
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+/// Club policy for when juniors / dependents must leave a parent's membership.
+model DependentMembershipPolicy {
+  id                   String  @id @default(cuid())
+  communityId          String  @unique
+  /// Age when a dependent must get their own membership (e.g. 25).
+  ageOutYears          Int     @default(25)
+  /// Days before age-out / address breach to start warnings.
+  warnDaysBefore       Int     @default(90)
+  /// Also require dependents to live at the sponsor address.
+  requireSameAddress   Boolean @default(true)
+  /// terminate | force_convert
+  actionOnBreach       String  @default("force_convert")
+  active               Boolean @default(true)
+  notes                String  @default("")
+}
+
+/// Warning / termination notices for dependent age-out or address changes.
+model DependentMembershipNotice {
+  id            String   @id @default(cuid())
+  communityId   String   @default("golden-ocala")
+  dependentEmail String
+  sponsorEmail  String
+  /// age | address | both
+  reason        String
+  /// warning | final_warning | must_convert | terminated
+  level         String
+  message       String
+  dueDate       String?
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([dependentEmail, createdAt])
+  @@index([sponsorEmail, createdAt])
+}
+
+/// Club can require a waiting period before a resigned member may rejoin.
+model MembershipRejoinPolicy {
+  id                      String  @id @default(cuid())
+  communityId             String  @unique
+  /// Club toggle — some clubs enforce this, others do not.
+  enabled                 Boolean @default(true)
+  /// Days after resignation before rejoin is allowed (default 365 = one year).
+  waitDays                Int     @default(365)
+  /// Days before eligibility to remind the former member.
+  memberRemindDaysBefore  Int     @default(14)
+  /// Days before eligibility to warn membership staff of remaining wait / upcoming eligibility.
+  staffRemindDaysBefore   Int     @default(30)
+  notes                   String  @default("Members who resign may not rejoin for one year.")
+}
+
+/// History of resignations and rejoin attempts.
+model MembershipResignation {
+  id               String    @id @default(cuid())
+  communityId      String    @default("golden-ocala")
+  userEmail        String
+  resignedAt       DateTime  @default(now())
+  rejoinEligibleOn String?
+  reason           String    @default("")
+  /// open | reinstated | expired_wait
+  status           String    @default("open")
+  reinstatedAt     DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([communityId, userEmail, resignedAt])
+  @@index([status, rejoinEligibleOn])
+}
+
+/// Staff / member reminders about rejoin waiting periods.
+model MembershipRejoinNotice {
+  id            String   @id @default(cuid())
+  communityId   String   @default("golden-ocala")
+  userEmail     String
+  /// staff | member
+  audience      String
+  /// waiting | eligible_soon | eligible | blocked_attempt
+  level         String
+  message       String
+  daysRemaining Int?
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([communityId, audience, createdAt])
+  @@index([userEmail, createdAt])
+}
+
+/// Cached AI insight scores per member (recomputed on demand).
+model AiInsightSnapshot {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  userEmail   String
+  /// JSON blob of InsightBundle
+  payloadJson String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([communityId, userEmail])
+  @@index([userEmail])
+}
+
+/// Short club-assistant chat history.
+model AiChatMessage {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  userEmail   String
+  /// user | assistant
+  role        String
+  content     String
+  /// JSON array of action cards (assistant turns)
+  actionsJson String   @default("[]")
+  createdAt   DateTime @default(now())
+
+  @@index([userEmail, createdAt])
+}
+

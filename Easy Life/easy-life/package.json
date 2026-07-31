@@ -1,0 +1,53 @@
+{
+  "name": "easy-life",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "vercel-build": "prisma generate && node scripts/vercel-build.mjs",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "demo:health": "node scripts/demo-health.mjs",
+    "azure:build": "node scripts/azure-build.mjs",
+    "seed:iron-lake": "npx --yes tsx scripts/seed-iron-lake.ts",
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:migrate-amenities": "node scripts/migrate-amenity-capacity.mjs",
+    "icons": "node scripts/generate-pwa-icons.mjs"
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.33.0",
+    "@prisma/client": "^6.19.3",
+    "@sentry/nextjs": "^10.60.0",
+    "@stripe/stripe-js": "^9.8.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "expo-server-sdk": "^6.1.0",
+    "jose": "^6.2.3",
+    "lucide-react": "^1.21.0",
+    "next": "16.2.9",
+    "prisma": "^6.19.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "stripe": "^22.2.3",
+    "web-push": "^3.6.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "playwright": "^1.61.1",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Download } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
@@ -21,7 +22,30 @@ const categoryLabel = {
   policy: "Policy",
   membership: "Membership",
   dining: "Dining",
+  amenities: "Amenities",
+  golf: "Golf",
+  real_estate: "Real estate",
 } as const;
+
+const SAMPLE_DOC_URL = "/brand/docs/sample-document.pdf";
+const W3C_DUMMY_PDF =
+  "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+
+function resolveDocumentUrl(url: string): string {
+  if (!url || url === W3C_DUMMY_PDF || url.includes("dummy.pdf")) {
+    return SAMPLE_DOC_URL;
+  }
+  return url;
+}
+
+function downloadFileName(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
+  return `${slug || "club-document"}.pdf`;
+}
 
 export function DocumentsClient({ documents }: { documents: DocumentDTO[] }) {
   const { t } = useI18n();
@@ -61,10 +85,25 @@ export function DocumentsClient({ documents }: { documents: DocumentDTO[] }) {
 
         <ul className="divide-y divide-[#eceff3] px-4 py-2 md:mt-5 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
           {filtered.length === 0 ? (
-            <li className="py-8 text-center text-sm text-grey">
-              {query
-                ? t("No documents match your search.")
-                : t("No documents available.")}
+            <li className="rounded-xl bg-[#f7f8fa] px-4 py-8 text-center">
+              <p className="text-sm font-semibold text-ink">
+                {query
+                  ? t("No documents match your search.")
+                  : t("No documents available.")}
+              </p>
+              {!query ? (
+                <>
+                  <p className="mt-1 text-sm text-grey">
+                    {t("Club rules and policies will appear here when posted.")}
+                  </p>
+                  <Link
+                    href="/member/contact"
+                    className="mt-3 inline-flex text-sm font-semibold text-[var(--mvp-blue)]"
+                  >
+                    {t("Contact front desk")} →
+                  </Link>
+                </>
+              ) : null}
             </li>
           ) : (
             filtered.map((doc) => (
@@ -80,8 +119,8 @@ export function DocumentsClient({ documents }: { documents: DocumentDTO[] }) {
                   </p>
                 </div>
                 <a
-                  href={doc.url}
-                  download
+                  href={resolveDocumentUrl(doc.url)}
+                  download={downloadFileName(doc.title)}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#f2f4f7] px-3 text-[12px] font-semibold text-ink"
                 >
                   <Download className="h-3.5 w-3.5" />

@@ -24,7 +24,7 @@ import { DEFAULT_NO_START_POLICY } from "@/lib/tournament-no-start";
 import type { TiebreakerCriterion } from "@/lib/tournament-tiebreakers";
 import type { NoStartDefault } from "@/lib/tournament-no-start";
 import { parseScoresJson, type TournamentScoresData } from "@/lib/tournament-scores";
-import { brandAssets } from "@/lib/brand-assets";
+import { brandAssets, genericClubFeaturedTiles, heritageBayFeaturedTiles, homeFeaturedTiles, rewriteTenantApparelImageUrl, spanishWellsFeaturedTiles } from "@/lib/brand-assets";
 import { isDemoSeedAllowed } from "@/lib/server/demo-mode";
 import {
   assertCanBookAmenity,
@@ -39,7 +39,32 @@ import {
 } from "@/lib/server/dependent-membership";
 import { ensureDemoRejoinCase } from "@/lib/server/membership-rejoin";
 import { ensureHeritageBayDemoSeeded } from "@/lib/server/heritage-bay-seed";
+import { ensureHuntersRidgeDemoSeeded } from "@/lib/server/hunters-ridge-seed";
+import { ensureBonitaBayDemoSeeded } from "@/lib/server/bonita-bay-seed";
+import { ensureShadowWoodDemoSeeded } from "@/lib/server/shadow-wood-seed";
+import { ensureHeronCreekDemoSeeded } from "@/lib/server/heron-creek-seed";
+import { ensureDebaryDemoSeeded } from "@/lib/server/debary-seed";
+import { ensureJacarandaDemoSeeded } from "@/lib/server/jacaranda-seed";
+import { ensureTheDunesDemoSeeded } from "@/lib/server/the-dunes-seed";
+import { ensureTheNestDemoSeeded } from "@/lib/server/the-nest-seed";
+import { ensureMartinDownsDemoSeeded } from "@/lib/server/martin-downs-seed";
+import { ensureSeagateDemoSeeded } from "@/lib/server/seagate-seed";
+import { ensureCopperleafDemoSeeded } from "@/lib/server/copperleaf-seed";
+import { ensureClubRenaissanceDemoSeeded } from "@/lib/server/club-renaissance-seed";
+import { ensureFallsClubDemoSeeded } from "@/lib/server/falls-club-seed";
+import { ensureEsteroDemoSeeded } from "@/lib/server/estero-seed";
+import { ensureWildcatRunDemoSeeded } from "@/lib/server/wildcat-run-seed";
+import { ensureHighlandWoodsDemoSeeded } from "@/lib/server/highland-woods-seed";
+import { ensureBonitaNationalDemoSeeded } from "@/lib/server/bonita-national-seed";
+import { ensureCarrollwoodDemoSeeded } from "@/lib/server/carrollwood-seed";
+import { ensureWindsorDemoSeeded } from "@/lib/server/windsor-seed";
+import { ensureWorthingtonDemoSeeded } from "@/lib/server/worthington-seed";
+import { ensureSpanishWellsDemoSeeded } from "@/lib/server/spanish-wells-seed";
+import { ensureHarborPointeDemoSeeded } from "@/lib/server/harbor-pointe-seed";
+import { ensureWillowCreekDemoSeeded } from "@/lib/server/willow-creek-seed";
+import { ensureAlliantDemoSeeded } from "@/lib/server/alliant-seed";
 import { ensureIronLakeDemoSeeded } from "@/lib/server/iron-lake-seed";
+import { ensureFourClubDemoContent, isFourClubDemoId } from "@/lib/server/four-club-demo-content";
 import {
   ironLakeGolfClubRentals,
   rentalItems,
@@ -83,7 +108,10 @@ import {
 
 export { MembershipAccessError };
 
-const DEFAULT_COMMUNITY = "golden-ocala";
+/** Prefer empty results over leaking another club's demo data. */
+const MISSING_COMMUNITY = "__missing_community__";
+/** Golden Ocala id — only for GO-specific demo seed rows. */
+const GOLDEN_OCALA_COMMUNITY = "golden-ocala";
 
 /** Demo marketplace covers keyed by seed listing title. */
 const MARKETPLACE_SEED_IMAGES: Record<string, string> = {
@@ -91,7 +119,10 @@ const MARKETPLACE_SEED_IMAGES: Record<string, string> = {
   "Patio dining set, 6 chairs": brandAssets.marketplacePatioSet,
   "Patio dining set": brandAssets.marketplacePatioSet,
   "Titleist Pro V1 dozen": brandAssets.marketplaceGolfBalls,
+  "Titleist Pro V1 Dozen": brandAssets.marketplaceGolfBalls,
   "Kids' tennis racquet": brandAssets.marketplaceKidsRacquet,
+  "Kids' Tennis Racquet": brandAssets.marketplaceKidsRacquet,
+  "Selkirk Pickleball Paddle": brandAssets.marketplacePickleballPaddle,
 };
 
 export class BookingConflictError extends Error {
@@ -117,7 +148,7 @@ export class RentalConflictError extends Error {
 }
 
 function scope(communityId?: string | null): string {
-  return communityId ?? DEFAULT_COMMUNITY;
+  return communityId?.trim() || MISSING_COMMUNITY;
 }
 
 /* ---------------- Bookings ---------------- */
@@ -127,6 +158,359 @@ export async function listBookingsForMember(email: string) {
     where: { memberEmail: email, status: { not: "cancelled" } },
     orderBy: { createdAt: "desc" },
   });
+}
+
+/** Host bookings plus amenity bookings where this member accepted an invite. */
+export async function listBookingsVisibleToMember(email: string) {
+  const normalized = email.trim().toLowerCase();
+  const [hosted, acceptedInvites] = await Promise.all([
+    listBookingsForMember(email),
+    prisma.bookingInvite.findMany({
+      where: { memberEmail: normalized, status: "accepted" },
+      select: { bookingId: true },
+    }),
+  ]);
+  const hostedIds = new Set(hosted.map((b) => b.id));
+  const guestIds = acceptedInvites
+    .map((i) => i.bookingId)
+    .filter((id) => !hostedIds.has(id));
+  if (guestIds.length === 0) return hosted;
+
+  const guestBookings = await prisma.booking.findMany({
+    where: { id: { in: guestIds }, status: { not: "cancelled" } },
+    orderBy: { createdAt: "desc" },
+  });
+  return [...hosted, ...guestBookings];
+}
+
+export type ReservationGuestStatus = "going" | "not_going" | "pending" | "full";
+
+export type ReservationGuest = {
+  email: string;
+  name: string;
+  status: ReservationGuestStatus;
+  isHost: boolean;
+  isYou: boolean;
+};
+
+export type BookingReservationDetail = {
+  kind: "booking";
+  id: string;
+  bookingId: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  timeLabel: string;
+  locationLine1: string;
+  locationLine2: string;
+  status: string;
+  inviteCapacity: number | null;
+  role: "host" | "invitee";
+  canCancel: boolean;
+  canLeave: boolean;
+  canInviteMore: boolean;
+  canAcceptInvite: boolean;
+  inviteId: string | null;
+  yourInviteStatus: ReservationGuestStatus | null;
+  hostName: string;
+  hostEmail: string;
+  guests: ReservationGuest[];
+  chatHref: string;
+};
+
+export async function getBookingReservationDetail(
+  bookingId: string,
+  memberEmail: string,
+): Promise<BookingReservationDetail | null> {
+  const email = memberEmail.trim().toLowerCase();
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { invites: { orderBy: { createdAt: "asc" } } },
+  });
+  if (!booking || booking.status === "cancelled") return null;
+
+  const isHost = booking.memberEmail.trim().toLowerCase() === email;
+  const myInvite = booking.invites.find(
+    (i) => i.memberEmail.trim().toLowerCase() === email,
+  );
+  if (!isHost && !myInvite) return null;
+
+  const community = await prisma.community.findUnique({
+    where: { id: booking.communityId },
+    select: { location: true, name: true },
+  });
+
+  const guests: ReservationGuest[] = [
+    {
+      email: booking.memberEmail,
+      name: booking.memberName,
+      status: "going",
+      isHost: true,
+      isYou: isHost,
+    },
+    ...booking.invites.map((i) => {
+      const status: ReservationGuestStatus =
+        i.status === "accepted"
+          ? "going"
+          : i.status === "declined"
+            ? "not_going"
+            : i.status === "full"
+              ? "full"
+              : "pending";
+      return {
+        email: i.memberEmail,
+        name: i.memberName,
+        status,
+        isHost: false,
+        isYou: i.memberEmail.trim().toLowerCase() === email,
+      };
+    }),
+  ];
+
+  const unit =
+    booking.unitNumber != null ? ` #${booking.unitNumber}` : "";
+  const title = `${booking.amenity}${unit}`;
+
+  return {
+    kind: "booking",
+    id: booking.id,
+    bookingId: booking.id,
+    title,
+    date: booking.date,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    timeLabel: `${booking.startTime}–${booking.endTime}`,
+    locationLine1: community?.location?.trim() || community?.name || "Club",
+    locationLine2: community?.name ?? "",
+    status: booking.status,
+    inviteCapacity: booking.inviteCapacity,
+    role: isHost ? "host" : "invitee",
+    canCancel: isHost,
+    canLeave: !isHost && Boolean(myInvite) && myInvite!.status !== "declined",
+    canInviteMore: isHost,
+    canAcceptInvite: !isHost && myInvite?.status === "pending",
+    inviteId: myInvite?.id ?? null,
+    yourInviteStatus: myInvite
+      ? myInvite.status === "accepted"
+        ? "going"
+        : myInvite.status === "declined"
+          ? "not_going"
+          : myInvite.status === "full"
+            ? "full"
+            : "pending"
+      : isHost
+        ? "going"
+        : null,
+    hostName: booking.memberName,
+    hostEmail: booking.memberEmail,
+    guests,
+    chatHref: `/member/messages?to=${encodeURIComponent(booking.memberEmail)}&name=${encodeURIComponent(booking.memberName)}`,
+  };
+}
+
+export async function leaveBookingReservation(
+  bookingId: string,
+  memberEmail: string,
+) {
+  const email = memberEmail.trim().toLowerCase();
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  if (!booking || booking.status === "cancelled") return null;
+  if (booking.memberEmail.trim().toLowerCase() === email) {
+    return { error: "host_cannot_leave" as const };
+  }
+  const invite = await prisma.bookingInvite.findUnique({
+    where: {
+      bookingId_memberEmail: { bookingId, memberEmail: email },
+    },
+  });
+  if (!invite) return null;
+  const updated = await prisma.bookingInvite.update({
+    where: { id: invite.id },
+    data: { status: "declined" },
+  });
+  return { invite: updated };
+}
+
+export type EventReservationDetail = {
+  kind: "event";
+  id: string;
+  eventId: string;
+  title: string;
+  description: string;
+  date: string;
+  timeLabel: string;
+  endTime: string | null;
+  locationLine1: string;
+  locationLine2: string;
+  category: string;
+  requirePayment: boolean;
+  feeCents: number;
+  capacity: number | null;
+  role: "host" | "invitee" | "member";
+  canCancel: boolean;
+  canLeave: boolean;
+  canInviteMore: boolean;
+  canRsvp: boolean;
+  userRsvped: boolean;
+  yourInviteStatus: ReservationGuestStatus | null;
+  hostName: string;
+  guests: ReservationGuest[];
+  chatHref: string;
+};
+
+export async function getEventReservationDetail(
+  eventId: string,
+  memberEmail: string,
+  memberName: string,
+): Promise<EventReservationDetail | null> {
+  const email = memberEmail.trim().toLowerCase();
+  const event = await prisma.communityEvent.findUnique({
+    where: { id: eventId },
+    include: { rsvps: true },
+  });
+  if (!event) return null;
+
+  const [invites, community] = await Promise.all([
+    prisma.eventInvite.findMany({
+      where: { eventId },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.community.findUnique({
+      where: { id: event.communityId },
+      select: { location: true, name: true },
+    }),
+  ]);
+
+  const isOrganizer =
+    event.createdBy.trim().toLowerCase() === memberName.trim().toLowerCase();
+  const myInvite = invites.find(
+    (i) => i.memberEmail.trim().toLowerCase() === email,
+  );
+  const myRsvp = event.rsvps.find(
+    (r) => r.memberEmail.trim().toLowerCase() === email,
+  );
+
+  const guestMap = new Map<string, ReservationGuest>();
+
+  // Organizer row first when we can identify them via RSVP matching name,
+  // otherwise synthesize from createdBy.
+  const organizerRsvp = event.rsvps.find(
+    (r) =>
+      r.memberName.trim().toLowerCase() === event.createdBy.trim().toLowerCase(),
+  );
+  const organizerEmail = organizerRsvp?.memberEmail ?? "";
+  guestMap.set(organizerEmail || `host:${event.createdBy}`, {
+    email: organizerEmail,
+    name: event.createdBy,
+    status: "going",
+    isHost: true,
+    isYou: isOrganizer,
+  });
+
+  for (const r of event.rsvps) {
+    const key = r.memberEmail.trim().toLowerCase();
+    if (guestMap.has(key)) continue;
+    if (
+      organizerEmail &&
+      key === organizerEmail.trim().toLowerCase()
+    ) {
+      continue;
+    }
+    guestMap.set(key, {
+      email: r.memberEmail,
+      name: r.memberName,
+      status: "going",
+      isHost: false,
+      isYou: key === email,
+    });
+  }
+
+  for (const inv of invites) {
+    const key = inv.memberEmail.trim().toLowerCase();
+    if (guestMap.has(key) && inv.status === "accepted") continue;
+    const status: ReservationGuestStatus =
+      inv.status === "accepted" || Boolean(event.rsvps.find((r) => r.memberEmail.toLowerCase() === key))
+        ? "going"
+        : inv.status === "declined"
+          ? "not_going"
+          : "pending";
+    if (guestMap.has(key) && status === "going") continue;
+    guestMap.set(key, {
+      email: inv.memberEmail,
+      name: inv.memberName,
+      status,
+      isHost: false,
+      isYou: key === email,
+    });
+  }
+
+  const guests = [...guestMap.values()];
+  const role: EventReservationDetail["role"] = isOrganizer
+    ? "host"
+    : myInvite
+      ? "invitee"
+      : "member";
+
+  const timeLabel = [event.time, event.endTime].filter(Boolean).join("–") || "";
+
+  return {
+    kind: "event",
+    id: event.id,
+    eventId: event.id,
+    title: event.title,
+    description: event.description,
+    date: event.date,
+    timeLabel,
+    endTime: event.endTime,
+    locationLine1:
+      event.location?.trim() ||
+      community?.location?.trim() ||
+      community?.name ||
+      "Club",
+    locationLine2: event.location?.trim()
+      ? community?.name ?? ""
+      : community?.location ?? "",
+    category: event.category,
+    requirePayment: event.requirePayment,
+    feeCents: event.feeCents,
+    capacity: event.capacity,
+    role,
+    canCancel: isOrganizer,
+    canLeave: Boolean(myRsvp) && !isOrganizer,
+    canInviteMore: isOrganizer,
+    canRsvp: true,
+    userRsvped: Boolean(myRsvp),
+    yourInviteStatus: myRsvp
+      ? "going"
+      : myInvite?.status === "declined"
+        ? "not_going"
+        : myInvite
+          ? "pending"
+          : null,
+    hostName: event.createdBy,
+    guests,
+    chatHref: organizerEmail
+      ? `/member/messages?to=${encodeURIComponent(organizerEmail)}&name=${encodeURIComponent(event.createdBy)}`
+      : "/member/messages",
+  };
+}
+
+export async function cancelCommunityEvent(
+  eventId: string,
+  memberName: string,
+) {
+  const event = await prisma.communityEvent.findUnique({ where: { id: eventId } });
+  if (!event) return null;
+  if (
+    event.createdBy.trim().toLowerCase() !== memberName.trim().toLowerCase()
+  ) {
+    return null;
+  }
+  await prisma.eventInvite.deleteMany({ where: { eventId } });
+  await prisma.eventRsvp.deleteMany({ where: { eventId } });
+  await prisma.communityEvent.delete({ where: { id: eventId } });
+  return { ok: true as const };
 }
 
 async function loadCommunityWeather(
@@ -335,7 +719,7 @@ export async function createBookingInvites(input: {
   invites: Array<{ email: string; name: string }>;
 }) {
   if (input.invites.length === 0) return [];
-  const acceptUrl = appPath("/member/notifications");
+  const acceptUrl = appPath(`/member/reservations/${input.bookingId}`);
   const windowLabel = `${input.startTime}–${input.endTime}`;
   const pushTitle = `${input.hostName} invited you to ${input.amenity} ${windowLabel}`;
   const capNote =
@@ -363,12 +747,12 @@ export async function createBookingInvites(input: {
           status: "pending",
         },
       });
-      const body = `${input.hostName} invited you to ${input.amenity} on ${input.date} ${windowLabel}.${capNote} Open Easy Life to Accept.`;
+      const body = `${input.hostName} invited you to ${input.amenity} on ${input.date} ${windowLabel}.${capNote} Open the app to Accept.`;
       await addMemberInboxItem({
         userEmail: email,
         title: "Activity Invitation",
         body,
-        href: "/member/notifications",
+        href: `/member/reservations/${input.bookingId}`,
       });
       await sendEmail({
         to: email,
@@ -380,7 +764,7 @@ export async function createBookingInvites(input: {
           "",
           `Accept here: ${acceptUrl}`,
           "",
-          "— Easy Life",
+          "— Your Club",
         ].join("\n"),
       });
       await sendPushToUser(email, {
@@ -527,10 +911,19 @@ export async function createMaintenanceTask(input: {
 /* ---------------- Announcements ---------------- */
 
 export async function listAnnouncements(communityId?: string | null) {
-  return prisma.announcement.findMany({
-    where: { communityId: scope(communityId) },
+  const cid = scope(communityId);
+  let rows = await prisma.announcement.findMany({
+    where: { communityId: cid },
     orderBy: { createdAt: "desc" },
   });
+  if (rows.length === 0 && isFourClubDemoId(cid)) {
+    await ensureFourClubDemoContent("full", cid);
+    rows = await prisma.announcement.findMany({
+      where: { communityId: cid },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+  return rows;
 }
 
 export async function createAnnouncement(input: {
@@ -687,6 +1080,51 @@ async function backfillMarketplaceListingImages(): Promise<void> {
       where: { id: row.id },
       data: { imageUrl: desired },
     });
+  }
+}
+
+/**
+ * Production-safe: rewrite listings / apparel products that still use another
+ * club's crest (e.g. Heron Creek polo pointing at bb-apparel-*).
+ * At most once per server instance — never on every API/page request.
+ */
+let apparelBackfillDone = false;
+
+export async function backfillTenantApparelImageUrls(): Promise<void> {
+  if (apparelBackfillDone) return;
+  apparelBackfillDone = true;
+
+  const listings = await prisma.listing.findMany({
+    select: { id: true, imageUrl: true },
+  });
+  const listingUpdates = listings
+    .map((row) => {
+      const next = rewriteTenantApparelImageUrl(row.id, row.imageUrl);
+      if (!next || next === row.imageUrl) return null;
+      return prisma.listing.update({
+        where: { id: row.id },
+        data: { imageUrl: next },
+      });
+    })
+    .filter((p): p is NonNullable<typeof p> => p != null);
+
+  const products = await prisma.apparelProduct.findMany({
+    select: { id: true, imageUrl: true },
+  });
+  const productUpdates = products
+    .map((row) => {
+      const next = rewriteTenantApparelImageUrl(row.id, row.imageUrl);
+      if (!next || next === row.imageUrl) return null;
+      return prisma.apparelProduct.update({
+        where: { id: row.id },
+        data: { imageUrl: next },
+      });
+    })
+    .filter((p): p is NonNullable<typeof p> => p != null);
+
+  const updates = [...listingUpdates, ...productUpdates];
+  for (let i = 0; i < updates.length; i += 25) {
+    await Promise.all(updates.slice(i, i + 25));
   }
 }
 
@@ -898,6 +1336,12 @@ export async function listOrdersForMember(email: string) {
   return prisma.diningOrder.findMany({
     where: { memberEmail: email },
     orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getOrderForMember(id: string, email: string) {
+  return prisma.diningOrder.findFirst({
+    where: { id, memberEmail: email },
   });
 }
 
@@ -1297,10 +1741,19 @@ export async function deletePet(id: string, userId: string) {
 /* ---------------- Amenities ---------------- */
 
 export async function listAmenities(communityId?: string | null) {
-  return prisma.amenity.findMany({
-    where: { communityId: scope(communityId) },
+  const cid = scope(communityId);
+  let rows = await prisma.amenity.findMany({
+    where: { communityId: cid },
     orderBy: { name: "asc" },
   });
+  if (rows.length === 0 && isFourClubDemoId(cid)) {
+    await ensureFourClubDemoContent("full", cid);
+    rows = await prisma.amenity.findMany({
+      where: { communityId: cid },
+      orderBy: { name: "asc" },
+    });
+  }
+  return rows;
 }
 
 export async function createAmenity(input: {
@@ -1833,11 +2286,13 @@ const DEMO_TENNIS_SEEDS_BY_COMMUNITY: Record<string, string[]> = {
   ],
 };
 
+const GENERIC_TENNIS_SEEDS = [
+  "A. Rivera", "M. Chen", "J. Patel", "L. Brooks",
+  "S. Nguyen", "T. Walsh", "K. Ortiz", "R. Kim",
+];
+
 function demoTennisSeeds(communityId: string): string[] {
-  return (
-    DEMO_TENNIS_SEEDS_BY_COMMUNITY[communityId] ??
-    DEMO_TENNIS_SEEDS_BY_COMMUNITY["golden-ocala"]
-  );
+  return DEMO_TENNIS_SEEDS_BY_COMMUNITY[communityId] ?? GENERIC_TENNIS_SEEDS;
 }
 
 function demoQuarterfinalWinners(
@@ -1921,64 +2376,95 @@ async function backfillDemoTournamentScores(): Promise<void> {
   }
 }
 
+async function ensureDemoTournamentsForCommunity(communityId: string): Promise<void> {
+  // HOA /go demos (not Spanish Wells golf club) should never plant a golf scramble.
+  const hoaDemoIds = new Set(["harbor-pointe", "willow-creek", "alliant"]);
+  if (hoaDemoIds.has(communityId)) {
+    await prisma.tournament.deleteMany({
+      where: {
+        communityId,
+        sport: "Golf",
+        title: "Member Golf Scramble",
+      },
+    });
+  }
+
+  const count = await prisma.tournament.count({ where: { communityId } });
+  if (count > 0) return;
+
+  const seeds = demoTennisSeeds(communityId);
+  const tennis = await prisma.tournament.create({
+    data: {
+      communityId,
+      title: "Summer Tennis Open",
+      sport: "Tennis",
+      courtSurface: "green_clay",
+      date: "2026-07-11",
+      startTime: "09:00",
+      scoringFormat: "Standard",
+      eventType: "Singles",
+      entryFee: 25,
+      participants: 8,
+      seedsJson: JSON.stringify(seeds),
+      winnersJson: "{}",
+    },
+  });
+  await prisma.tournament.update({
+    where: { id: tennis.id },
+    data: {
+      winnersJson: JSON.stringify(demoQuarterfinalWinners(tennis.id, seeds)),
+      scoresJson: JSON.stringify(demoTournamentScores(tennis.id)),
+    },
+  });
+  await prisma.tournamentPlayer.createMany({
+    data: seeds
+      .filter((name) => name && !name.startsWith("BYE"))
+      .map((name) => ({ tournamentId: tennis.id, name, paid: true })),
+  });
+
+  if (hoaDemoIds.has(communityId)) return;
+
+  await prisma.tournament.create({
+    data: {
+      communityId,
+      title: "Member Golf Scramble",
+      sport: "Golf",
+      date: "2026-08-02",
+      startTime: "08:00",
+      entryFee: 40,
+      participants: 18,
+      seedsJson: null,
+      winnersJson: "{}",
+    },
+  });
+}
+
 async function backfillDemoTournaments(): Promise<void> {
   const communities = await prisma.community.findMany({ select: { id: true } });
   for (const { id: communityId } of communities) {
-    const count = await prisma.tournament.count({ where: { communityId } });
-    if (count > 0) continue;
-
-    const seeds = demoTennisSeeds(communityId);
-    const tennis = await prisma.tournament.create({
-      data: {
-        communityId,
-        title: "Summer Tennis Open",
-        sport: "Tennis",
-        courtSurface: "green_clay",
-        date: "2026-07-11",
-        startTime: "09:00",
-        scoringFormat: "Standard",
-        eventType: "Singles",
-        entryFee: 25,
-        participants: 8,
-        seedsJson: JSON.stringify(seeds),
-        winnersJson: "{}",
-      },
-    });
-    await prisma.tournament.update({
-      where: { id: tennis.id },
-      data: {
-        winnersJson: JSON.stringify(demoQuarterfinalWinners(tennis.id, seeds)),
-        scoresJson: JSON.stringify(demoTournamentScores(tennis.id)),
-      },
-    });
-    await prisma.tournamentPlayer.createMany({
-      data: seeds
-        .filter((name) => name && !name.startsWith("BYE"))
-        .map((name) => ({ tournamentId: tennis.id, name, paid: true })),
-    });
-
-    await prisma.tournament.create({
-      data: {
-        communityId,
-        title: "Member Golf Scramble",
-        sport: "Golf",
-        date: "2026-08-02",
-        startTime: "08:00",
-        entryFee: 40,
-        participants: 18,
-        seedsJson: null,
-        winnersJson: "{}",
-      },
-    });
+    await ensureDemoTournamentsForCommunity(communityId);
   }
 }
 
 export async function listTournaments(communityId?: string | null) {
-  return prisma.tournament.findMany({
-    where: { communityId: scope(communityId) },
+  const cid = scope(communityId);
+  let rows = await prisma.tournament.findMany({
+    where: { communityId: cid },
     include: { players: { orderBy: { createdAt: "asc" } } },
     orderBy: { date: "asc" },
   });
+  if (rows.length === 0) {
+    if (isFourClubDemoId(cid)) {
+      await ensureFourClubDemoContent("full", cid);
+    }
+    await ensureDemoTournamentsForCommunity(cid);
+    rows = await prisma.tournament.findMany({
+      where: { communityId: cid },
+      include: { players: { orderBy: { createdAt: "asc" } } },
+      orderBy: { date: "asc" },
+    });
+  }
+  return rows;
 }
 
 export async function createTournament(input: {
@@ -2288,6 +2774,7 @@ export async function createCheckin(input: {
   host: string;
   unit?: string;
   photoUrl?: string;
+  status?: string;
 }) {
   return prisma.checkin.create({
     data: {
@@ -2296,7 +2783,7 @@ export async function createCheckin(input: {
       type: input.type,
       host: input.host,
       unit: input.unit ?? "—",
-      status: "checked_in",
+      status: input.status ?? "checked_in",
       photoUrl: input.photoUrl,
     },
   });
@@ -2326,6 +2813,9 @@ export async function updateRegistration(
 
 /* ---------------- Provider promotions ---------------- */
 
+/** Price to appear on the member home Featured row (cents). */
+export const FEATURED_PLACEMENT_CENTS = 4900;
+
 export async function listPromotions(providerEmail: string) {
   return prisma.promotion.findMany({
     where: { providerEmail },
@@ -2335,20 +2825,146 @@ export async function listPromotions(providerEmail: string) {
 
 export async function createPromotion(input: {
   providerEmail: string;
+  communityId?: string | null;
   title: string;
   type: string;
   detail: string;
   status?: string;
+  imageUrl?: string | null;
+  href?: string | null;
+  subtitle?: string | null;
+  rating?: string | null;
+  priceLabel?: string | null;
+  /** Featured placements must be paid — defaults to FEATURED_PLACEMENT_CENTS when type is featured. */
+  paidCents?: number;
 }) {
+  const isFeatured = input.type === "featured";
+  const paidCents = isFeatured
+    ? input.paidCents && input.paidCents > 0
+      ? input.paidCents
+      : FEATURED_PLACEMENT_CENTS
+    : (input.paidCents ?? 0);
+
   return prisma.promotion.create({
     data: {
       providerEmail: input.providerEmail,
+      communityId: input.communityId ?? null,
       title: input.title,
       type: input.type,
       detail: input.detail,
       status: input.status ?? "active",
       redemptions: 0,
+      imageUrl: input.imageUrl || null,
+      href: input.href || null,
+      subtitle: input.subtitle || null,
+      rating: input.rating || null,
+      priceLabel: input.priceLabel || null,
+      paidCents,
     },
+  });
+}
+
+export type PaidFeaturedTile = {
+  key: string;
+  label: string;
+  sub: string;
+  rating: string;
+  price: string;
+  image: string;
+  href: string;
+  sponsored: true;
+};
+
+/** Only paid featured placements (paidCents > 0) appear on member home. */
+export async function listPaidFeaturedTiles(
+  communityId: string,
+): Promise<PaidFeaturedTile[]> {
+  const rows = await prisma.promotion.findMany({
+    where: {
+      type: "featured",
+      status: "active",
+      paidCents: { gt: 0 },
+      communityId,
+    },
+    orderBy: { title: "asc" },
+    take: 12,
+  });
+
+  return rows.map((row) => ({
+    key: row.id,
+    label: row.title,
+    sub: row.subtitle || row.detail,
+    rating: row.rating || "4.5",
+    price: row.priceLabel || "$$",
+    image: row.imageUrl || brandAssets.featuredDining,
+    href: row.href || "/member/dining",
+    sponsored: true as const,
+  }));
+}
+
+/** Demo seed: convert static featured tiles into paid placements so demos stay non-empty. */
+export async function ensureDemoPaidFeatured(communityId: string): Promise<void> {
+  if (!isDemoSeedAllowed()) return;
+
+  const tiles =
+    communityId === "heritage-bay"
+      ? heritageBayFeaturedTiles
+      : communityId === "spanish-wells"
+        ? spanishWellsFeaturedTiles
+        : isFourClubDemoId(communityId)
+          ? genericClubFeaturedTiles
+          : homeFeaturedTiles;
+
+  const featuredDomain = `${communityId.replace(/-/g, "")}.demo`;
+  const providerEmail = `featured.${communityId}@${featuredDomain}`;
+
+  await prisma.promotion.updateMany({
+    where: {
+      communityId,
+      type: "featured",
+      providerEmail: { endsWith: "@demo.easylife" },
+    },
+    data: { providerEmail },
+  });
+
+  const existing = await prisma.promotion.findMany({
+    where: { type: "featured", communityId, paidCents: { gt: 0 } },
+    select: { id: true, title: true },
+  });
+
+  // Spanish Wells warm DBs may still have generic dining+tennis — rebuild to include golf.
+  if (communityId === "spanish-wells") {
+    const want = new Set<string>(tiles.map((t) => t.label));
+    const hasGolf = existing.some((r) => /golf|championship|course/i.test(r.title));
+    const titlesMatch =
+      existing.length === tiles.length && existing.every((r) => want.has(r.title));
+    if (existing.length > 0 && (!hasGolf || !titlesMatch)) {
+      await prisma.promotion.deleteMany({
+        where: { type: "featured", communityId, paidCents: { gt: 0 } },
+      });
+    } else if (existing.length > 0) {
+      return;
+    }
+  } else if (existing.length > 0) {
+    return;
+  }
+
+  await prisma.promotion.createMany({
+    data: tiles.map((tile) => ({
+      providerEmail,
+      communityId,
+      title: tile.label,
+      type: "featured",
+      detail: "Paid featured placement",
+      status: "active",
+      redemptions: 0,
+      imageUrl: tile.image,
+      href: tile.href,
+      subtitle: tile.sub,
+      rating: tile.rating,
+      priceLabel: tile.price,
+      paidCents: FEATURED_PLACEMENT_CENTS,
+    })),
   });
 }
 
@@ -2489,6 +3105,21 @@ export async function markContactThreadRead(
   });
 }
 
+export async function markContactThreadUnread(
+  providerEmail: string,
+  messageIds: string[],
+) {
+  if (messageIds.length === 0) return { count: 0 };
+  return prisma.contactMessage.updateMany({
+    where: {
+      id: { in: messageIds },
+      recipient: { equals: providerEmail },
+      status: "read",
+    },
+    data: { status: "delivered" },
+  });
+}
+
 /* ---------------- Private messages (board / PM) ---------------- */
 
 export async function listPrivateMessages(
@@ -2521,11 +3152,21 @@ export async function createPrivateMessage(input: {
 /* ---------------- Community events & RSVP ---------------- */
 
 export async function listCommunityEvents(communityId?: string | null) {
-  return prisma.communityEvent.findMany({
-    where: { communityId: scope(communityId) },
+  const cid = scope(communityId);
+  let rows = await prisma.communityEvent.findMany({
+    where: { communityId: cid },
     include: { rsvps: true },
     orderBy: { date: "asc" },
   });
+  if (rows.length === 0 && isFourClubDemoId(cid)) {
+    await ensureFourClubDemoContent("full", cid);
+    rows = await prisma.communityEvent.findMany({
+      where: { communityId: cid },
+      include: { rsvps: true },
+      orderBy: { date: "asc" },
+    });
+  }
+  return rows;
 }
 
 export async function createCommunityEvent(input: {
@@ -2592,14 +3233,81 @@ export async function listDocuments(opts: {
   communityId?: string | null;
   audience?: string;
 }) {
-  const where: { communityId: string; audience?: string } = {
-    communityId: scope(opts.communityId),
-  };
-  if (opts.audience) where.audience = opts.audience;
-  return prisma.communityDocument.findMany({
-    where,
+  const cid = scope(opts.communityId);
+  let docs = await prisma.communityDocument.findMany({
+    where: {
+      communityId: cid,
+      ...(opts.audience ? { audience: opts.audience } : {}),
+    },
     orderBy: { createdAt: "desc" },
   });
+  if (docs.length === 0) {
+    try {
+      if (cid === "hunters-ridge") {
+        await ensureHuntersRidgeDemoSeeded();
+      } else if (cid === "bonita-bay") {
+        await ensureBonitaBayDemoSeeded();
+      } else if (cid === "shadow-wood") {
+        await ensureShadowWoodDemoSeeded();
+      } else if (cid === "heron-creek") {
+        await ensureHeronCreekDemoSeeded();
+      } else if (cid === "debary") {
+        await ensureDebaryDemoSeeded();
+      } else if (cid === "jacaranda") {
+        await ensureJacarandaDemoSeeded();
+      } else if (cid === "the-dunes") {
+        await ensureTheDunesDemoSeeded();
+      } else if (cid === "the-nest") {
+        await ensureTheNestDemoSeeded();
+      } else if (cid === "martin-downs") {
+        await ensureMartinDownsDemoSeeded();
+      } else if (cid === "seagate") {
+        await ensureSeagateDemoSeeded();
+      } else if (cid === "copperleaf") {
+        await ensureCopperleafDemoSeeded();
+      } else if (cid === "club-renaissance") {
+        await ensureClubRenaissanceDemoSeeded();
+      } else if (cid === "falls-club") {
+        await ensureFallsClubDemoSeeded();
+      } else if (cid === "estero") {
+        await ensureEsteroDemoSeeded();
+      } else if (cid === "wildcat-run") {
+        await ensureWildcatRunDemoSeeded();
+      } else if (cid === "highland-woods") {
+        await ensureHighlandWoodsDemoSeeded();
+      } else if (cid === "bonita-national") {
+        await ensureBonitaNationalDemoSeeded();
+      } else if (cid === "carrollwood") {
+        await ensureCarrollwoodDemoSeeded();
+      } else if (cid === "windsor") {
+        await ensureWindsorDemoSeeded();
+      } else if (cid === "worthington") {
+        await ensureWorthingtonDemoSeeded();
+      } else if (cid === "spanish-wells") {
+        await ensureSpanishWellsDemoSeeded();
+      } else if (cid === "harbor-pointe") {
+        await ensureHarborPointeDemoSeeded();
+      } else if (cid === "willow-creek") {
+        await ensureWillowCreekDemoSeeded();
+      } else if (cid === "alliant") {
+        await ensureAlliantDemoSeeded();
+      } else if (cid === "heritage-bay") {
+        await ensureHeritageBayDemoSeeded();
+      } else if (cid === "iron-lake") {
+        await ensureIronLakeDemoSeeded();
+      }
+    } catch (err) {
+      console.error("[listDocuments] demo documents seed failed", err);
+    }
+    docs = await prisma.communityDocument.findMany({
+      where: {
+        communityId: cid,
+        ...(opts.audience ? { audience: opts.audience } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+  return docs;
 }
 
 export async function createDocument(input: {
@@ -2736,21 +3444,23 @@ export async function listResidentDirectory(communityId?: string | null) {
   return rows;
 }
 
-/** Member Vendors directory: club services — not Local Pros and not lesson pros (those are Lessons). */
+/** Member Vendors directory: club services + lesson pros — not Local Pros or club dining. */
 export async function listVendorDirectory(communityId?: string | null) {
   return prisma.provider.findMany({
     where: {
       communityId: scope(communityId),
       listingKind: { not: "local_pro" },
-      // Golf / tennis / pickleball instructors book via Private Lessons, not Vendors.
+      // Club restaurants live under Dining — never list them as vendors.
       NOT: {
         OR: [
-          { category: { contains: "golf" } },
-          { category: { contains: "tennis" } },
-          { category: { contains: "pickleball" } },
-          { name: { contains: "Golf Pro" } },
-          { name: { contains: "Tennis Pro" } },
-          { name: { contains: "Pickleball Pro" } },
+          { category: { contains: "Dining" } },
+          { category: { contains: "dining" } },
+          { category: { contains: "Food" } },
+          { category: { contains: "food" } },
+          { category: { contains: "Restaurant" } },
+          { category: { contains: "restaurant" } },
+          { name: { contains: "Dining" } },
+          { name: { contains: "Restaurant" } },
         ],
       },
     },
@@ -2772,6 +3482,8 @@ export async function listNotificationFeed(communityId?: string | null) {
 /* ---------------- One-time seed for demo realism ---------------- */
 
 let seedPromise: Promise<void> | null = null;
+/** After a successful seed on this instance, skip all further work. */
+let seedReady = false;
 
 async function ensureClubSportsInventory(communityId: string) {
   await ensureMembershipTiersSeeded(communityId);
@@ -2954,7 +3666,7 @@ async function ensureClubSportsInventory(communityId: string) {
         description: "USTA certified private and semi-private tennis lessons.",
         rating: 4.9,
         listingKind: "club",
-        email: "tennis.pro@easylife.com",
+        email: `tennis.pro@${communityId.replace(/-/g, "")}.demo`,
       },
     });
   }
@@ -2972,7 +3684,7 @@ async function ensureClubSportsInventory(communityId: string) {
         description: "PGA teaching professional — range and on-course lessons.",
         rating: 4.8,
         listingKind: "club",
-        email: "golf.pro@easylife.com",
+        email: `golf.pro@${communityId.replace(/-/g, "")}.demo`,
       },
     });
   }
@@ -3011,12 +3723,36 @@ async function ensureClubSportsInventory(communityId: string) {
   }
 }
 
+/**
+ * Runtime seed / repair for demo DBs.
+ * Hot-path rules for Vercel:
+ * - No-op after first success on this serverless instance
+ * - Apparel backfill at most once (not before every await)
+ * - If communities already exist (build-time seed), skip multi-club walk
+ */
 export async function ensureRecordsSeeded(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
+  if (seedReady) return;
+
   if (!seedPromise) {
     seedPromise = (async () => {
       try {
-      const cid = DEFAULT_COMMUNITY;
+      // Build-time / prior deploys already populated Postgres — don't re-walk
+      // every demo club (or scan apparel) on each cold start.
+      const communityCount = await prisma.community.count();
+      if (communityCount >= 3) {
+        seedReady = true;
+        apparelBackfillDone = true;
+        return;
+      }
+
+      try {
+        await backfillTenantApparelImageUrls();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] apparel image backfill failed", err);
+      }
+
+      const cid = GOLDEN_OCALA_COMMUNITY;
       try {
         await ensureClubSportsInventory(cid);
       } catch (err) {
@@ -3032,9 +3768,133 @@ export async function ensureRecordsSeeded(): Promise<void> {
       } catch (err) {
         console.error("[ensureRecordsSeeded] heritage-bay seed failed", err);
       }
+      try {
+        await ensureHuntersRidgeDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] hunters-ridge seed failed", err);
+      }
+      try {
+        await ensureBonitaBayDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] bonita-bay seed failed", err);
+      }
+      try {
+        await ensureShadowWoodDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] shadow-wood seed failed", err);
+      }
+      try {
+        await ensureHeronCreekDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] heron-creek seed failed", err);
+      }
+      try {
+        await ensureDebaryDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] debary seed failed", err);
+      }
+      try {
+        await ensureJacarandaDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] jacaranda seed failed", err);
+      }
+      try {
+        await ensureTheDunesDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] the-dunes seed failed", err);
+      }
+
+      try {
+        await ensureTheNestDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] the-nest seed failed", err);
+      }
+      try {
+        await ensureMartinDownsDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] martin-downs seed failed", err);
+      }
+      try {
+        await ensureSeagateDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] seagate seed failed", err);
+      }
+      try {
+        await ensureCopperleafDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] copperleaf seed failed", err);
+      }
+      try {
+        await ensureClubRenaissanceDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] club-renaissance seed failed", err);
+      }
+      try {
+        await ensureFallsClubDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] falls-club seed failed", err);
+      }
+      try {
+        await ensureEsteroDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] estero seed failed", err);
+      }
+      try {
+        await ensureWildcatRunDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] wildcat-run seed failed", err);
+      }
+      try {
+        await ensureHighlandWoodsDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] highland-woods seed failed", err);
+      }
+      try {
+        await ensureBonitaNationalDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] bonita-national seed failed", err);
+      }
+      try {
+        await ensureCarrollwoodDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] carrollwood seed failed", err);
+      }
+      try {
+        await ensureWindsorDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] windsor seed failed", err);
+      }
+      try {
+        await ensureWorthingtonDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] worthington seed failed", err);
+      }
+      try {
+        await ensureSpanishWellsDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] spanish-wells seed failed", err);
+      }
+      try {
+        await ensureHarborPointeDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] harbor-pointe seed failed", err);
+      }
+      try {
+        await ensureWillowCreekDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] willow-creek seed failed", err);
+      }
+      try {
+        await ensureAlliantDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] alliant seed failed", err);
+      }
 
       // Production stays empty unless ALLOW_DEMO_SEED=1 (staging demos).
-      if (!isDemoSeedAllowed()) return;
+      if (!isDemoSeedAllowed()) {
+        seedReady = true;
+        return;
+      }
 
       // Link Cassie provider listing to the provider login email (message routing)
       await prisma.provider.updateMany({
@@ -3304,7 +4164,7 @@ export async function ensureRecordsSeeded(): Promise<void> {
       if ((await prisma.contentTemplate.count()) === 0) {
         await prisma.contentTemplate.createMany({
           data: [
-            { name: "Welcome / onboarding", channel: "email", subject: "Welcome to Easy Life!" },
+            { name: "Welcome / onboarding", channel: "email", subject: "Welcome to your club!" },
             { name: "Booking confirmation", channel: "email", subject: "Your booking is confirmed" },
             { name: "Reservation reminder (3h)", channel: "sms", subject: "Reminder: your reservation is soon" },
             { name: "Dues due notice", channel: "email", subject: "Your HOA dues are due" },
@@ -3353,7 +4213,7 @@ export async function ensureRecordsSeeded(): Promise<void> {
       }
       if ((await prisma.communityDocument.count()) === 0) {
         const demoPdf =
-          "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+          "/brand/docs/sample-document.pdf";
         await prisma.communityDocument.createMany({
           data: [
             { communityId: cid, title: "Declaration of Covenants", category: "legal", url: demoPdf, audience: "member", uploadedBy: "Board Secretary" },
@@ -3643,6 +4503,7 @@ export async function ensureRecordsSeeded(): Promise<void> {
         },
         update: {},
       });
+      seedReady = true;
       } catch (err) {
         // Allow the next request to retry, but never reject awaiting pages with a 500.
         seedPromise = null;
