@@ -132,10 +132,15 @@ function withPathnameHeader(request: NextRequest, pathname: string) {
   return requestHeaders;
 }
 
+/** Paths under /go that are sales tools, not club demo locks. */
+const GO_SALES_TOOL_SLUGS = new Set(["guide"]);
+
 function demoGoPath(pathname: string): DemoTenant | null {
   const match = pathname.match(/^\/go\/([a-z0-9-]+)\/?$/i);
   if (!match?.[1]) return null;
-  const slug = match[1].toLowerCase().replace(/-/g, "");
+  const raw = match[1].toLowerCase();
+  if (GO_SALES_TOOL_SLUGS.has(raw)) return null;
+  const slug = raw.replace(/-/g, "");
   return getDemoTenantById(slug);
 }
 
@@ -155,10 +160,15 @@ async function stagingApiBlock(request: NextRequest) {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Sales directory — clear locked club cookies so tab title/favicon stay Easy Life.
-  if (pathname === "/go" || pathname === "/go/") {
+  // Sales directory / guides — clear locked club cookies so branding stays Easy Life.
+  if (
+    pathname === "/go" ||
+    pathname === "/go/" ||
+    pathname === "/go/guide" ||
+    pathname === "/go/guide/"
+  ) {
     const response = NextResponse.next({
-      request: { headers: withPathnameHeader(request, "/go") },
+      request: { headers: withPathnameHeader(request, pathname) },
     });
     clearDemoTenantCookies(response);
     return response;
@@ -255,6 +265,8 @@ export const config = {
   matcher: [
     "/go",
     "/go/",
+    "/go/guide",
+    "/go/guide/",
     "/go/ironcrest",
     "/go/ironcrest/",
     "/go/goldenocala",

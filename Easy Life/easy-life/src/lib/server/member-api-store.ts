@@ -73,12 +73,16 @@ export async function getMemberProfile(email: string) {
   const displayName =
     user?.name?.trim() ||
     email.split("@")[0].replace(/\./g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const joined =
+    (ext?.joined?.trim() || null) ??
+    (user?.createdAt ? user.createdAt.toISOString().slice(0, 10) : "") ??
+    DEFAULTS.joined;
   return {
     name: displayName,
     email,
     phone: ext?.phone ?? DEFAULTS.phone,
     unit: ext?.unit ?? DEFAULTS.unit,
-    joined: ext?.joined ?? DEFAULTS.joined,
+    joined,
     directoryVisible: ext?.directoryVisible ?? true,
     community: communityName,
     commsEmail: ext?.commsEmail ?? true,

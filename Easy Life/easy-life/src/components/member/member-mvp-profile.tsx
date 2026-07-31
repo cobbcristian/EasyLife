@@ -265,7 +265,10 @@ export function MemberMvpProfile({
             </ChangePhotoButton>
             <p className="mt-2 text-lg font-semibold text-ink">{form.name}</p>
             <p className="text-[12px] text-grey">
-              {form.unit} · {t("Member since")} {formatDate(profile.joined)}
+              {form.unit}
+              {formatDate(profile.joined)
+                ? ` · ${t("Member since")} ${formatDate(profile.joined)}`
+                : ""}
             </p>
           </div>
         </header>

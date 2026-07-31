@@ -12,11 +12,14 @@ export function formatCurrency(amount: number) {
 }
 
 export function formatDate(date: string) {
+  if (!date?.trim()) return "";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(date));
+  }).format(parsed);
 }
 
 export function getInitials(name: string) {

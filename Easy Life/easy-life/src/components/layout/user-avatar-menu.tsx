@@ -49,11 +49,15 @@ export function UserAvatarMenu({
 
   async function logout() {
     setOpen(false);
-    await fetch("/api/auth/logout", {
+    const res = await fetch("/api/auth/logout", {
       method: "POST",
       headers: { Accept: "application/json" },
     });
-    window.location.href = "/login";
+    const data = (await res.json().catch(() => null)) as {
+      redirectTo?: string;
+    } | null;
+    // Prefer club /go lock so sales demos keep branding; fall back to /login.
+    window.location.href = data?.redirectTo || "/login";
   }
 
   return (

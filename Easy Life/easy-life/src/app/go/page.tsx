@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { listSalesReadyTenants } from "@/lib/tenant";
 import { GoSalesClient } from "./go-sales-client";
 
@@ -37,9 +38,17 @@ export default function GoSalesIndexPage() {
     <div className="min-h-screen bg-[#f7f8fa] font-[family-name:var(--font-poppins)] text-ink">
       <header className="border-b border-[#e8ebf0] bg-white px-6 py-8">
         <div className="mx-auto max-w-4xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-grey">
-            Easy Life · Sales
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-grey">
+              Easy Life · Sales
+            </p>
+            <Link
+              href="/go/guide"
+              className="text-[13px] font-semibold text-[#007aff] hover:underline"
+            >
+              Onboarding guide →
+            </Link>
+          </div>
           <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.02em]">
             Demo clubs
           </h1>
@@ -48,7 +57,11 @@ export default function GoSalesIndexPage() {
             clubs below is{" "}
             <span className="font-semibold text-ink">password</span>. Use{" "}
             <span className="font-semibold text-ink">Demo logins</span> for
-            member / board / PM emails.
+            member / board / PM emails. After a sale closes, see the{" "}
+            <Link href="/go/guide" className="font-semibold text-[#007aff] hover:underline">
+              community onboarding guide
+            </Link>
+            .
           </p>
         </div>
       </header>

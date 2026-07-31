@@ -39,7 +39,7 @@ const PHASES: Phase[] = [
     summary: "Club admin logs in and changes their password.",
     steps: [
       "Send admin email + temporary password (welcome email sends automatically if email is configured).",
-      "Share the member invite code and signup link: /signup → Join a club.",
+      "Share the member invite code and join link: /register → Join a club.",
       "Schedule a 30-minute kickoff call to walk through branding and amenities.",
     ],
     links: [{ label: "Login page", href: "/login" }],
@@ -115,7 +115,7 @@ const PHASES: Phase[] = [
     title: "Member rollout",
     summary: "Communications and adoption.",
     steps: [
-      "Email members with invite code + link to /signup.",
+      "Email members with invite code + link to /register.",
       "Post announcement in the member portal once a few accounts exist.",
       "Front desk / pro shop ready to help with first login.",
     ],
