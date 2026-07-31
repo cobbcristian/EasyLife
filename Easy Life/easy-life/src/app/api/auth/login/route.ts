@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     detail: `${user.role} portal`,
   });
 
-  const redirectTo = homeForRole(user.role);
+  const redirectTo = homeForRole(user.role, user.communityId);
   const response = NextResponse.json({ ok: true, role: user.role, redirectTo });
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   if (tenant) {

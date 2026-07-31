@@ -90,10 +90,14 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySessionToken(store.get(SESSION_COOKIE)?.value);
 }
 
-export function homeForRole(role: string): string {
+export function homeForRole(
+  role: string,
+  communityId?: string | null,
+): string {
   switch (role) {
     case "admin":
-      return "/dashboard";
+      // Platform master (no club) lands on Super Admin; club admins stay on dashboard.
+      return communityId ? "/dashboard" : "/super-admin";
     case "provider":
       return "/provider";
     case "board":

@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       ? "/provider/subscribe"
       : mode === "join" && result.role === "member"
         ? "/member/welcome"
-        : homeForRole(result.role);
+        : homeForRole(result.role, result.communityId);
   const response = NextResponse.json({ ok: true, redirectTo });
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   return response;

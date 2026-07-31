@@ -13,7 +13,7 @@ import { sendBusinessInvitationEmail } from "@/lib/server/notify";
 import type { AuthUser, Community, Provider } from "@/lib/types";
 
 const seedUsers: AuthUser[] = [
-  { id: "u-admin", email: "goldenocala01@gmail.com", password: "password", role: "admin", name: "Golden Ocala", communityId: null },
+  { id: "u-admin", email: "superadmin@gmail.com", password: "password", role: "admin", name: "Easy Life Admin", communityId: null },
   { id: "u-club-admin", email: "pm.demo@willowcreekhoa.com", password: "password", role: "admin", name: "Priya Nair", communityId: "willow-creek" },
   { id: "u-provider", email: "cassiesmeticuloustouch@gmail.com", password: "password1!", role: "provider", name: "Cassie's Meticulous Touch", communityId: "golden-ocala" },
   { id: "u-member", email: "sarah.mitchell@oceanside.com", password: "password", role: "member", name: "Sarah Mitchell", communityId: "golden-ocala" },
@@ -178,6 +178,62 @@ async function backfillSeedUsers(): Promise<void> {
   }
 }
 
+/** Rename legacy platform master login → superadmin@gmail.com. */
+async function backfillSuperAdminIdentity(): Promise<void> {
+  const OLD_EMAIL = "goldenocala01@gmail.com";
+  const NEW_EMAIL = "superadmin@gmail.com";
+  const oldUser = await prisma.user.findUnique({ where: { email: OLD_EMAIL } });
+  const newUser = await prisma.user.findUnique({ where: { email: NEW_EMAIL } });
+
+  if (oldUser && !newUser) {
+    await prisma.user.update({
+      where: { id: oldUser.id },
+      data: {
+        email: NEW_EMAIL,
+        name: "Easy Life Admin",
+        role: "admin",
+        communityId: null,
+        password: hashPassword("password"),
+      },
+    });
+  } else if (oldUser && newUser) {
+    await prisma.user.update({
+      where: { id: newUser.id },
+      data: {
+        name: "Easy Life Admin",
+        role: "admin",
+        communityId: null,
+        password: hashPassword("password"),
+      },
+    });
+    await prisma.user.delete({ where: { id: oldUser.id } }).catch(() => null);
+  } else if (newUser) {
+    await prisma.user.update({
+      where: { id: newUser.id },
+      data: {
+        name: "Easy Life Admin",
+        role: "admin",
+        communityId: null,
+      },
+    });
+  }
+
+  const oldExt = await prisma.memberProfileExt.findUnique({
+    where: { userEmail: OLD_EMAIL },
+  });
+  const newExt = await prisma.memberProfileExt.findUnique({
+    where: { userEmail: NEW_EMAIL },
+  });
+  if (oldExt && !newExt) {
+    await prisma.memberProfileExt.create({
+      data: { ...oldExt, userEmail: NEW_EMAIL },
+    });
+    await prisma.memberProfileExt.delete({ where: { userEmail: OLD_EMAIL } });
+  } else if (oldExt && newExt) {
+    await prisma.memberProfileExt.delete({ where: { userEmail: OLD_EMAIL } }).catch(() => null);
+  }
+}
+
 async function backfillSeedCommunities(): Promise<void> {
   for (const c of seedCommunities) {
     const existing = await prisma.community.findUnique({ where: { id: c.id } });
@@ -306,6 +362,7 @@ export async function ensureSeeded(): Promise<void> {
       }
       await backfillInviteCodes();
       await backfillBrandImages();
+      await backfillSuperAdminIdentity();
     })();
   }
   return seedPromise;

@@ -26,11 +26,16 @@ type LoginBranding = {
   demoLogins?: DemoLogin[];
 };
 
+const SUPER_ADMIN_EMAIL = "superadmin@gmail.com";
+
 function LoginForm({ branding }: { branding: LoginBranding | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
-  const [email, setEmail] = useState(branding?.defaultEmail ?? "");
+  const unlockedDefaultEmail = branding?.locked
+    ? (branding.defaultEmail ?? "")
+    : SUPER_ADMIN_EMAIL;
+  const [email, setEmail] = useState(unlockedDefaultEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +53,15 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
             l.role.toLowerCase().includes(roleHint.replace(/_/g, " ")),
           )
         : null;
-    setEmail(qEmail || roleMatch?.email || branding?.defaultEmail || "");
+    setEmail(
+      qEmail ||
+        roleMatch?.email ||
+        (branding?.locked ? branding.defaultEmail : SUPER_ADMIN_EMAIL) ||
+        "",
+    );
     setPassword(qPassword || roleMatch?.password || "");
     setError(null);
-  }, [branding?.tenantId, branding?.defaultEmail, branding?.demoLogins, searchParams]);
+  }, [branding?.tenantId, branding?.defaultEmail, branding?.demoLogins, branding?.locked, searchParams]);
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !loading;
 
@@ -126,7 +136,7 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
 
   const loginTitle = branding?.locked
     ? branding.communityName || branding.productName || t("Sign in")
-    : t("Community Provider Login");
+    : t("Super Admin Login");
   const productLabel = branding?.productName ?? "Easy Life";
 
   return (
@@ -146,7 +156,11 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
       </h1>
       {branding?.locked ? (
         <p className="mt-1 text-sm text-grey">{t("Sign in to continue")}</p>
-      ) : null}
+      ) : (
+        <p className="mt-1 text-sm text-grey">
+          {t("Platform master access · oversee all communities")}
+        </p>
+      )}
 
       <form className="mt-8 space-y-[20px]" onSubmit={handleSubmit}>
         {error ? (
@@ -224,12 +238,17 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
           />
         </>
       ) : (
-        <p className="mt-6 text-center text-[14px] font-medium text-black">
-          {t(`New to ${productLabel}?`)}{" "}
-          <Link href="/signup" className="text-[#007aff] hover:underline">
-            {t("Sign Up")}
-          </Link>
-        </p>
+        <div className="mt-6 space-y-3 text-center text-[14px] font-medium text-black">
+          <p>
+            {t("Sales club demos")}{" "}
+            <Link href="/go" className="text-[#007aff] hover:underline">
+              /go
+            </Link>
+          </p>
+          <p className="text-[13px] font-normal text-grey">
+            {t("Password")}: <span className="font-semibold text-ink">password</span>
+          </p>
+        </div>
       )}
     </div>
   );
@@ -274,7 +293,7 @@ export default function LoginClient({
       }
       return;
     }
-    document.title = "Easy Life | Community Management";
+    document.title = "Easy Life | Super Admin";
   }, [
     branding?.locked,
     branding?.productName,

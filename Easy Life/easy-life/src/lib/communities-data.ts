@@ -1320,5 +1320,5 @@ export const tabUsage = {
 
 export const superAdmin = {
   name: "Easy Life Admin",
-  email: "admin@easylife.app",
+  email: "superadmin@gmail.com",
 };

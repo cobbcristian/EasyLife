@@ -26,7 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
   return {
-    title: "Easy Life | Community Management",
+    title: "Easy Life | Super Admin",
   };
 }
 

@@ -236,7 +236,9 @@ export async function proxy(request: NextRequest) {
   }
 
   if (session.role !== matched.role) {
-    return NextResponse.redirect(new URL(homeForRole(session.role), request.url));
+    return NextResponse.redirect(
+      new URL(homeForRole(session.role, session.communityId), request.url),
+    );
   }
 
   const stagingBlocked = await isSessionBlockedByStaging(session);
