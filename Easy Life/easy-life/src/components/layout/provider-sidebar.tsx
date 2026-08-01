@@ -10,13 +10,22 @@ import { NavIcon } from "@/components/ui/nav-icon";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useI18n } from "@/lib/i18n";
 import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
+import {
+  providerShowsActivities,
+  providerShowsGroupClinics,
+} from "@/lib/provider-nav";
 
 const providerNav = [
   { label: "Dashboard", href: "/provider", icon: "LayoutDashboard", exact: true },
   { label: "Bookings", href: "/provider/bookings", icon: "CalendarCheck" },
-  { label: "Clinics", href: "/provider/clinics", icon: "Users" },
+  { label: "Clinics", href: "/provider/clinics", icon: "Users", feature: "clinics" as const },
   { label: "Services", href: "/provider/services", icon: "Briefcase" },
-  { label: "Activities", href: "/provider/activities", icon: "Briefcase" },
+  {
+    label: "Activities",
+    href: "/provider/activities",
+    icon: "Briefcase",
+    feature: "activities" as const,
+  },
   { label: "Messages", href: "/provider/messages", icon: "Mail", badgeKey: "messages" as const },
   { label: "Transactions", href: "/provider/transactions", icon: "CreditCard" },
   { label: "Account", href: "/provider/account", icon: "UserCircle" },
@@ -45,6 +54,9 @@ export function ProviderSidebar({ open, onClose }: ProviderSidebarProps) {
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [brandName, setBrandName] = useState<string | null>(null);
   const [showDiningMenu, setShowDiningMenu] = useState(false);
+  // Opt-in: only club instructors — avoid flashing Clinics for lawn / Local Pros.
+  const [showClinics, setShowClinics] = useState(false);
+  const [showActivities, setShowActivities] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -57,6 +69,14 @@ export function ProviderSidebar({ open, onClose }: ProviderSidebarProps) {
         setShowDiningMenu(
           email.includes("dining") || email.includes("food") || email.includes("restaurant"),
         );
+        const profile = {
+          email,
+          listingKind: d.providerListingKind as string | null,
+          category: d.providerCategory as string | null,
+          type: d.providerType as string | null,
+        };
+        setShowClinics(providerShowsGroupClinics(profile));
+        setShowActivities(providerShowsActivities(profile));
       })
       .catch(() => {});
   }, []);
@@ -74,6 +94,12 @@ export function ProviderSidebar({ open, onClose }: ProviderSidebarProps) {
   const moreNav = showDiningMenu
     ? [...providerSecondaryNav.slice(0, 2), ...providerDiningNav, ...providerSecondaryNav.slice(2)]
     : providerSecondaryNav;
+
+  const primaryNav = providerNav.filter((item) => {
+    if (item.feature === "clinics") return showClinics;
+    if (item.feature === "activities") return showActivities;
+    return true;
+  });
 
   return (
     <>
@@ -117,7 +143,7 @@ export function ProviderSidebar({ open, onClose }: ProviderSidebarProps) {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-1.5">
-            {providerNav.map((item) => {
+            {primaryNav.map((item) => {
               const isActive = item.exact
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);

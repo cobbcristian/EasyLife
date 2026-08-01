@@ -563,17 +563,9 @@ export function tenantByCommunityId(
   );
 }
 
-/** Tenants shown on the /go sales directory (active overnight sales demos). */
-const SALES_DEMO_TENANT_IDS = new Set<DemoTenantId>([
-  "spanishwells",
-  "harborpointe",
-  "willowcreek",
-  "alliant",
-]);
-
-/** Tenants shown on the /go sales directory. Direct /go/[id] still works for others. */
+/** Tenants shown on the /go sales directory — full demo catalog. */
 export function listSalesReadyTenants(): DemoTenant[] {
-  return Object.values(DEMO_TENANTS).filter((t) => SALES_DEMO_TENANT_IDS.has(t.id));
+  return Object.values(DEMO_TENANTS);
 }
 
 export function listAllDemoTenants(): DemoTenant[] {
@@ -587,6 +579,11 @@ export type DemoLoginRole =
   | "Social Member"
   | "Sports Member"
   | "Equestrian Member"
+  | "Resident · Golf + HOA"
+  | "Club-only · National"
+  | "Resident · Social"
+  | "Resident · Sports"
+  | "Resident · Equestrian"
   | "Board"
   | "PM"
   | "Admin"
@@ -608,27 +605,27 @@ export function demoLoginsForTenant(
     case "ironcrest":
       return [
         {
-          role: "Golf Member",
+          role: "Resident · Golf + HOA",
           email: "member.golf@theclubatironlake.com",
           password: DEMO_PASSWORD,
         },
         {
-          role: "National Golf",
+          role: "Club-only · National",
           email: "member.national@theclubatironlake.com",
           password: DEMO_PASSWORD,
         },
         {
-          role: "Social Member",
+          role: "Resident · Social",
           email: "member.social@theclubatironlake.com",
           password: DEMO_PASSWORD,
         },
         {
-          role: "Sports Member",
+          role: "Resident · Sports",
           email: "member.sports@theclubatironlake.com",
           password: DEMO_PASSWORD,
         },
         {
-          role: "Equestrian Member",
+          role: "Resident · Equestrian",
           email: "member.equestrian@theclubatironlake.com",
           password: DEMO_PASSWORD,
         },

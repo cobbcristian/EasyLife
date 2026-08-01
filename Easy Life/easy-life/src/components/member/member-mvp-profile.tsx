@@ -246,9 +246,9 @@ export function MemberMvpProfile({
           {profile.residencyStatus ? (
             <p className="mt-1 text-xs text-grey">
               {profile.residencyStatus === "resident"
-                ? t("On-property resident")
-                : t("Non-resident member")}
-              {profile.paysHoa ? ` · ${t("Pays HOA")}` : ` · ${t("No HOA dues")}`}
+                ? t("On-property resident (HOA)")
+                : t("Club member only (no HOA)")}
+              {profile.paysHoa ? ` · ${t("Pays HOA dues")}` : ` · ${t("No HOA dues")}`}
               {profile.membershipTier
                 ? ` · ${t("Tier")}: ${profile.membershipTier.replace(/_/g, " ")}`
                 : ""}

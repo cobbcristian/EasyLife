@@ -15,15 +15,23 @@ export async function GET() {
     : undefined;
 
   let providerId: string | null = null;
+  let providerListingKind: string | null = null;
+  let providerCategory: string | null = null;
+  let providerType: string | null = null;
   if (session.role === "provider" && session.communityId) {
-    const provider = await prisma.provider.findFirst({
-      where: {
-        communityId: session.communityId,
-        name: session.name,
-      },
-      select: { id: true },
-    });
+    const email = session.email.toLowerCase();
+    const provider =
+      (await prisma.provider.findFirst({
+        where: {
+          communityId: session.communityId,
+          OR: [{ email }, { name: session.name }],
+        },
+        select: { id: true, listingKind: true, category: true, type: true },
+      })) ?? null;
     providerId = provider?.id ?? null;
+    providerListingKind = provider?.listingKind ?? null;
+    providerCategory = provider?.category ?? null;
+    providerType = provider?.type ?? null;
   }
 
   const [account, profileExt] = await Promise.all([
@@ -45,6 +53,9 @@ export async function GET() {
       ? logoForCommunity(session.communityId, community?.logoUrl)
       : null,
     providerId,
+    providerListingKind,
+    providerCategory,
+    providerType,
     unit: profileExt?.unit ?? "—",
     avatarUrl: account?.avatarUrl ?? null,
   });

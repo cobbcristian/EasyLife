@@ -70,8 +70,10 @@ export const brandAssets = {
   communityOceanside: "/brand/community-oceanside.png",
   /** IronCrest / The Club at Iron Lake (Ocala) — official nav mark from discoverironcrest.com */
   communityIroncrest: "/brand/community-ironcrest.png",
-  /** Tight wordmark for headers/sidebars (PNG has heavy padding). */
+  /** Full horizontal wordmark — login headers / wide slots only. */
   communityIroncrestSvg: "/brand/community-ironcrest.svg",
+  /** Square crest mark — community cards, avatars, sidebar thumbnails. */
+  communityIroncrestMark: "/brand/community-ironcrest-mark.svg",
   /** Service / vendor covers — one distinct photo per category */
   serviceCleaning: "/brand/service-cleaning.png",
   serviceCarpet: "/brand/service-carpet.png",
@@ -321,8 +323,8 @@ export const communityLogoById: Record<string, string> = {
   "harbor-pointe": brandAssets.communityHarborPointe,
   "willow-creek": brandAssets.communityWillowCreek,
   alliant: brandAssets.communityAlliant,
-  // SVG wordmark — the square PNG has huge padding and looks tiny in nav.
-  "iron-lake": brandAssets.communityIroncrestSvg,
+  // Square crest — wide SVG wordmark crops to "NCR" in 70×70 community cards.
+  "iron-lake": brandAssets.communityIroncrestMark,
 };
 
 const reviewerAvatars = [
@@ -1329,9 +1331,9 @@ export function logoForCommunity(id: string, logoUrl?: string | null): string {
   if (id === "golden-ocala") {
     return mapped ?? brandAssets.communityGoldenOcala;
   }
-  // Prefer the tight SVG wordmark over the padded square PNG for IronCrest.
+  // Prefer the square crest mark over the wide wordmark (crops badly in cards).
   if (id === "iron-lake") {
-    return brandAssets.communityIroncrestSvg;
+    return brandAssets.communityIroncrestMark;
   }
   // Never serve Golden Ocala / RLR crest (or the mislabeled wordmark file) for other clubs.
   if (

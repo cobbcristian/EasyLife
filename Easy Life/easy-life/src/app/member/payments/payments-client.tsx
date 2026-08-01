@@ -172,7 +172,15 @@ export function PaymentsClient() {
 
           {paysHoa === false ? (
             <p className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3 text-xs text-grey">
-              {t("Non-resident members do not pay HOA/property assessments. Club charges and F&B still appear below.")}
+              {t(
+                "You are a club member only — not an on-property HOA resident. You will not see HOA assessments, property tools, or association service requests. Club charges and F&B still appear below.",
+              )}
+            </p>
+          ) : paysHoa ? (
+            <p className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3 text-xs text-grey">
+              {t(
+                "You live on property and pay HOA / association dues in addition to club charges.",
+              )}
             </p>
           ) : null}
 

@@ -64,6 +64,9 @@ export interface MemberMvpHomeProps {
   clubName?: string;
   clubLogoSrc?: string | null;
   communityId?: string | null;
+  /** On-property residents who pay assessments. Club-only members are false. */
+  paysHoa?: boolean;
+  residencyStatus?: "resident" | "non_resident" | string;
   featuredTiles?: Array<{
     key: string;
     label: string;
@@ -184,6 +187,8 @@ export function MemberMvpHome({
   clubName,
   clubLogoSrc,
   communityId,
+  paysHoa = true,
+  residencyStatus = "resident",
   featuredTiles,
   bookings,
   serviceBookings = [],
@@ -201,10 +206,16 @@ export function MemberMvpHome({
     ? "Tee times · Courts · Spa"
     : "Courts · Spa · Clubhouse";
   const featuredViewAllHref = isGolfClub ? "/member/bookings" : "/member/dining";
-  const categoryTiles = homeCategoryTiles.map((tile) => {
-    if (tile.key !== "hoa" || !isGolfClub) return tile;
-    return { ...tile, label: "Dues", href: "/member/payments" };
-  });
+  const showHoa = paysHoa && residencyStatus !== "non_resident";
+  const categoryTiles = homeCategoryTiles
+    .filter((tile) => showHoa || tile.key !== "hoa")
+    .map((tile) => {
+      if (tile.key !== "hoa" || !isGolfClub) return tile;
+      return { ...tile, label: "Dues", href: "/member/payments" };
+    });
+  const accessLabel = showHoa
+    ? t("Resident · pays HOA")
+    : t("Club member · no HOA");
 
   return (
     <div className="font-[family-name:var(--font-poppins)]">
@@ -232,6 +243,7 @@ export function MemberMvpHome({
               <h1 className="truncate text-[25px] font-medium leading-tight text-white">
                 {t("Hi")}, {firstName}
               </h1>
+              <p className="mt-1 text-[12px] font-medium text-white/85">{accessLabel}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2 pt-1">
@@ -359,15 +371,15 @@ export function MemberMvpHome({
           </Link>
         </section>
 
-        {/* Categories — horizontal scroll */}
+        {/* Categories — size so ~3 tiles + HOA peek (scroll cue) */}
         <section>
           <h2 className="mb-3 text-[21px] font-medium text-black">{t("Categories")}</h2>
-          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
+          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-none">
             {categoryTiles.map((tile) => (
               <Link
                 key={tile.key}
                 href={tile.href}
-                className="relative h-20 w-[156px] shrink-0 overflow-hidden rounded-lg"
+                className="relative h-20 w-[138px] shrink-0 snap-start overflow-hidden rounded-lg"
                 style={{ backgroundColor: tile.bg }}
               >
                 <span className="absolute left-2.5 top-3 text-base font-medium text-white">
@@ -384,7 +396,7 @@ export function MemberMvpHome({
           </div>
         </section>
 
-        {/* Featured — paid placements only; hide when empty so demos stay polished */}
+        {/* Featured — cards wider than half so the next one peeks */}
         {featured.length > 0 ? (
           <section>
             <div className="mb-3 flex items-center justify-between">
@@ -393,12 +405,12 @@ export function MemberMvpHome({
                 {t("View all")}
               </Link>
             </div>
-            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-none">
               {featured.map((tile) => (
                 <Link
                   key={tile.key}
                   href={tile.href}
-                  className="relative h-[164px] w-[242px] shrink-0 overflow-hidden rounded-lg shadow-[0_5px_20px_rgba(0,0,0,0.1)]"
+                  className="relative h-[164px] w-[255px] shrink-0 snap-start overflow-hidden rounded-lg shadow-[0_5px_20px_rgba(0,0,0,0.1)]"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={tile.image} alt="" className="absolute inset-0 h-full w-full object-cover" />

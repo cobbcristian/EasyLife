@@ -138,7 +138,12 @@ export async function GET() {
 
   return NextResponse.json({
     balance,
-    profile: { name: memberName },
+    profile: {
+      name: memberName,
+      residencyStatus: profile.residencyStatus,
+      paysHoa: profile.paysHoa,
+      membershipTier: profile.membershipTier,
+    },
     branding: community
       ? {
           id: session.communityId,

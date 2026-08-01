@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ProviderContentHeader } from "@/components/layout/provider-content-header";
 import { PageBody } from "@/components/layout/content-header";
 import {
@@ -11,6 +12,7 @@ import {
 import { brandAssets } from "@/lib/brand-assets";
 import { useI18n } from "@/lib/i18n";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
+import { providerShowsActivities } from "@/lib/provider-nav";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +27,7 @@ interface ActivityCard {
 /** Figma Activity Activities + Hard Press (5687:7235, 5692:20017). */
 export default function ProviderActivitiesPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const { toast } = useToast();
   const profile = useSessionProfile();
   const [activities, setActivities] = useState<ActivityCard[]>([]);
@@ -32,7 +35,27 @@ export default function ProviderActivitiesPage() {
   const [editing, setEditing] = useState<ActivityCard | null>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [pressedId, setPressedId] = useState<string | null>(null);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        const ok = providerShowsActivities({
+          email: d.email,
+          listingKind: d.providerListingKind,
+          category: d.providerCategory,
+          type: d.providerType,
+        });
+        setAllowed(ok);
+        if (!ok) router.replace("/provider");
+      })
+      .catch(() => {
+        setAllowed(false);
+        router.replace("/provider");
+      });
+  }, [router]);
 
   async function reload() {
     const res = await fetch("/api/provider/offerings?kind=activity");
@@ -57,6 +80,7 @@ export default function ProviderActivitiesPage() {
   }
 
   useEffect(() => {
+    if (!allowed) return;
     let on = true;
     fetch("/api/provider/offerings?kind=activity")
       .then((r) => r.json())
@@ -86,7 +110,7 @@ export default function ProviderActivitiesPage() {
     return () => {
       on = false;
     };
-  }, []);
+  }, [allowed]);
 
   useEffect(() => {
     function close() {
@@ -153,6 +177,10 @@ export default function ProviderActivitiesPage() {
   function openMenu(activity: ActivityCard, clientX: number, clientY: number) {
     setPressedId(activity.id);
     setMenu({ id: activity.id, x: clientX, y: clientY });
+  }
+
+  if (!allowed) {
+    return null;
   }
 
   return (

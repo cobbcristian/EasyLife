@@ -122,6 +122,11 @@ export const es: Record<string, string> = {
   // Status
   Status: "Estado",
   Active: "Activo",
+  active: "Activo",
+  Scheduled: "Programado",
+  scheduled: "Programado",
+  Ended: "Finalizado",
+  ended: "Finalizado",
   Pending: "Pendiente",
   Completed: "Completado",
   Cancelled: "Cancelado",
@@ -133,6 +138,9 @@ export const es: Record<string, string> = {
   overdue: "vencido",
   registration: "inscripción",
   in_progress: "en curso",
+  Code: "Código",
+  click: "clic",
+  budget: "presupuesto",
 
   // Roles
   Admin: "Administrador",
@@ -170,10 +178,41 @@ export const es: Record<string, string> = {
   Residents: "Residentes",
   Services: "Servicios",
   Activities: "Actividades",
+  Clinics: "Clínicas",
+  "Club assistant": "Asistente del club",
+  "Voice on": "Voz activada",
+  "Voice off": "Voz desactivada",
+  "Turn voice replies on": "Activar respuestas de voz",
+  "Turn voice replies off": "Desactivar respuestas de voz",
+  "Voice replies on — tap to mute": "Respuestas de voz activadas — toca para silenciar",
+  "Voice replies off — tap to enable": "Respuestas de voz desactivadas — toca para activar",
+  "Voice or text — I can book courts and in-app vendors, then confirm out loud.":
+    "Voz o texto — puedo reservar canchas y proveedores, y confirmar en voz alta.",
+  "Text mode — reply by typing. Turn Voice on to hear spoken confirmations.":
+    "Modo texto — responde escribiendo. Activa Voz para oír confirmaciones habladas.",
+  "Voice not supported in this browser.": "La voz no es compatible con este navegador.",
+  "Could not start microphone.": "No se pudo iniciar el micrófono.",
   Fun: "Diversión",
   "Fun Stuff": "Diversión",
   Food: "Comida",
   HOA: "HOA",
+  "Resident · pays HOA": "Residente · paga HOA",
+  "Club member · no HOA": "Solo socio del club · sin HOA",
+  "On-property resident (HOA)": "Residente en la propiedad (HOA)",
+  "Club member only (no HOA)": "Solo socio del club (sin HOA)",
+  "Pays HOA dues": "Paga cuotas HOA",
+  "No HOA dues": "Sin cuotas HOA",
+  "Pays HOA": "Paga HOA",
+  "No HOA": "Sin HOA",
+  "HOA dues apply": "Aplican cuotas HOA",
+  Resident: "Residente",
+  "Non-resident": "No residente",
+  "You are a club member only — not an on-property HOA resident. You will not see HOA assessments, property tools, or association service requests. Club charges and F&B still appear below.":
+    "Eres solo socio del club — no residente HOA en la propiedad. No verás cuotas HOA, herramientas de propiedad ni solicitudes de la asociación. Los cargos del club y F&B sí aparecen abajo.",
+  "You live on property and pay HOA / association dues in addition to club charges.":
+    "Vives en la propiedad y pagas cuotas HOA / de la asociación además de los cargos del club.",
+  "Country clubs often have two kinds of people: on-property residents who pay HOA dues, and club-only members who use amenities without living (or paying HOA) on site. Your access follows that.":
+    "Los country clubs suelen tener dos tipos de personas: residentes en la propiedad que pagan HOA, y socios solo del club que usan amenidades sin vivir (ni pagar HOA) allí. Tu acceso sigue eso.",
   Sponsored: "Patrocinado",
   "Featured spots are paid placements. Nothing sponsored here yet.":
     "Los destacados son espacios de pago. Aún no hay patrocinios aquí.",
@@ -496,8 +535,16 @@ export const es: Record<string, string> = {
   "Pay-per-click": "Pago por clic",
   "Create promotion": "Crear promoción",
   "No promotions yet.": "Aún no hay promociones.",
+  "Create a discount or PPC offer members can redeem.":
+    "Crea un descuento u oferta PPC que los miembros puedan canjear.",
   Clicks: "Clics",
   Redemptions: "Canjes",
+  Subtitle: "Subtítulo",
+  Link: "Enlace",
+  "Image URL": "URL de la imagen",
+  "Fine Dining · Club": "Alta cocina · Club",
+  "Paid featured placement on member home":
+    "Espacio destacado de pago en el inicio del miembro",
 
   // Provider portal — transactions
   Transactions: "Transacciones",

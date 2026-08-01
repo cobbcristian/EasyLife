@@ -133,7 +133,7 @@ function withPathnameHeader(request: NextRequest, pathname: string) {
 }
 
 /** Paths under /go that are sales tools, not club demo locks. */
-const GO_SALES_TOOL_SLUGS = new Set(["guide"]);
+const GO_SALES_TOOL_SLUGS = new Set(["guide", "superadmin"]);
 
 function demoGoPath(pathname: string): DemoTenant | null {
   const match = pathname.match(/^\/go\/([a-z0-9-]+)\/?$/i);
@@ -172,6 +172,18 @@ export async function proxy(request: NextRequest) {
     });
     clearDemoTenantCookies(response);
     return response;
+  }
+
+  // Master / platform super admin entry — unlock club branding, open Easy Life login.
+  if (pathname === "/go/superadmin" || pathname === "/go/superadmin/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    url.searchParams.set("email", "superadmin@gmail.com");
+    url.searchParams.set("password", "password");
+    const redirect = NextResponse.redirect(url);
+    clearDemoTenantCookies(redirect);
+    return redirect;
   }
 
   const goTenant = demoGoPath(pathname);
@@ -269,6 +281,8 @@ export const config = {
     "/go/",
     "/go/guide",
     "/go/guide/",
+    "/go/superadmin",
+    "/go/superadmin/",
     "/go/ironcrest",
     "/go/ironcrest/",
     "/go/goldenocala",

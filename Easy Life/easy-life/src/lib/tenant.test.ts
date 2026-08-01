@@ -294,19 +294,14 @@ describe("demo tenant", () => {
     expect(userBelongsToDemoTenant("windsor", SPANISH_WELLS_TENANT)).toBe(false);
   });
 
-  it("hides salesReady:false tenants from the sales directory", () => {
+  it("lists every demo tenant on the sales directory", () => {
     const ready = listSalesReadyTenants();
     const all = listAllDemoTenants();
-    expect(all.some((t) => t.id === "fallsclub")).toBe(true);
-    expect(FALLS_CLUB_TENANT.salesReady).toBe(false);
-    expect(ready.some((t) => t.id === "fallsclub")).toBe(false);
-    expect(ready.map((t) => t.id).sort()).toEqual([
-      "alliant",
-      "harborpointe",
-      "spanishwells",
-      "willowcreek",
-    ]);
-    expect(ready.length).toBeLessThan(all.length);
+    expect(ready.length).toBe(all.length);
+    expect(ready.some((t) => t.id === "fallsclub")).toBe(true);
+    expect(ready.some((t) => t.id === "ironcrest")).toBe(true);
+    expect(ready.some((t) => t.id === "spanishwells")).toBe(true);
+    expect(ready.map((t) => t.id).sort()).toEqual(all.map((t) => t.id).sort());
   });
 
   it("returns role demo logins for sales cheat sheets", () => {

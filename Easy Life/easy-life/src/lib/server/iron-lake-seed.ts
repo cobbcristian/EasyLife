@@ -1325,6 +1325,8 @@ export async function ensureIronLakeDemoSeeded(): Promise<void> {
           membershipTier: u.tier,
           unit: u.unit,
           householdAddress: `${u.unit}, IronCrest, Ocala, FL 34475`,
+          residencyStatus: u.unit === "Guest Member" ? "non_resident" : "resident",
+          paysHoa: u.unit !== "Guest Member",
         },
       });
     }

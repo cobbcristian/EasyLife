@@ -1,13 +1,10 @@
 import { cookies } from "next/headers";
-import { es } from "@/lib/translations/es";
-import type { Lang } from "@/lib/i18n";
+import { translate, type Lang } from "@/lib/translate";
 
 export const LANG_COOKIE = "easy-life-lang";
 
-export function translate(lang: Lang, key: string): string {
-  if (lang === "es") return es[key] ?? key;
-  return key;
-}
+export { translate };
+export type { Lang };
 
 export async function getServerLang(): Promise<Lang> {
   const store = await cookies();

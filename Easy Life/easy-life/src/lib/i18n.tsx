@@ -9,13 +9,9 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { es } from "@/lib/translations/es";
+import { translate, type Lang } from "@/lib/translate";
 
-export type Lang = "en" | "es";
-
-type Dict = Record<string, string>;
-
-const dictionaries: Record<Lang, Dict> = { en: {}, es };
+export type { Lang };
 
 interface I18nValue {
   lang: Lang;
@@ -58,10 +54,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     setLangCookie(next);
   }, []);
 
-  const t = useCallback(
-    (key: string) => dictionaries[lang][key] ?? key,
-    [lang],
-  );
+  const t = useCallback((key: string) => translate(lang, key), [lang]);
 
   const value = useMemo<I18nValue>(() => ({ lang, setLang, t }), [lang, setLang, t]);
 

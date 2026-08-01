@@ -1,4 +1,4 @@
-﻿import type { ServiceBookingStatus } from "@/lib/types";
+import type { ServiceBookingStatus } from "@/lib/types";
 
 export interface ProviderBooking {
   id: string;

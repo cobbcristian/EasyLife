@@ -38,12 +38,20 @@ export function DemoLoginCheatSheet({
             </p>
           )}
         </div>
-        <Link
-          href="/go"
-          className="shrink-0 text-[12px] font-medium text-[#007aff] hover:underline"
-        >
-          All clubs
-        </Link>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Link
+            href="/go/superadmin"
+            className="text-[12px] font-medium text-[#007aff] hover:underline"
+          >
+            Super Admin
+          </Link>
+          <Link
+            href="/go"
+            className="text-[12px] font-medium text-[#007aff] hover:underline"
+          >
+            All clubs
+          </Link>
+        </div>
       </div>
       <ul className="mt-3 max-h-[min(22rem,50vh)] space-y-1.5 overflow-y-auto">
         {logins.map((login) => (

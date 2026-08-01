@@ -249,8 +249,8 @@ export function PromotionsClient({ initial }: { initial: Promo[] }) {
                     {t(p.status)}
                   </span>
                 </div>
-                <h3 className="mt-3 text-sm font-medium text-black">{p.title}</h3>
-                <p className="mt-1 text-sm text-grey">{p.detail}</p>
+                <h3 className="mt-3 text-sm font-medium text-black">{t(p.title)}</h3>
+                <p className="mt-1 text-sm text-grey">{t(p.detail)}</p>
                 <p className="mt-3 text-xs text-grey">
                   {p.type === "ppc" ? t("Clicks") : t("Redemptions")}: {p.redemptions}
                 </p>

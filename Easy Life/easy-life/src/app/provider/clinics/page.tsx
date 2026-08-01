@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { ProviderContentHeader } from "@/components/layout/provider-content-header";
 import { PageBody } from "@/components/layout/content-header";
 import { ProviderClinicInviteSheet } from "@/components/provider/provider-clinic-invite-sheet";
 import { useI18n } from "@/lib/i18n";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
+import { providerShowsGroupClinics } from "@/lib/provider-nav";
 import { formatCurrency } from "@/lib/utils";
 
 type ClinicRow = {
@@ -27,9 +29,11 @@ type ClinicRow = {
 
 export default function ProviderClinicsPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const profile = useSessionProfile();
   const [clinics, setClinics] = useState<ClinicRow[]>([]);
   const [open, setOpen] = useState(false);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
 
   const load = useCallback(() => {
     fetch("/api/provider/clinics")
@@ -39,8 +43,31 @@ export default function ProviderClinicsPage() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        const ok = providerShowsGroupClinics({
+          email: d.email,
+          listingKind: d.providerListingKind,
+          category: d.providerCategory,
+          type: d.providerType,
+        });
+        setAllowed(ok);
+        if (!ok) router.replace("/provider");
+      })
+      .catch(() => {
+        setAllowed(false);
+        router.replace("/provider");
+      });
+  }, [router]);
+
+  useEffect(() => {
+    if (allowed) load();
+  }, [allowed, load]);
+
+  if (!allowed) {
+    return null;
+  }
 
   return (
     <div className="font-[family-name:var(--font-poppins)]">

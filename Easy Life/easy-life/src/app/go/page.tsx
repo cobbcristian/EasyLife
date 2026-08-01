@@ -67,10 +67,46 @@ export default function GoSalesIndexPage() {
       </header>
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-8">
+        <div className="overflow-hidden rounded-2xl border border-[#002856]/20 bg-white shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
+          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#002856]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brand/logo-icon.png"
+                  alt=""
+                  className="h-8 w-8 object-contain"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-grey">
+                  Platform master
+                </p>
+                <p className="truncate text-[15px] font-semibold">
+                  Super Admin
+                </p>
+                <p className="truncate font-mono text-[12px] text-grey">
+                  superadmin@gmail.com
+                </p>
+                <p className="mt-0.5 font-mono text-[11px] text-grey">
+                  /go/superadmin
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Link
+                href="/go/superadmin"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#002856] px-4 text-[14px] font-medium text-white hover:opacity-95"
+              >
+                Open Super Admin
+              </Link>
+            </div>
+          </div>
+        </div>
+
         <GoSalesClient tenants={tenants} />
         <p className="text-center text-[12px] text-grey">
-          {tenants.length} clubs ready · unfinished tenants are hidden from this
-          list
+          {tenants.length} demo clubs
         </p>
       </main>
     </div>

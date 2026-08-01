@@ -47,7 +47,12 @@ interface HomeTournament {
 
 interface HomeData {
   balance: number;
-  profile: { name: string };
+  profile: {
+    name: string;
+    residencyStatus?: string;
+    paysHoa?: boolean;
+    membershipTier?: string;
+  };
   branding?: { id?: string; name: string; logoUrl: string | null } | null;
   featuredTiles?: Array<{
     key: string;
@@ -124,6 +129,8 @@ export function MemberHomeClient() {
       clubName={data.branding?.name}
       clubLogoSrc={data.branding?.logoUrl}
       communityId={data.branding?.id}
+      paysHoa={data.profile.paysHoa !== false}
+      residencyStatus={data.profile.residencyStatus ?? "resident"}
       featuredTiles={data.featuredTiles}
       bookings={data.bookings}
       serviceBookings={data.serviceBookings ?? []}

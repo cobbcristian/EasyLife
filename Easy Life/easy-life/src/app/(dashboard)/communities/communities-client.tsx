@@ -80,9 +80,9 @@ export function CommunitiesClient({
                 href={`/communities/${community.id}`}
                 className="flex items-center gap-4 rounded-xl border border-border-2 bg-white p-4 shadow-[0_4px_16px_rgba(16,24,40,0.06)] transition hover:shadow-md"
               >
-                <div className="relative h-[70px] w-[70px] shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                <div className="relative flex h-[70px] w-[70px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 p-1.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logo} alt="" className="h-full w-full object-cover" />
+                  <img src={logo} alt="" className="max-h-full max-w-full object-contain" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-base font-semibold text-ink">{community.name}</h3>

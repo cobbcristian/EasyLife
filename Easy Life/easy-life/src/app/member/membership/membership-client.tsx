@@ -147,6 +147,11 @@ export function MembershipClient({ embedded = false }: { embedded?: boolean }) {
                 "Some clubs require a waiting period after you resign before you can rejoin.",
               )}
             </p>
+            <p className="mt-3 rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3 text-xs text-grey">
+              {t(
+                "Country clubs often have two kinds of people: on-property residents who pay HOA dues, and club-only members who use amenities without living (or paying HOA) on site. Your access follows that.",
+              )}
+            </p>
           </>
         ) : null}
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
@@ -26,6 +26,13 @@ const primaryNav = [
   { label: "Membership", href: "/member/membership", icon: "Award" },
   { label: "Profile", href: "/member/profile", icon: "UserCircle" },
 ];
+
+/** On-property / HOA-only — hidden for club-only (non-resident) members. */
+const hoaOnlyHrefs = new Set([
+  "/member/service-requests",
+  "/member/properties",
+  "/member/real-estate",
+]);
 
 const moreNav = [
   { label: "Notifications", href: "/member/notifications", icon: "Bell" },
@@ -111,12 +118,32 @@ export function MemberSidebar({
   const pathname = usePathname();
   const { t } = useI18n();
   const resolvedAvatar = avatarSrc ?? avatarForReviewer(userName || "Member");
-  const moreActive = moreNav.some(
+  const [paysHoa, setPaysHoa] = useState(true);
+  const visibleMoreNav = moreNav.filter(
+    (item) => paysHoa || !hoaOnlyHrefs.has(item.href),
+  );
+  const moreActive = visibleMoreNav.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
   const [moreOpen, setMoreOpen] = useState(moreActive);
   const productName = appName?.trim() || "Easy Life";
   const isWhiteLabel = Boolean(productName !== "Easy Life" && logoUrl);
+
+  useEffect(() => {
+    let on = true;
+    fetch("/api/member/profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!on) return;
+        const residency = d.residencyStatus as string | undefined;
+        const hoa = d.paysHoa as boolean | undefined;
+        setPaysHoa(residency === "non_resident" ? false : hoa !== false);
+      })
+      .catch(() => {});
+    return () => {
+      on = false;
+    };
+  }, []);
 
   return (
     <>
@@ -154,6 +181,9 @@ export function MemberSidebar({
             {isWhiteLabel && appName && appName !== "Easy Life" ? (
               <p className="mt-1 truncate text-xs font-medium text-grey">{appName}</p>
             ) : null}
+            <p className="mt-1 text-[11px] font-medium text-grey">
+              {paysHoa ? t("Resident · pays HOA") : t("Club member · no HOA")}
+            </p>
           </div>
           <button
             type="button"
@@ -185,7 +215,7 @@ export function MemberSidebar({
               />
             </button>
             {moreOpen ? (
-              <NavList items={moreNav} pathname={pathname} onClose={onClose} t={t} />
+              <NavList items={visibleMoreNav} pathname={pathname} onClose={onClose} t={t} />
             ) : null}
           </div>
         </nav>

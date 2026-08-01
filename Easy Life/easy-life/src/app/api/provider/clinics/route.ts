@@ -6,6 +6,8 @@ import {
   type ClinicSport,
 } from "@/lib/server/clinics";
 import { ensureRecordsSeeded, logEvent, listCommunityEvents } from "@/lib/server/records";
+import { providerShowsGroupClinics } from "@/lib/provider-nav";
+import { prisma } from "@/lib/server/prisma";
 
 const SPORTS: ClinicSport[] = ["tennis", "golf", "bocce", "pickleball"];
 
@@ -17,10 +19,37 @@ function formatClock(value: string) {
   return `${h12}:${m} ${ampm}`;
 }
 
+async function clinicAllowedForSession(session: {
+  email: string;
+  name: string;
+  communityId?: string | null;
+}) {
+  const email = session.email.toLowerCase();
+  const communityId = session.communityId ?? null;
+  const provider = communityId
+    ? await prisma.provider.findFirst({
+        where: {
+          communityId,
+          OR: [{ email }, { name: session.name }],
+        },
+        select: { listingKind: true, category: true, type: true },
+      })
+    : null;
+  return providerShowsGroupClinics({
+    email,
+    listingKind: provider?.listingKind,
+    category: provider?.category,
+    type: provider?.type,
+  });
+}
+
 export async function GET() {
   const session = await getSession();
   if (!session || session.role !== "provider") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await clinicAllowedForSession(session))) {
+    return NextResponse.json({ error: "Not available for this provider" }, { status: 403 });
   }
   await ensureRecordsSeeded();
   const events = (await listCommunityEvents(session.communityId)).filter((e) =>
@@ -55,6 +84,9 @@ export async function POST(request: Request) {
   }
   if (!session.communityId) {
     return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
+  if (!(await clinicAllowedForSession(session))) {
+    return NextResponse.json({ error: "Not available for this provider" }, { status: 403 });
   }
 
   let body: {
