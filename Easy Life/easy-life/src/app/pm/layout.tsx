@@ -10,6 +10,7 @@ import {
 const nav = [
   { label: "Home", href: "/pm", icon: "LayoutDashboard" },
   { label: "Front Desk", href: "/pm/front-desk", icon: "DoorOpen" },
+  { label: "Tram Dispatch", href: "/pm/tram", icon: "Bus" },
   { label: "Packages", href: "/pm/packages", icon: "Package" },
   { label: "Violations", href: "/pm/violations", icon: "AlertTriangle" },
   { label: "Registrations", href: "/pm/registrations", icon: "ClipboardList" },

@@ -38,6 +38,7 @@ const moreNav = [
   { label: "Notifications", href: "/member/notifications", icon: "Bell" },
   { label: "Favorites", href: "/member/favorites", icon: "Star" },
   { label: "Announcements", href: "/member/announcements", icon: "Megaphone" },
+  { label: "Tram Service", href: "/member/tram", icon: "Bus" },
   { label: "Packages", href: "/member/packages", icon: "Package" },
   { label: "Violations", href: "/member/violations", icon: "AlertTriangle" },
   { label: "Help & FAQ", href: "/member/faq", icon: "HelpCircle" },

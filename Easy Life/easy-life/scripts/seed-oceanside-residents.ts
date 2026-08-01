@@ -643,6 +643,64 @@ async function main() {
 
   console.log("✅ Created 18 Knowledge Base articles");
 
+  // ============================================================================
+  // TRAM / SHUTTLE VEHICLES
+  // ============================================================================
+  await prisma.tramVehicle.deleteMany({ where: { communityId: COMMUNITY_ID } });
+  await prisma.tramVehicle.createMany({
+    data: [
+      {
+        communityId: COMMUNITY_ID,
+        name: "Tram 1",
+        capacity: 8,
+        status: "available",
+        vehicleType: "tram",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "Tram 2",
+        capacity: 8,
+        status: "available",
+        vehicleType: "tram",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "Golf Cart A",
+        capacity: 4,
+        status: "available",
+        vehicleType: "golf_cart",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "Golf Cart B",
+        capacity: 4,
+        status: "available",
+        vehicleType: "golf_cart",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "Golf Cart C",
+        capacity: 4,
+        status: "available",
+        vehicleType: "golf_cart",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "Shuttle Van",
+        capacity: 12,
+        status: "available",
+        vehicleType: "van",
+        active: true,
+      },
+    ],
+  });
+  console.log("✅ Created 6 Tram/Shuttle vehicles");
+
   console.log("\n✅ Oceanside Residents community created successfully!");
   console.log("\n📋 Summary:");
   console.log(`   Community ID: ${COMMUNITY_ID}`);

@@ -1391,6 +1391,69 @@ model ViolationType {
 }
 
 // ============================================================================
+// TRAM / SHUTTLE SERVICE (FirstService parity)
+// ============================================================================
+
+/// Tram/shuttle pickup requests from residents.
+model TramRequest {
+  id            String    @id @default(cuid())
+  communityId   String    @default("golden-ocala")
+  memberEmail   String
+  memberName    String
+  phone         String?
+  /// Pickup location: Building A Lobby, Unit 1205, Pool Area, etc.
+  pickupLocation String
+  /// Dropoff destination: Clubhouse, Pool, Tennis Courts, Gate, etc.
+  destination   String
+  /// Number of passengers
+  passengers    Int       @default(1)
+  /// Special needs: wheelchair, walker, golf clubs, etc.
+  specialNeeds  String?
+  /// requested | dispatched | en_route | arrived | completed | cancelled
+  status        String    @default("requested")
+  /// Estimated pickup time
+  estimatedPickup DateTime?
+  /// Actual pickup time
+  actualPickup  DateTime?
+  /// Actual dropoff time
+  completedAt   DateTime?
+  /// Driver/staff assigned
+  driverName    String?
+  /// Driver notes
+  driverNotes   String?
+  /// Tram/cart identifier: Tram 1, Golf Cart 3, etc.
+  vehicleId     String?
+  requestedAt   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  @@index([communityId, memberEmail])
+  @@index([communityId, status])
+  @@index([communityId, requestedAt])
+}
+
+/// Tram/shuttle vehicles available per community.
+model TramVehicle {
+  id            String  @id @default(cuid())
+  communityId   String  @default("golden-ocala")
+  /// Display name: Tram 1, Golf Cart A, Shuttle Bus, etc.
+  name          String
+  /// Passenger capacity
+  capacity      Int     @default(4)
+  /// available | in_service | maintenance | offline
+  status        String  @default("available")
+  /// Current driver assigned
+  currentDriver String?
+  /// Vehicle type: tram, golf_cart, shuttle_bus, van
+  vehicleType   String  @default("golf_cart")
+  /// License plate or asset tag
+  plateNumber   String?
+  active        Boolean @default(true)
+
+  @@unique([communityId, name])
+  @@index([communityId])
+}
+
+// ============================================================================
 // KNOWLEDGE BASE / FAQ (FirstService parity)
 // ============================================================================
 
