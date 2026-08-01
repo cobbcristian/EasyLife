@@ -12,6 +12,7 @@
     "demo:health": "node scripts/demo-health.mjs",
     "azure:build": "node scripts/azure-build.mjs",
     "seed:iron-lake": "npx --yes tsx scripts/seed-iron-lake.ts",
+    "seed:oceanside": "npx --yes tsx scripts/seed-oceanside-residents.ts",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

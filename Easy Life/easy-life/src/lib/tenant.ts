@@ -54,7 +54,8 @@ export type DemoTenantId =
   | "spanishwells"
   | "harborpointe"
   | "willowcreek"
-  | "alliant";
+  | "alliant"
+  | "oceansideresidents";
 
 export type DemoTenant = {
   id: DemoTenantId;
@@ -430,6 +431,19 @@ export const ALLIANT_TENANT: DemoTenant = {
   envHostsKey: "ALLIANT_HOSTS",
 };
 
+export const OCEANSIDE_RESIDENTS_TENANT: DemoTenant = {
+  id: "oceansideresidents",
+  communityId: "oceanside-residents",
+  brandName: "Oceanside Residents",
+  productName: "Oceanside Residents",
+  communityName: "Oceanside Residents",
+  defaultLoginEmail: "dlms6768@gmail.com",
+  logoSrc: "/brand/community-oceanside.png",
+  loginHeroSrc: "/brand/community-oceanside.png",
+  hostHints: ["oceansideresidents", "oceanside-residents"],
+  envHostsKey: "OCEANSIDE_RESIDENTS_HOSTS",
+};
+
 export const DEMO_TENANTS: Record<DemoTenantId, DemoTenant> = {
   ironcrest: IRONCREST_TENANT,
   goldenocala: GOLDEN_OCALA_TENANT,
@@ -458,6 +472,7 @@ export const DEMO_TENANTS: Record<DemoTenantId, DemoTenant> = {
   harborpointe: HARBOR_POINTE_TENANT,
   willowcreek: WILLOW_CREEK_TENANT,
   alliant: ALLIANT_TENANT,
+  oceansideresidents: OCEANSIDE_RESIDENTS_TENANT,
 };
 
 function parseTenantId(raw: string | null | undefined): DemoTenantId | null {
@@ -490,7 +505,8 @@ function parseTenantId(raw: string | null | undefined): DemoTenantId | null {
     id === "spanishwells" ||
     id === "harborpointe" ||
     id === "willowcreek" ||
-    id === "alliant"
+    id === "alliant" ||
+    id === "oceansideresidents"
   ) {
     return id;
   }

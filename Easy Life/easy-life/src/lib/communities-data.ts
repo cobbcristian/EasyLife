@@ -782,6 +782,24 @@ export const communities: Community[] = [
     ],
     providers: [],
   },
+  {
+    id: "oceanside-residents",
+    name: "Oceanside Residents",
+    location: "Pompano Beach, FL",
+    residentCount: 0,
+    serviceCount: 0,
+    activityCount: 0,
+    coverColor: "from-cyan-500 to-blue-600",
+    logoUrl: brandAssets.communityOceanside,
+    primaryColor: "#0891b2",
+    appDisplayName: "Oceanside Residents",
+    customDomain: "oceansideresidents.com",
+    management: [
+      { id: "or-m1", name: "Community Admin", role: "Community Admin", isManagement: true },
+    ],
+    residents: [],
+    providers: [],
+  },
 ];
 
 export function getCommunity(id: string) {
