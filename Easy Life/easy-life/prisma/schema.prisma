@@ -1303,3 +1303,118 @@ model AiChatMessage {
   @@index([userEmail, createdAt])
 }
 
+// ============================================================================
+// PACKAGE TRACKING (FirstService parity)
+// ============================================================================
+
+/// Package delivery tracking for residents.
+model Package {
+  id            String    @id @default(cuid())
+  communityId   String    @default("golden-ocala")
+  memberEmail   String
+  memberName    String
+  unit          String
+  /// Carrier: UPS, FedEx, USPS, Amazon, DHL, Other
+  carrier       String
+  trackingNumber String?
+  description   String    @default("")
+  /// arrived | notified | picked_up | returned
+  status        String    @default("arrived")
+  /// Where package is stored: Front Desk, Mailroom, Locker 12, etc.
+  location      String    @default("Front Desk")
+  /// Staff who logged the package
+  receivedBy    String?
+  arrivedAt     DateTime  @default(now())
+  notifiedAt    DateTime?
+  pickedUpAt    DateTime?
+  pickedUpBy    String?
+  createdAt     DateTime  @default(now())
+
+  @@index([communityId, memberEmail])
+  @@index([communityId, status])
+  @@index([communityId, arrivedAt])
+}
+
+// ============================================================================
+// VIOLATION MANAGEMENT (FirstService parity)
+// ============================================================================
+
+/// HOA/Community rule violations issued to members.
+model Violation {
+  id            String    @id @default(cuid())
+  communityId   String    @default("golden-ocala")
+  memberEmail   String
+  memberName    String
+  unit          String
+  /// Category: Landscaping, Parking, Noise, Architectural, Pet, Trash, Other
+  category      String
+  title         String
+  description   String
+  /// Photo evidence URL
+  photoUrl      String?
+  /// open | warning | fined | resolved | appealed | dismissed
+  status        String    @default("open")
+  /// Fine amount in cents (0 = warning only)
+  fineAmountCents Int     @default(0)
+  /// Due date for compliance or fine payment
+  dueDate       String?
+  /// Member's appeal or response
+  appealMessage String?
+  appealedAt    DateTime?
+  /// Staff resolution notes
+  resolutionNote String?
+  resolvedAt    DateTime?
+  issuedBy      String
+  issuedAt      DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  @@index([communityId, memberEmail])
+  @@index([communityId, status])
+  @@index([communityId, issuedAt])
+}
+
+/// Violation type definitions per community (configurable rules).
+model ViolationType {
+  id              String @id @default(cuid())
+  communityId     String @default("golden-ocala")
+  category        String
+  name            String
+  description     String @default("")
+  /// Default fine in cents for this violation type
+  defaultFineCents Int   @default(0)
+  /// Days to cure before fine applies
+  curePeriodDays  Int    @default(7)
+  active          Boolean @default(true)
+
+  @@unique([communityId, category, name])
+  @@index([communityId])
+}
+
+// ============================================================================
+// KNOWLEDGE BASE / FAQ (FirstService parity)
+// ============================================================================
+
+/// Community-specific FAQ / Knowledge Base articles.
+model KnowledgeArticle {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  /// Category: General, Amenities, Payments, Rules, Parking, Pets, Architectural, Move-In, etc.
+  category    String
+  question    String
+  answer      String
+  /// Search keywords for better matching
+  keywords    String   @default("")
+  /// Display order within category
+  sortOrder   Int      @default(0)
+  /// View count for popularity tracking
+  views       Int      @default(0)
+  /// Whether visible to members
+  published   Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([communityId, category])
+  @@index([communityId, published])
+}
+

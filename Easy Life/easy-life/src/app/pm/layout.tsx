@@ -10,6 +10,8 @@ import {
 const nav = [
   { label: "Home", href: "/pm", icon: "LayoutDashboard" },
   { label: "Front Desk", href: "/pm/front-desk", icon: "DoorOpen" },
+  { label: "Packages", href: "/pm/packages", icon: "Package" },
+  { label: "Violations", href: "/pm/violations", icon: "AlertTriangle" },
   { label: "Registrations", href: "/pm/registrations", icon: "ClipboardList" },
   { label: "Maintenance", href: "/pm/maintenance", icon: "Wrench" },
   { label: "Announcements", href: "/pm/announcements", icon: "Megaphone" },
@@ -17,6 +19,7 @@ const nav = [
   { label: "Dining", href: "/pm/dining", icon: "UtensilsCrossed" },
   { label: "Invites", href: "/pm/invites", icon: "Mail" },
   { label: "Documents", href: "/pm/documents", icon: "FileText" },
+  { label: "Knowledge Base", href: "/pm/knowledge", icon: "HelpCircle" },
   { label: "Invoices", href: "/pm/invoices", icon: "ReceiptText" },
   { label: "Guest fees", href: "/pm/guest-fees", icon: "ReceiptText" },
   { label: "Reports", href: "/pm/reports", icon: "BarChart3" },
