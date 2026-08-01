@@ -55,6 +55,13 @@ const statusConfig: Record<string, { label: string; variant: BadgeVariant }> = {
   cancelled: { label: "Cancelled", variant: "danger" },
 };
 
+interface TramDriver {
+  id: string;
+  name: string;
+  phone: string;
+  status: string;
+}
+
 const VEHICLES = [
   "Tram 1",
   "Tram 2",
@@ -64,39 +71,55 @@ const VEHICLES = [
   "Shuttle Van",
 ];
 
-const DRIVERS = [
-  "Carlos M.",
-  "Maria S.",
-  "James T.",
-  "David R.",
-  "Linda P.",
-];
-
 export default function TramDispatchPage() {
   const { t } = useI18n();
   const [requests, setRequests] = useState<TramRequest[]>([]);
+  const [drivers, setDrivers] = useState<TramDriver[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("active");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAddDriver, setShowAddDriver] = useState(false);
 
   useEffect(() => {
-    fetchRequests();
+    fetchData();
     // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchRequests, 30000);
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  async function fetchRequests() {
+  async function fetchData() {
     try {
-      const res = await fetch("/api/tram");
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data);
+      const [reqRes, driverRes] = await Promise.all([
+        fetch("/api/tram"),
+        fetch("/api/tram/drivers"),
+      ]);
+      
+      if (reqRes.ok) {
+        setRequests(await reqRes.json());
+      }
+      if (driverRes.ok) {
+        setDrivers(await driverRes.json());
       }
     } catch (error) {
-      console.error("Failed to fetch tram requests:", error);
+      console.error("Failed to fetch:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function addDriver(name: string, phone: string) {
+    try {
+      const res = await fetch("/api/tram/drivers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone }),
+      });
+      if (res.ok) {
+        setShowAddDriver(false);
+        fetchData();
+      }
+    } catch (error) {
+      console.error("Failed to add driver:", error);
     }
   }
 
@@ -109,7 +132,7 @@ export default function TramDispatchPage() {
       });
 
       if (res.ok) {
-        fetchRequests();
+        fetchData();
       }
     } catch (error) {
       console.error("Failed to update request:", error);
@@ -137,6 +160,14 @@ export default function TramDispatchPage() {
 
   return (
     <div className="space-y-6">
+      {/* Add Driver Modal */}
+      {showAddDriver && (
+        <AddDriverModal
+          onAdd={addDriver}
+          onClose={() => setShowAddDriver(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -149,10 +180,15 @@ export default function TramDispatchPage() {
               ? `${activeCount} active request${activeCount === 1 ? "" : "s"}`
               : "No active requests"
             }
+            {drivers.length > 0 && ` • ${drivers.length} driver${drivers.length === 1 ? "" : "s"}`}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={fetchRequests}>
+          <Button variant="secondary" size="sm" onClick={() => setShowAddDriver(true)}>
+            <User className="w-4 h-4 mr-2" />
+            {t("Add Driver")}
+          </Button>
+          <Button variant="secondary" onClick={fetchData}>
             <RefreshCw className="w-4 h-4 mr-2" />
             {t("Refresh")}
           </Button>
@@ -311,6 +347,7 @@ export default function TramDispatchPage() {
                     <div className="border-t pt-4 mt-4">
                       <DispatchForm
                         request={request}
+                        drivers={drivers}
                         onDispatch={(data) => {
                           updateRequest(request.id, { ...data, status: "dispatched" });
                           setExpandedId(null);
@@ -370,10 +407,12 @@ export default function TramDispatchPage() {
 
 function DispatchForm({
   request,
+  drivers,
   onDispatch,
   onCancel,
 }: {
   request: TramRequest;
+  drivers: TramDriver[];
   onDispatch: (data: Record<string, string>) => void;
   onCancel: () => void;
 }) {
@@ -389,6 +428,10 @@ function DispatchForm({
     ).toISOString();
     onDispatch({ vehicleId, driverName, estimatedPickup });
   }
+
+  const driverOptions = drivers.length > 0 
+    ? drivers.map(d => d.name)
+    : ["Carlos M.", "Maria S.", "James T.", "David R.", "Linda P."];
 
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -409,19 +452,22 @@ function DispatchForm({
       </div>
 
       <div className="space-y-2">
-        <Label>{t("Driver")}</Label>
+        <Label>{t("Driver")} 📱</Label>
         <Select value={driverName} onValueChange={setDriverName}>
           <SelectTrigger>
             <SelectValue placeholder={t("Select driver")} />
           </SelectTrigger>
           <SelectContent>
-            {DRIVERS.map((d) => (
+            {driverOptions.map((d) => (
               <SelectItem key={d} value={d}>
                 {d}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {drivers.length > 0 && (
+          <p className="text-xs text-grey">SMS will be sent to driver</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -444,5 +490,67 @@ function DispatchForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function AddDriverModal({
+  onAdd,
+  onClose,
+}: {
+  onAdd: (name: string, phone: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (name && phone) {
+      onAdd(name, phone);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <User className="w-5 h-5 text-brand" />
+          {t("Add Tram Driver")}
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("Driver Name")}</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Carlos Martinez"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{t("Phone Number")}</Label>
+            <Input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+1 (555) 123-4567"
+              required
+            />
+            <p className="text-xs text-grey">
+              Driver will receive SMS notifications for pickups
+            </p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" disabled={!name || !phone}>
+              {t("Add Driver")}
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose}>
+              {t("Cancel")}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 }

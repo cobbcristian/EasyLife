@@ -701,6 +701,48 @@ async function main() {
   });
   console.log("✅ Created 6 Tram/Shuttle vehicles");
 
+  // ============================================================================
+  // TRAM DRIVERS
+  // ============================================================================
+  await prisma.tramDriver.deleteMany({ where: { communityId: COMMUNITY_ID } });
+  await prisma.tramDriver.createMany({
+    data: [
+      {
+        communityId: COMMUNITY_ID,
+        name: "Carlos Martinez",
+        phone: "+15551234567",
+        pin: "1234",
+        status: "on_duty",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "Maria Santos",
+        phone: "+15551234568",
+        pin: "2345",
+        status: "on_duty",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "James Thompson",
+        phone: "+15551234569",
+        pin: "3456",
+        status: "off_duty",
+        active: true,
+      },
+      {
+        communityId: COMMUNITY_ID,
+        name: "David Rodriguez",
+        phone: "+15551234570",
+        pin: "4567",
+        status: "off_duty",
+        active: true,
+      },
+    ],
+  });
+  console.log("✅ Created 4 Tram Drivers (with SMS numbers)");
+
   console.log("\n✅ Oceanside Residents community created successfully!");
   console.log("\n📋 Summary:");
   console.log(`   Community ID: ${COMMUNITY_ID}`);

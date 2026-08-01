@@ -1453,6 +1453,24 @@ model TramVehicle {
   @@index([communityId])
 }
 
+/// Tram drivers with phone numbers for SMS dispatch.
+model TramDriver {
+  id          String  @id @default(cuid())
+  communityId String  @default("golden-ocala")
+  name        String
+  phone       String
+  /// Pin code for driver to access their assignments (simple auth)
+  pin         String  @default("1234")
+  /// on_duty | off_duty | on_break
+  status      String  @default("off_duty")
+  /// Currently assigned vehicle
+  vehicleId   String?
+  active      Boolean @default(true)
+
+  @@unique([communityId, name])
+  @@index([communityId])
+}
+
 // ============================================================================
 // KNOWLEDGE BASE / FAQ (FirstService parity)
 // ============================================================================

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { sendSms, isSmsConfigured } from "@/lib/server/sms";
 
 export async function GET(
   req: NextRequest,
@@ -80,6 +81,50 @@ export async function PATCH(
     where: { id },
     data: updateData,
   });
+
+  // Send SMS to driver when dispatched
+  if (body.status === "dispatched" && body.driverName && isSmsConfigured()) {
+    const driver = await prisma.tramDriver.findFirst({
+      where: {
+        communityId: existing.communityId,
+        name: body.driverName,
+        active: true,
+      },
+    });
+
+    if (driver?.phone) {
+      const eta = body.estimatedPickup
+        ? new Date(body.estimatedPickup).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "ASAP";
+
+      const smsBody = `🚐 TRAM PICKUP
+From: ${existing.pickupLocation}
+To: ${existing.destination}
+Passengers: ${existing.passengers}
+${existing.specialNeeds ? `Note: ${existing.specialNeeds}` : ""}
+ETA: ${eta}
+Vehicle: ${body.vehicleId || "See dispatch"}
+
+View: ${process.env.NEXTAUTH_URL || ""}/driver/${driver.id}`;
+
+      await sendSms({ to: driver.phone, body: smsBody });
+    }
+  }
+
+  // Notify resident when tram is en route
+  if (body.status === "en_route" && existing.phone && isSmsConfigured()) {
+    const smsBody = `🚐 Your tram is on the way!
+Driver: ${updated.driverName || "Staff"}
+Vehicle: ${updated.vehicleId || "Tram"}
+Pickup: ${existing.pickupLocation}
+
+Please be ready at the pickup location.`;
+
+    await sendSms({ to: existing.phone, body: smsBody });
+  }
 
   return NextResponse.json(updated);
 }
