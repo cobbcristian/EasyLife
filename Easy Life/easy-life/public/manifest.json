@@ -3,10 +3,16 @@
   "short_name": "Easy Life",
   "description": "Community and club management — bookings, dining, tournaments, and more.",
   "start_url": "/member",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
   "orientation": "portrait-primary",
+  "categories": ["lifestyle", "social", "utilities"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
@@ -25,6 +31,51 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "monochrome"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Home Screen"
+    },
+    {
+      "src": "/screenshots/bookings.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Book Amenities"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Book Amenity",
+      "short_name": "Book",
+      "description": "Reserve tennis courts, pools, and more",
+      "url": "/member/bookings",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Packages",
+      "short_name": "Packages",
+      "description": "Check package deliveries",
+      "url": "/member/packages",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Help & FAQ",
+      "short_name": "Help",
+      "description": "Find answers to common questions",
+      "url": "/member/faq",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
