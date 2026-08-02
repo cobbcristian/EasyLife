@@ -3,10 +3,14 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
+import {
+  RESIDENTIAL_HOA_ACCOUNT_LINKS,
+  UserAvatarMenu,
+} from "@/components/layout/user-avatar-menu";
 import { Logo } from "@/components/ui/logo";
 import { MemberSidebar } from "@/components/layout/member-sidebar";
 import { avatarForReviewer } from "@/lib/brand-assets";
+import { communityIsResidentialHoa } from "@/lib/community-features";
 
 export interface CommunityBranding {
   id: string;
@@ -26,12 +30,16 @@ export function MemberShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [forceChromeless, setForceChromeless] = useState(false);
   const [accountName, setAccountName] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(undefined);
   const pathname = usePathname();
   // Home embeds its own blue header + UserAvatarMenu; messages can force chromeless.
   // Every other member page uses the shared shell header so Log out is always available.
   const isMemberHome = pathname === "/member";
   const hideShellHeader = forceChromeless || isMemberHome;
+  const accountLinks = communityIsResidentialHoa(branding?.id)
+    ? RESIDENTIAL_HOA_ACCOUNT_LINKS
+    : undefined;
 
   useEffect(() => {
     function openSidebar() {
@@ -58,6 +66,7 @@ export function MemberShell({
         const name =
           typeof d.name === "string" && d.name.trim() ? d.name : "Member";
         setAccountName(name);
+        setAccountEmail(typeof d.email === "string" ? d.email : "");
         if (typeof d.avatarUrl === "string" && d.avatarUrl) {
           setAvatarSrc(d.avatarUrl);
         } else {
@@ -83,6 +92,7 @@ export function MemberShell({
         logoUrl={branding?.logoUrl}
         userName={accountName}
         avatarSrc={avatarSrc}
+        communityId={branding?.id}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {!hideShellHeader ? (
@@ -105,12 +115,19 @@ export function MemberShell({
               />
               <UserAvatarMenu
                 name={accountName}
+                email={accountEmail}
                 avatarSrc={avatarSrc}
+                links={accountLinks}
                 className="ml-auto"
               />
             </header>
             <div className="sticky top-0 z-30 hidden h-14 items-center justify-end border-b border-border-2 bg-white px-8 lg:flex">
-              <UserAvatarMenu name={accountName} avatarSrc={avatarSrc} />
+              <UserAvatarMenu
+                name={accountName}
+                email={accountEmail}
+                avatarSrc={avatarSrc}
+                links={accountLinks}
+              />
             </div>
           </>
         ) : null}

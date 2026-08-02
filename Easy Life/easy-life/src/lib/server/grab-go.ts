@@ -104,6 +104,12 @@ export async function linkMemberRfid(input: {
 }
 
 export async function ensureGrabGoSeeded(communityId: string) {
+  // Condo / HOA communities without Grab & Go — never seed machines.
+  if (communityId === "oceanside-residents") {
+    await prisma.grabGoMachine.deleteMany({ where: { communityId } });
+    return;
+  }
+
   const count = await prisma.grabGoMachine.count({ where: { communityId } });
   if (count > 0) return;
 

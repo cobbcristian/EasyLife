@@ -26,6 +26,7 @@ import { ensureSpanishWellsDemoSeeded } from "@/lib/server/spanish-wells-seed";
 import { ensureHarborPointeDemoSeeded } from "@/lib/server/harbor-pointe-seed";
 import { ensureWillowCreekDemoSeeded } from "@/lib/server/willow-creek-seed";
 import { ensureAlliantDemoSeeded } from "@/lib/server/alliant-seed";
+import { ensureOceansideResidentsDemoSeeded } from "@/lib/server/oceanside-residents-seed";
 import { createContactMessage, createMemberCharge } from "@/lib/server/records";
 import { imageForProviderCategory } from "@/lib/brand-assets";
 import {
@@ -36,7 +37,7 @@ import {
   IRON_CREST_LAWN_PROVIDER_EMAIL,
   IRON_LAKE_COMMUNITY_ID,
 } from "@/lib/iron-lake-demo";
-import { BONITA_BAY_TENANT, DEBARY_TENANT, JACARANDA_TENANT, THE_DUNES_TENANT, THE_NEST_TENANT, MARTIN_DOWNS_TENANT, SEAGATE_TENANT, COPPERLEAF_TENANT, CLUB_RENAISSANCE_TENANT, FALLS_CLUB_TENANT, ESTERO_TENANT, WILDCAT_RUN_TENANT, HIGHLAND_WOODS_TENANT, BONITA_NATIONAL_TENANT, CARROLLWOOD_TENANT, WINDSOR_TENANT, WORTHINGTON_TENANT, HERITAGE_BAY_TENANT, HUNTERS_RIDGE_TENANT, HERON_CREEK_TENANT, SHADOW_WOOD_TENANT, SPANISH_WELLS_TENANT, HARBOR_POINTE_TENANT, WILLOW_CREEK_TENANT, ALLIANT_TENANT } from "@/lib/tenant";
+import { BONITA_BAY_TENANT, DEBARY_TENANT, JACARANDA_TENANT, THE_DUNES_TENANT, THE_NEST_TENANT, MARTIN_DOWNS_TENANT, SEAGATE_TENANT, COPPERLEAF_TENANT, CLUB_RENAISSANCE_TENANT, FALLS_CLUB_TENANT, ESTERO_TENANT, WILDCAT_RUN_TENANT, HIGHLAND_WOODS_TENANT, BONITA_NATIONAL_TENANT, CARROLLWOOD_TENANT, WINDSOR_TENANT, WORTHINGTON_TENANT, HERITAGE_BAY_TENANT, HUNTERS_RIDGE_TENANT, HERON_CREEK_TENANT, SHADOW_WOOD_TENANT, SPANISH_WELLS_TENANT, HARBOR_POINTE_TENANT, WILLOW_CREEK_TENANT, ALLIANT_TENANT, OCEANSIDE_RESIDENTS_TENANT } from "@/lib/tenant";
 
 export const LOCAL_PRO_CATEGORIES = [
   "Gardening",
@@ -319,6 +320,8 @@ export async function listChatThreadsForUser(
         await ensureWillowCreekDemoSeeded();
       } else if (cid === ALLIANT_TENANT.communityId) {
         await ensureAlliantDemoSeeded();
+      } else if (cid === OCEANSIDE_RESIDENTS_TENANT.communityId) {
+        await ensureOceansideResidentsDemoSeeded();
       }
       // Never fall through to IronCrest — empty inbox beats wrong-club chats.
     } catch (err) {

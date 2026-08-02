@@ -42,7 +42,10 @@ export const COURT_ADDON_OPTIONS: Array<{ id: CourtAddonId; label: string }> = [
 /** Outdoor playing surfaces closed while a rain advisory is active. */
 export function isRainSensitiveAmenity(kind: string): boolean {
   return (
-    kind === "court" || kind === "golf_course" || kind === "driving_range"
+    kind === "court" ||
+    kind === "golf_course" ||
+    kind === "driving_range" ||
+    kind === "grill"
   );
 }
 

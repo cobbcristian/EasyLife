@@ -38,7 +38,11 @@ export const BOOKABLE_AMENITY_KINDS = new Set([
   "fitness_class",
   "restaurant",
   "clubhouse",
-  // gym / facility / pool are walk-in spaces — book classes (Zumba, Water Aerobics), not the room
+  // Reservable condo / plaza rooms (e.g. Plaza at Oceanside)
+  "simulator",
+  "theatre",
+  "grill",
+  // gym / generic facility / pool are walk-in — book classes, not the room
 ]);
 
 export function isBookableAmenityKind(kind: string): boolean {

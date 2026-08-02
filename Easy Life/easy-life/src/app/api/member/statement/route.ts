@@ -8,6 +8,11 @@ import {
   getTierConfig,
 } from "@/lib/server/membership";
 import { getMemberResidency } from "@/lib/server/residency";
+import {
+  communityHasClubDining,
+  communityHasFbMinimum,
+  communityHoaPaymentPortal,
+} from "@/lib/community-features";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -21,6 +26,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const startDate = url.searchParams.get("start") ?? undefined;
   const endDate = url.searchParams.get("end") ?? undefined;
+  const hasFbMinimum = communityHasFbMinimum(communityId);
+  const hasClubDining = communityHasClubDining(communityId);
+  const hoaPaymentPortal = communityHoaPaymentPortal(communityId);
 
   const [statement, tierSlug, fb, residency] = await Promise.all([
     buildMemberStatement({
@@ -34,6 +42,7 @@ export async function GET(request: Request) {
     getMemberResidency(session.email),
   ]);
   const tier = await getTierConfig(communityId, tierSlug);
+  const required = hasFbMinimum ? fb.requiredAmount : 0;
 
   return NextResponse.json({
     membership: {
@@ -42,16 +51,22 @@ export async function GET(request: Request) {
       accessKinds: tier.accessKinds,
       residencyStatus: residency.residencyStatus,
       paysHoa: residency.paysHoa,
+      communityId,
+      hasFbMinimum,
+      hasClubDining,
+      hoaPaymentPortal,
     },
-    fbMinimum: {
-      periodKind: fb.periodKind,
-      periodStart: fb.periodStart,
-      periodEnd: fb.periodEnd,
-      required: fb.requiredAmount,
-      spent: fb.spentAmount,
-      remaining: Math.max(0, fb.requiredAmount - fb.spentAmount),
-      status: fb.status,
-    },
+    fbMinimum: hasFbMinimum
+      ? {
+          periodKind: fb.periodKind,
+          periodStart: fb.periodStart,
+          periodEnd: fb.periodEnd,
+          required,
+          spent: fb.spentAmount,
+          remaining: Math.max(0, required - fb.spentAmount),
+          status: fb.status,
+        }
+      : null,
     statement,
   });
 }

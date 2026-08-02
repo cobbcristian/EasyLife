@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 
 type AiAction =
@@ -141,6 +142,7 @@ export function AssistantClient() {
   const [error, setError] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [isResidentialHoa, setIsResidentialHoa] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceSupported = typeof window !== "undefined" && Boolean(getSpeechRecognition());
 
@@ -158,6 +160,20 @@ export function AssistantClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let on = true;
+    fetch("/api/member/profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!on) return;
+        setIsResidentialHoa(communityIsResidentialHoa(d.communityId as string | undefined));
+      })
+      .catch(() => {});
+    return () => {
+      on = false;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -265,7 +281,9 @@ export function AssistantClient() {
         </p>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[22px] font-semibold">{t("Club assistant")}</h1>
+            <h1 className="text-[22px] font-semibold">
+              {t(isResidentialHoa ? "Resident assistant" : "Club assistant")}
+            </h1>
             <p className="mt-1 text-sm text-grey">
               {voiceEnabled
                 ? t("Voice or text — I can book courts and in-app vendors, then confirm out loud.")
@@ -294,12 +312,20 @@ export function AssistantClient() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {[
-            "Book a tennis court tomorrow at 10",
-            "Book a lesson with a tennis pro",
-            "Order eat-in tonight",
-            "Grab & Go help",
-          ].map((q) => (
+          {(
+            isResidentialHoa
+              ? [
+                  "Book a tennis court tomorrow at 10",
+                  "What are the pool hours?",
+                  "How do I pay HOA dues?",
+                ]
+              : [
+                  "Book a tennis court tomorrow at 10",
+                  "Book a lesson with a tennis pro",
+                  "Order eat-in tonight",
+                  "Grab & Go help",
+                ]
+          ).map((q) => (
             <button
               key={q}
               type="button"

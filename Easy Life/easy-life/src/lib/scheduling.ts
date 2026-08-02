@@ -68,6 +68,10 @@ export function unitNoun(kind: string): string {
   if (kind === "court" || kind === "pickleball") return "Court";
   if (kind === "fitness_class") return "Class";
   if (kind === "restaurant") return "Table";
+  if (kind === "grill") return "Grill";
+  if (kind === "simulator") return "Bay";
+  if (kind === "theatre") return "Screening";
+  if (kind === "clubhouse") return "Room";
   return "Unit";
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { communityHasGrabGo } from "@/lib/community-features";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import {
   createAppUnlockToken,
@@ -17,6 +18,12 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!session.communityId) {
     return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
+  if (!communityHasGrabGo(session.communityId)) {
+    return NextResponse.json(
+      { error: "Grab & Go is not available for this community.", machines: [] },
+      { status: 404 },
+    );
   }
   await ensureRecordsSeeded();
   const communityId = session.communityId;

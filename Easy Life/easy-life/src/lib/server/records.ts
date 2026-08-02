@@ -63,6 +63,7 @@ import { ensureSpanishWellsDemoSeeded } from "@/lib/server/spanish-wells-seed";
 import { ensureHarborPointeDemoSeeded } from "@/lib/server/harbor-pointe-seed";
 import { ensureWillowCreekDemoSeeded } from "@/lib/server/willow-creek-seed";
 import { ensureAlliantDemoSeeded } from "@/lib/server/alliant-seed";
+import { ensureOceansideResidentsDemoSeeded } from "@/lib/server/oceanside-residents-seed";
 import { ensureIronLakeDemoSeeded } from "@/lib/server/iron-lake-seed";
 import { ensureFourClubDemoContent, isFourClubDemoId } from "@/lib/server/four-club-demo-content";
 import {
@@ -2692,6 +2693,13 @@ export const REWARD_PERKS = [
   { id: "pk3", label: "Priority booking window", cost: 1200 },
 ] as const;
 
+/** Condo HOA — no clubhouse restaurant / club dining perks. */
+const OCEANSIDE_REWARD_PERKS = [
+  { id: "pk1", label: "10% off amenity fees", cost: 500 },
+  { id: "pk2", label: "Free court hour", cost: 800 },
+  { id: "pk3", label: "Priority booking window", cost: 1200 },
+] as const;
+
 const TIER_THRESHOLDS = [
   { tier: "Platinum", min: 1500 },
   { tier: "Gold", min: 1000 },
@@ -2710,22 +2718,44 @@ function nextTierInfo(points: number) {
   return { nextTier: next.tier, toNext: next.min - points };
 }
 
-export async function getRewardAccount(userEmail: string) {
-  let account = await prisma.rewardAccount.findUnique({ where: { userEmail } });
+function rewardPerksForCommunity(communityId?: string | null) {
+  if (communityId === "oceanside-residents") return OCEANSIDE_REWARD_PERKS;
+  return REWARD_PERKS;
+}
+
+/** Fake starter balances only for club demos — never for condo HOA go-live. */
+function shouldSeedDemoRewardPoints(communityId?: string | null): boolean {
+  if (communityId === "oceanside-residents") return false;
+  return isDemoSeedAllowed();
+}
+
+export async function getRewardAccount(
+  userEmail: string,
+  communityId?: string | null,
+) {
+  const email = userEmail.toLowerCase();
+  let account = await prisma.rewardAccount.findUnique({ where: { userEmail: email } });
   if (!account) {
+    const seedDemo = shouldSeedDemoRewardPoints(communityId);
     account = await prisma.rewardAccount.create({
-      data: { userEmail, points: 1240, tier: "Gold" },
+      data: {
+        userEmail: email,
+        points: seedDemo ? 1240 : 0,
+        tier: seedDemo ? "Gold" : "Bronze",
+      },
     });
-    await prisma.rewardTransaction.createMany({
-      data: [
-        { userEmail, label: "Online dues payment", points: 50 },
-        { userEmail, label: "Booked Clubhouse", points: 75 },
-        { userEmail, label: "Referred a neighbor", points: 200 },
-      ],
-    });
+    if (seedDemo) {
+      await prisma.rewardTransaction.createMany({
+        data: [
+          { userEmail: email, label: "Online dues payment", points: 50 },
+          { userEmail: email, label: "Booked Clubhouse", points: 75 },
+          { userEmail: email, label: "Referred a neighbor", points: 200 },
+        ],
+      });
+    }
   }
   const history = await prisma.rewardTransaction.findMany({
-    where: { userEmail },
+    where: { userEmail: email },
     orderBy: { createdAt: "desc" },
     take: 20,
   });
@@ -2736,12 +2766,16 @@ export async function getRewardAccount(userEmail: string) {
     nextTier,
     toNext: Math.max(0, toNext),
     history,
-    perks: REWARD_PERKS,
+    perks: rewardPerksForCommunity(communityId),
   };
 }
 
-export async function redeemReward(userEmail: string, perkId: string) {
-  const perk = REWARD_PERKS.find((p) => p.id === perkId);
+export async function redeemReward(
+  userEmail: string,
+  perkId: string,
+  communityId?: string | null,
+) {
+  const perk = rewardPerksForCommunity(communityId).find((p) => p.id === perkId);
   if (!perk) return { error: "Invalid perk" as const };
   const account = await prisma.rewardAccount.findUnique({ where: { userEmail } });
   if (!account || account.points < perk.cost) return { error: "Insufficient points" as const };
@@ -2904,6 +2938,14 @@ export async function listPaidFeaturedTiles(
 
 /** Demo seed: convert static featured tiles into paid placements so demos stay non-empty. */
 export async function ensureDemoPaidFeatured(communityId: string): Promise<void> {
+  // Condo HOA — no paid sponsorships / clubhouse restaurant placements.
+  if (communityId === "oceanside-residents") {
+    await prisma.promotion.deleteMany({
+      where: { communityId, type: "featured" },
+    });
+    return;
+  }
+
   if (!isDemoSeedAllowed()) return;
 
   const tiles =
@@ -3411,7 +3453,10 @@ export async function listCalendarAds(communityId?: string | null) {
 export async function listResidentDirectory(communityId?: string | null) {
   const cid = scope(communityId);
   const [members, users, profiles] = await Promise.all([
-    prisma.communityMember.findMany({ where: { communityId: cid } }),
+    prisma.communityMember.findMany({
+      where: { communityId: cid },
+      orderBy: [{ isManagement: "desc" }, { name: "asc" }],
+    }),
     prisma.user.findMany({ where: { communityId: cid } }),
     prisma.memberProfileExt.findMany(),
   ]);
@@ -3426,11 +3471,14 @@ export async function listResidentDirectory(communityId?: string | null) {
       unit: profile?.unit ?? (member.isManagement ? "Mgmt" : "—"),
       visible: profile?.directoryVisible ?? true,
       email: user?.email ?? "",
+      isManagement: member.isManagement,
     };
   });
   for (const u of users) {
     if (!rows.some((r) => r.name === u.name)) {
       const profile = profilesByEmail.get(u.email);
+      const isStaff =
+        u.role === "admin" || u.role === "pm" || u.role === "board";
       rows.push({
         id: u.id,
         name: u.name,
@@ -3438,8 +3486,28 @@ export async function listResidentDirectory(communityId?: string | null) {
         unit: profile?.unit ?? "—",
         visible: profile?.directoryVisible ?? true,
         email: u.email,
+        isManagement: isStaff,
       });
     }
+  }
+  // Pin HOA message hubs in a fixed order for Oceanside compose.
+  if (cid === "oceanside-residents") {
+    const hubOrder = [
+      "admin.demo@oceansideresidents.com",
+      "pm.demo@oceansideresidents.com",
+      "social.committee@oceansideresidents.com",
+      "board.demo@oceansideresidents.com",
+    ];
+    const rank = new Map(hubOrder.map((email, i) => [email, i]));
+    rows.sort((a, b) => {
+      const ar = rank.get(a.email.toLowerCase());
+      const br = rank.get(b.email.toLowerCase());
+      if (ar != null && br != null) return ar - br;
+      if (ar != null) return -1;
+      if (br != null) return 1;
+      if (a.isManagement !== b.isManagement) return a.isManagement ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
   }
   return rows;
 }
@@ -3486,6 +3554,13 @@ let seedPromise: Promise<void> | null = null;
 let seedReady = false;
 
 async function ensureClubSportsInventory(communityId: string) {
+  // Condo HOA (Plaza at Oceanside) — do not inject club golf/spa/restaurant inventory.
+  if (communityId === "oceanside-residents") {
+    await ensureMembershipTiersSeeded(communityId);
+    await ensureGrabGoSeeded(communityId);
+    return;
+  }
+
   await ensureMembershipTiersSeeded(communityId);
   await ensureClubStaffSeeded(communityId);
   await ensureGrabGoSeeded(communityId);
@@ -3888,6 +3963,11 @@ export async function ensureRecordsSeeded(): Promise<void> {
         await ensureAlliantDemoSeeded();
       } catch (err) {
         console.error("[ensureRecordsSeeded] alliant seed failed", err);
+      }
+      try {
+        await ensureOceansideResidentsDemoSeeded();
+      } catch (err) {
+        console.error("[ensureRecordsSeeded] oceanside-residents seed failed", err);
       }
 
       // Production stays empty unless ALLOW_DEMO_SEED=1 (staging demos).

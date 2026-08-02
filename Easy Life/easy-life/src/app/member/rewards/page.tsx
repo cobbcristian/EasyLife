@@ -7,7 +7,7 @@ export default async function MemberRewardsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   await ensureRecordsSeeded();
-  const account = await getRewardAccount(session.email);
+  const account = await getRewardAccount(session.email, session.communityId);
   return (
     <RewardsClient
       userName={session.name}

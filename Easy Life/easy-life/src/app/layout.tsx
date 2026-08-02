@@ -6,7 +6,11 @@ import { AccessiBe } from "@/components/accessibility/accessibe";
 import { PwaRegister } from "@/components/pwa/pwa-register";
 import { ToastProvider } from "@/components/ui/toast";
 import { I18nProvider } from "@/lib/i18n";
-import { resolveDemoTenantFromCookieHeader } from "@/lib/tenant";
+import { BrandFavicon } from "@/components/brand/brand-favicon";
+import {
+  resolveDemoTenantFromCookieHeader,
+  tenantFaviconSrc,
+} from "@/lib/tenant";
 
 const roboto = Roboto({
   variable: "--font-roboto",
@@ -48,6 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
     headerStore.get("cookie"),
   );
   if (tenant) {
+    const favicon = tenantFaviconSrc(tenant);
     return {
       title: {
         default: `${tenant.productName} | ${tenant.communityName}`,
@@ -55,8 +60,12 @@ export async function generateMetadata(): Promise<Metadata> {
       },
       description: `${tenant.productName} — private club membership for ${tenant.communityName}.`,
       icons: {
-        icon: [{ url: tenant.logoSrc }],
+        icon: [
+          { url: favicon, type: favicon.endsWith(".svg") ? "image/svg+xml" : undefined },
+          { url: tenant.logoSrc },
+        ],
         apple: [{ url: tenant.logoSrc }],
+        shortcut: favicon,
       },
       manifest: "/manifest.json",
       appleWebApp: {
@@ -93,6 +102,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${roboto.variable} ${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <BrandFavicon />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200] focus:rounded-lg focus:bg-[var(--mvp-blue)] focus:px-4 focus:py-2 focus:text-white"

@@ -9,7 +9,11 @@ import { DemoLoginCheatSheet } from "@/components/auth/demo-login-cheat-sheet";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useI18n } from "@/lib/i18n";
 import { brandAssets } from "@/lib/brand-assets";
-import type { DemoLogin } from "@/lib/tenant";
+import {
+  getDemoTenantById,
+  tenantFaviconSrc,
+  type DemoLogin,
+} from "@/lib/tenant";
 
 /** Figma Login View — node 9750:8570 */
 const fieldClass =
@@ -142,12 +146,17 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
   return (
     <div className="mx-auto w-full max-w-[514px] px-6 font-[family-name:var(--font-poppins)] lg:ml-[30%] lg:px-0">
       {branding?.locked && branding.loginHeroSrc ? (
-        <div className="mb-6 overflow-hidden rounded-2xl lg:hidden">
+        <div className="mb-6 overflow-hidden rounded-2xl bg-[#0a0a0a] lg:hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={branding.loginHeroSrc}
             alt=""
-            className="h-36 w-full object-cover"
+            className={
+              branding.loginHeroSrc.includes("community-oceanside") ||
+              branding.loginHeroSrc.includes("community-")
+                ? "mx-auto h-36 w-auto max-w-full object-contain p-4"
+                : "h-36 w-full object-cover"
+            }
           />
         </div>
       ) : null}
@@ -277,9 +286,12 @@ export default function LoginClient({
       document.title = branding.communityName
         ? `${branding.productName} | ${branding.communityName}`
         : branding.productName;
-      const href = branding.logoSrc;
-      if (href) {
-        for (const rel of ["icon", "apple-touch-icon"] as const) {
+      const tenant = getDemoTenantById(branding.tenantId);
+      const iconHref = tenant
+        ? tenantFaviconSrc(tenant)
+        : branding.logoSrc;
+      if (iconHref) {
+        for (const rel of ["icon", "shortcut icon", "apple-touch-icon"] as const) {
           let link = document.querySelector<HTMLLinkElement>(
             `link[rel="${rel}"]`,
           );
@@ -288,7 +300,13 @@ export default function LoginClient({
             link.rel = rel;
             document.head.appendChild(link);
           }
-          link.href = href;
+          link.href =
+            rel === "apple-touch-icon"
+              ? branding.logoSrc || iconHref
+              : iconHref;
+          if (iconHref.endsWith(".svg") && rel !== "apple-touch-icon") {
+            link.type = "image/svg+xml";
+          }
         }
       }
       return;

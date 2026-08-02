@@ -38,6 +38,7 @@ function heroFromCookie(): string {
   if (id === "harborpointe") return brandAssets.communityHarborPointe;
   if (id === "willowcreek") return brandAssets.communityWillowCreek;
   if (id === "alliant") return brandAssets.communityAlliant;
+  if (id === "oceansideresidents") return brandAssets.communityOceanside;
   return brandAssets.loginHeroEasyLife;
 }
 

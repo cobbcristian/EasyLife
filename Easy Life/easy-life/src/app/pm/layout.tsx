@@ -6,6 +6,10 @@ import {
   DEMO_TENANT_COOKIE,
   demoBrandFromCookies,
 } from "@/lib/demo-branding";
+import {
+  communityHasClubDining,
+  communityHasGuestFees,
+} from "@/lib/community-features";
 
 const nav = [
   { label: "Home", href: "/pm", icon: "LayoutDashboard" },
@@ -37,10 +41,21 @@ export default async function PmLayout({
     cookieStore.get(DEMO_TENANT_COOKIE)?.value,
     cookieStore.get(ACTIVE_COMMUNITY_COOKIE)?.value,
   );
+  const communityId =
+    session?.communityId ??
+    cookieStore.get(ACTIVE_COMMUNITY_COOKIE)?.value ??
+    null;
+  const hideDining = !communityHasClubDining(communityId);
+  const hideGuestFees = !communityHasGuestFees(communityId);
+  const navItems = nav.filter((item) => {
+    if (hideDining && item.href === "/pm/dining") return false;
+    if (hideGuestFees && item.href === "/pm/guest-fees") return false;
+    return true;
+  });
 
   return (
     <PortalShell
-      navItems={nav}
+      navItems={navItems}
       homeHref="/pm"
       avatarName={session?.name?.trim() || "Property Manager"}
       portalLabel="Property manager"

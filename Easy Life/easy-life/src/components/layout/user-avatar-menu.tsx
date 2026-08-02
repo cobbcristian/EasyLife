@@ -7,8 +7,24 @@ import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+export type AccountMenuLink = {
+  label: string;
+  href: string;
+};
+
+/** Plaza-style account menu for condo / residential HOA members. */
+export const RESIDENTIAL_HOA_ACCOUNT_LINKS: AccountMenuLink[] = [
+  { label: "My Profile", href: "/member/profile" },
+  { label: "Pay HOA dues", href: "/member/payments" },
+  { label: "Notifications", href: "/member/notifications" },
+  { label: "Reservations", href: "/member/bookings" },
+  { label: "Messages", href: "/member/messages" },
+  { label: "Visitor", href: "/member/visitors" },
+];
+
 export function UserAvatarMenu({
   name,
+  email,
   avatarSrc,
   avatarInitials,
   className,
@@ -17,8 +33,10 @@ export function UserAvatarMenu({
   homeHref,
   tasksHref,
   tasksLabel,
+  links,
 }: {
   name: string;
+  email?: string;
   avatarSrc?: string;
   /** Override avatar initials (e.g. "SA" for super admin). */
   avatarInitials?: string;
@@ -31,10 +49,13 @@ export function UserAvatarMenu({
   /** Figma Service Dashboard logout hover — e.g. "3 Tasks". */
   tasksHref?: string;
   tasksLabel?: string;
+  /** Extra account links (e.g. Plaza resident menu). Shown above Log out. */
+  links?: AccountMenuLink[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
+  const hasAccountLinks = Boolean(links?.length);
 
   useEffect(() => {
     if (!open) return;
@@ -81,12 +102,27 @@ export function UserAvatarMenu({
         <div
           role="menu"
           className={cn(
-            "absolute top-full z-50 mt-2 min-w-[168px] overflow-hidden rounded-lg border border-border-2 bg-white py-1 shadow-lg",
+            "absolute top-full z-50 mt-2 overflow-hidden rounded-lg border border-border-2 bg-white py-1 shadow-lg",
+            hasAccountLinks ? "min-w-[220px]" : "min-w-[168px]",
             align === "left" ? "left-0" : "right-0",
           )}
         >
-          <p className="truncate border-b border-border-2 px-3 py-2 text-xs text-grey">{name}</p>
-          {homeHref ? (
+          {hasAccountLinks ? (
+            <div className="flex items-center gap-3 border-b border-border-2 px-3 py-3">
+              <Avatar name={name} src={avatarSrc} initials={avatarInitials} size="sm" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink">{name}</p>
+                {email ? (
+                  <p className="truncate text-xs text-grey">{email}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <p className="truncate border-b border-border-2 px-3 py-2 text-xs text-grey">
+              {name}
+            </p>
+          )}
+          {homeHref && !hasAccountLinks ? (
             <Link
               href={homeHref}
               role="menuitem"
@@ -97,13 +133,29 @@ export function UserAvatarMenu({
               {t("Home")}
             </Link>
           ) : null}
+          {links?.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex w-full px-3 py-2.5 text-sm text-ink hover:bg-slate-50"
+            >
+              {t(item.label)}
+            </Link>
+          ))}
           <button
             type="button"
             role="menuitem"
             onClick={logout}
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#ff3b30] hover:bg-[#fdecea]"
+            className={cn(
+              "flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50",
+              hasAccountLinks
+                ? "text-ink"
+                : "font-medium text-[#ff3b30] hover:bg-[#fdecea]",
+            )}
           >
-            <LogOut className="h-4 w-4" />
+            {hasAccountLinks ? null : <LogOut className="h-4 w-4" />}
             {t("Log out")}
           </button>
           {tasksHref && tasksLabel ? (

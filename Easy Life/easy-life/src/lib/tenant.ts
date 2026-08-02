@@ -66,6 +66,11 @@ export type DemoTenant = {
   communityName: string;
   defaultLoginEmail: string;
   logoSrc: string;
+  /**
+   * Square tab / PWA icon. Prefer a compact mark — wide wordmark PNGs often fail
+   * as favicons and browsers fall back to the host default (Vercel triangle).
+   */
+  faviconSrc?: string;
   /** Circular login-hero center image (club crest). Easy Life uses the house aerial. */
   loginHeroSrc: string;
   /** Host substrings that lock this tenant (e.g. ironcrest.example.com) */
@@ -77,6 +82,11 @@ export type DemoTenant = {
    */
   salesReady?: boolean;
 };
+
+/** Favicon for a locked demo tenant (square mark when available). */
+export function tenantFaviconSrc(tenant: Pick<DemoTenant, "logoSrc" | "faviconSrc">): string {
+  return tenant.faviconSrc ?? tenant.logoSrc;
+}
 
 export const IRONCREST_TENANT: DemoTenant = {
   id: "ironcrest",
@@ -434,13 +444,16 @@ export const ALLIANT_TENANT: DemoTenant = {
 export const OCEANSIDE_RESIDENTS_TENANT: DemoTenant = {
   id: "oceansideresidents",
   communityId: "oceanside-residents",
-  brandName: "Oceanside Residents",
-  productName: "Oceanside Residents",
-  communityName: "Oceanside Residents",
+  brandName: "The Plaza at Oceanside",
+  productName: "The Plaza at Oceanside",
+  communityName: "The Plaza at Oceanside",
+  /** Partner member account — password is never shipped in demo login links. */
   defaultLoginEmail: "dlms6768@gmail.com",
   logoSrc: "/brand/community-oceanside.png",
+  faviconSrc: "/brand/favicon-oceanside.svg",
+  /** Official Plaza wordmark in the login ring (not the pier cover photo). */
   loginHeroSrc: "/brand/community-oceanside.png",
-  hostHints: ["oceansideresidents", "oceanside-residents"],
+  hostHints: ["oceansideresidents", "oceanside-residents", "oceansideresidents.com"],
   envHostsKey: "OCEANSIDE_RESIDENTS_HOSTS",
 };
 
@@ -579,9 +592,9 @@ export function tenantByCommunityId(
   );
 }
 
-/** Tenants shown on the /go sales directory — full demo catalog. */
+/** Tenants shown on the /go sales directory (hides salesReady: false). */
 export function listSalesReadyTenants(): DemoTenant[] {
-  return Object.values(DEMO_TENANTS);
+  return Object.values(DEMO_TENANTS).filter((t) => t.salesReady !== false);
 }
 
 export function listAllDemoTenants(): DemoTenant[] {
@@ -603,6 +616,8 @@ export type DemoLoginRole =
   | "Board"
   | "PM"
   | "Admin"
+  | "Super Admin"
+  | "Social"
   | "Provider";
 
 export type DemoLogin = {
@@ -700,6 +715,34 @@ export function demoLoginsForTenant(
         {
           role: "PM",
           email: "pm.demo@alliantproperty.com",
+          password: DEMO_PASSWORD,
+        },
+      ];
+    case "oceansideresidents":
+      return [
+        {
+          role: "Member",
+          email: "member.demo@oceansideresidents.com",
+          password: DEMO_PASSWORD,
+        },
+        {
+          role: "Board",
+          email: "board.demo@oceansideresidents.com",
+          password: DEMO_PASSWORD,
+        },
+        {
+          role: "Social",
+          email: "social.committee@oceansideresidents.com",
+          password: DEMO_PASSWORD,
+        },
+        {
+          role: "PM",
+          email: "pm.demo@oceansideresidents.com",
+          password: DEMO_PASSWORD,
+        },
+        {
+          role: "Super Admin",
+          email: "admin.demo@oceansideresidents.com",
           password: DEMO_PASSWORD,
         },
       ];

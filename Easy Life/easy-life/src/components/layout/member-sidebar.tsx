@@ -10,8 +10,26 @@ import { NavIcon } from "@/components/ui/nav-icon";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { GlobalSearch } from "@/components/search/global-search";
 import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
+import {
+  communityHasClubDining,
+  communityHasGrabGo,
+  communityHasHouseholdMembership,
+  communityHasLocalPros,
+  communityHasRentals,
+  communityHasTournaments,
+  communityHasVendors,
+  communityIsResidentialHoa,
+} from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 import { avatarForReviewer } from "@/lib/brand-assets";
+
+const clubDiningHrefs = new Set(["/member/dining"]);
+const grabGoHrefs = new Set(["/member/grab-go"]);
+const localProsHrefs = new Set(["/member/local-pros"]);
+const vendorsHrefs = new Set(["/member/vendors"]);
+const tournamentsHrefs = new Set(["/member/tournaments"]);
+const rentalsHrefs = new Set(["/member/rentals"]);
+const householdMembershipHrefs = new Set(["/member/household"]);
 
 /** Primary life-first nav — matches mobile: Home / Book / Calendar / Connect / Payments. */
 const primaryNav = [
@@ -36,6 +54,7 @@ const hoaOnlyHrefs = new Set([
 
 const moreNav = [
   { label: "Notifications", href: "/member/notifications", icon: "Bell" },
+  { label: "Visitor", href: "/member/visitors", icon: "UserPlus" },
   { label: "Favorites", href: "/member/favorites", icon: "Star" },
   { label: "Announcements", href: "/member/announcements", icon: "Megaphone" },
   { label: "Tram Service", href: "/member/tram", icon: "Bus" },
@@ -63,6 +82,8 @@ const moreNav = [
   { label: "Real Estate", href: "/member/real-estate", icon: "Home" },
   { label: "Contact", href: "/member/contact", icon: "Mail" },
 ];
+
+const residentialOnlyHrefs = new Set(["/member/visitors"]);
 
 function NavList({
   items,
@@ -111,6 +132,7 @@ export function MemberSidebar({
   logoUrl,
   userName = "Member",
   avatarSrc,
+  communityId: communityIdProp,
 }: {
   open: boolean;
   onClose: () => void;
@@ -118,20 +140,54 @@ export function MemberSidebar({
   logoUrl?: string | null;
   userName?: string;
   avatarSrc?: string;
+  communityId?: string | null;
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const resolvedAvatar = avatarSrc ?? avatarForReviewer(userName || "Member");
   const [paysHoa, setPaysHoa] = useState(true);
-  const visibleMoreNav = moreNav.filter(
-    (item) => paysHoa || !hoaOnlyHrefs.has(item.href),
+  const [communityId, setCommunityId] = useState<string | null | undefined>(
+    communityIdProp,
   );
+  const hasClubDining = communityHasClubDining(communityId);
+  const hasGrabGo = communityHasGrabGo(communityId);
+  const hasLocalPros = communityHasLocalPros(communityId);
+  const hasVendors = communityHasVendors(communityId);
+  const hasTournaments = communityHasTournaments(communityId);
+  const hasRentals = communityHasRentals(communityId);
+  const hasHouseholdMembership = communityHasHouseholdMembership(communityId);
+  const isResidentialHoa = communityIsResidentialHoa(communityId);
+  const visiblePrimaryNav = primaryNav
+    .filter(
+      (item) =>
+        hasHouseholdMembership || !householdMembershipHrefs.has(item.href),
+    )
+    .map((item) =>
+      isResidentialHoa && item.href === "/member/membership"
+        ? { ...item, label: "Resident access" }
+        : item,
+    );
+  const visibleMoreNav = moreNav.filter((item) => {
+    if (!paysHoa && hoaOnlyHrefs.has(item.href)) return false;
+    if (!isResidentialHoa && residentialOnlyHrefs.has(item.href)) return false;
+    if (!hasClubDining && clubDiningHrefs.has(item.href)) return false;
+    if (!hasGrabGo && grabGoHrefs.has(item.href)) return false;
+    if (!hasLocalPros && localProsHrefs.has(item.href)) return false;
+    if (!hasVendors && vendorsHrefs.has(item.href)) return false;
+    if (!hasTournaments && tournamentsHrefs.has(item.href)) return false;
+    if (!hasRentals && rentalsHrefs.has(item.href)) return false;
+    return true;
+  });
   const moreActive = visibleMoreNav.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
   const [moreOpen, setMoreOpen] = useState(moreActive);
   const productName = appName?.trim() || "Easy Life";
   const isWhiteLabel = Boolean(productName !== "Easy Life" && logoUrl);
+
+  useEffect(() => {
+    setCommunityId(communityIdProp);
+  }, [communityIdProp]);
 
   useEffect(() => {
     let on = true;
@@ -142,6 +198,9 @@ export function MemberSidebar({
         const residency = d.residencyStatus as string | undefined;
         const hoa = d.paysHoa as boolean | undefined;
         setPaysHoa(residency === "non_resident" ? false : hoa !== false);
+        if (typeof d.communityId === "string" && d.communityId) {
+          setCommunityId(d.communityId);
+        }
       })
       .catch(() => {});
     return () => {
@@ -204,7 +263,12 @@ export function MemberSidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-2">
-          <NavList items={primaryNav} pathname={pathname} onClose={onClose} t={t} />
+          <NavList
+            items={visiblePrimaryNav}
+            pathname={pathname}
+            onClose={onClose}
+            t={t}
+          />
 
           <div className="mt-4 border-t border-border-2 pt-3">
             <button

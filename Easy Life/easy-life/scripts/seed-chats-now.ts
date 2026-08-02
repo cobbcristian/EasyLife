@@ -108,6 +108,9 @@ async function main() {
   const { ensureAlliantDemoSeeded } = await import(
     "../src/lib/server/alliant-seed"
   );
+  const { ensureOceansideResidentsDemoSeeded } = await import(
+    "../src/lib/server/oceanside-residents-seed"
+  );
   const { ensureSeeded } = await import("../src/lib/server/db");
   const { PrismaClient } = await import("@prisma/client");
   const p = new PrismaClient();
@@ -149,6 +152,7 @@ async function main() {
       ["Harbor Pointe", ensureHarborPointeDemoSeeded],
       ["Willow Creek", ensureWillowCreekDemoSeeded],
       ["Alliant", ensureAlliantDemoSeeded],
+      ["Oceanside Residents", ensureOceansideResidentsDemoSeeded],
     ] as const) {
       try {
         console.log(`Seeding ${label} demo…`);
@@ -183,6 +187,14 @@ async function main() {
       where: { email: "pm.demo@alliantproperty.com" },
       select: { id: true },
     });
+    const oceansideMember = await p.user.findUnique({
+      where: { email: "member.demo@oceansideresidents.com" },
+      select: { id: true },
+    });
+    const oceansidePartner = await p.user.findUnique({
+      where: { email: "dlms6768@gmail.com" },
+      select: { id: true, role: true },
+    });
     console.log(
       JSON.stringify(
         {
@@ -195,6 +207,8 @@ async function main() {
           shadowWoodMember: Boolean(sw),
           spanishWellsMember: Boolean(spanishWells),
           alliantPm: Boolean(alliantPm),
+          oceansideMember: Boolean(oceansideMember),
+          oceansidePartnerRole: oceansidePartner?.role ?? null,
         },
         null,
         2,

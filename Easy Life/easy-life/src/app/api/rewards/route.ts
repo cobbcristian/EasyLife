@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   await ensureRecordsSeeded();
-  const account = await getRewardAccount(session.email);
+  const account = await getRewardAccount(session.email, session.communityId);
   return NextResponse.json({
     points: account.points,
     tier: account.tier,
@@ -36,7 +36,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   if (!body.perkId) return NextResponse.json({ error: "Perk required" }, { status: 400 });
-  const result = await redeemReward(session.email, body.perkId);
+  const result = await redeemReward(
+    session.email,
+    body.perkId,
+    session.communityId,
+  );
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

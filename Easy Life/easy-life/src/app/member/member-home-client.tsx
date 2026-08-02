@@ -91,6 +91,7 @@ function MemberMvpHomeSkeleton() {
 export function MemberHomeClient() {
   const [data, setData] = useState<HomeData | null>(null);
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(brandAssets.memberAvatar);
+  const [profileEmail, setProfileEmail] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -103,6 +104,9 @@ export function MemberHomeClient() {
         if (!on) return;
         if (!home.error) setData(home);
         const name = profile?.name ?? home?.profile?.name;
+        if (typeof profile?.email === "string" && profile.email) {
+          setProfileEmail(profile.email);
+        }
         if (profile?.avatarUrl) {
           setAvatarSrc(profile.avatarUrl);
         } else if (name) {
@@ -125,6 +129,7 @@ export function MemberHomeClient() {
   return (
     <MemberMvpHome
       profileName={data.profile.name}
+      profileEmail={profileEmail}
       avatarSrc={avatarSrc}
       clubName={data.branding?.name}
       clubLogoSrc={data.branding?.logoUrl}

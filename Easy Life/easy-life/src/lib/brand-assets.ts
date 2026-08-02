@@ -67,7 +67,25 @@ export const brandAssets = {
   communityWillowCreek: "/brand/community-willow-creek.png",
   communityAlliant: "/brand/community-alliant.png",
   heritageBayAquaFit: "/brand/heritage-bay-aqua-fit.png",
+  /** Official The Plaza at Oceanside wordmark (gold + aqua O). */
   communityOceanside: "/brand/community-oceanside.png",
+  /** Pier / coastline cover hero. */
+  communityOceansideCover: "/brand/community-oceanside-cover.jpg",
+  /** Street-level Plaza tower photo (legacy card art). */
+  communityOceansideBuilding: "/brand/community-oceanside-building.png",
+  oceansideFitness: "/brand/oceanside-fitness.jpg",
+  oceansideClubLounge: "/brand/oceanside-club-lounge.jpg",
+  oceansideTheater: "/brand/oceanside-theater.jpg",
+  oceansidePatio: "/brand/oceanside-patio.jpg",
+  /** Outdoor kitchen / community grills under the patio pergola. */
+  oceansideGrill: "/brand/oceanside-grill.jpg",
+  oceansideTowerNight: "/brand/oceanside-tower-night.jpg",
+  oceansidePier: "/brand/oceanside-pier.jpg",
+  /** Plaza courts + pool from tower balcony (never the Plaza tower exterior alone). */
+  oceansideTennis: "/brand/oceanside-tennis.jpg",
+  /** @deprecated alias — use oceansideTennis */
+  oceansideTennis1: "/brand/oceanside-tennis.jpg",
+  oceansideGolfSim: "/brand/service-golf.png",
   /** IronCrest / The Club at Iron Lake (Ocala) — official nav mark from discoverironcrest.com */
   communityIroncrest: "/brand/community-ironcrest.png",
   /** Full horizontal wordmark — login headers / wide slots only. */
@@ -323,6 +341,7 @@ export const communityLogoById: Record<string, string> = {
   "harbor-pointe": brandAssets.communityHarborPointe,
   "willow-creek": brandAssets.communityWillowCreek,
   alliant: brandAssets.communityAlliant,
+  "oceanside-residents": brandAssets.communityOceanside,
   // Square crest — wide SVG wordmark crops to "NCR" in 70×70 community cards.
   "iron-lake": brandAssets.communityIroncrestMark,
 };
@@ -999,6 +1018,28 @@ export function imageForTournament(sport: string): string {
 export function imageForAmenity(kind: string, name?: string): string {
   const k = kind.toLowerCase();
   const n = (name ?? "").toLowerCase();
+
+  // Plaza at Oceanside courts — balcony aerial of the two hard courts.
+  if (n.includes("tennis court")) {
+    return brandAssets.oceansideTennis;
+  }
+  if (n.includes("tennis")) {
+    return brandAssets.featuredTennis;
+  }
+  if (n.includes("golf simulator") || (n.includes("golf") && k.includes("simulator"))) {
+    return brandAssets.oceansideGolfSim;
+  }
+  if (n.includes("theater") || n.includes("theatre")) {
+    return brandAssets.oceansideTheater;
+  }
+  if (n.includes("grill")) return brandAssets.oceansideGrill;
+  if (n.includes("billiard") || n.includes("board room")) {
+    return brandAssets.oceansideClubLounge;
+  }
+  if (n.includes("massage")) return brandAssets.amenitySpa;
+  if (n.includes("fitness") && n.includes("center")) {
+    return brandAssets.oceansideFitness;
+  }
 
   if (n.includes("summer aqua fit")) return brandAssets.heritageBayAquaFit;
   if (n.includes("pickle")) return brandAssets.amenityPickleball;

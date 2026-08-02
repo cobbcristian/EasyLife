@@ -36,7 +36,17 @@ interface DirectoryEntry {
   email: string;
   name: string;
   visible: boolean;
+  role?: string;
+  isManagement?: boolean;
 }
+
+/** Oceanside HOA message hubs — always shown first in New message. */
+const OCEANSIDE_MESSAGE_HUB_EMAILS = [
+  "admin.demo@oceansideresidents.com",
+  "pm.demo@oceansideresidents.com",
+  "social.committee@oceansideresidents.com",
+  "board.demo@oceansideresidents.com",
+] as const;
 
 function relativeTime(iso: string | null): string {
   if (!iso) return "";
@@ -330,12 +340,28 @@ export default function MemberMessagesPage() {
   }
 
   const directoryMatches = useMemo(() => {
+    const hubRank = new Map<string, number>(
+      OCEANSIDE_MESSAGE_HUB_EMAILS.map((email, i) => [email, i]),
+    );
+    const sorted = [...directory].sort((a, b) => {
+      const ar = hubRank.get(a.email.toLowerCase());
+      const br = hubRank.get(b.email.toLowerCase());
+      if (ar != null && br != null) return ar - br;
+      if (ar != null) return -1;
+      if (br != null) return 1;
+      if (Boolean(a.isManagement) !== Boolean(b.isManagement)) {
+        return a.isManagement ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
     const q = memberQuery.trim().toLowerCase();
-    if (!q) return directory.slice(0, 8);
-    return directory
+    if (!q) return sorted.slice(0, 12);
+    return sorted
       .filter(
         (d) =>
-          d.name.toLowerCase().includes(q) || d.email.toLowerCase().includes(q),
+          d.name.toLowerCase().includes(q) ||
+          d.email.toLowerCase().includes(q) ||
+          (d.role ?? "").toLowerCase().includes(q),
       )
       .slice(0, 12);
   }, [directory, memberQuery]);
@@ -543,7 +569,9 @@ export default function MemberMessagesPage() {
                         <Avatar name={d.name} size="sm" />
                         <div className="min-w-0">
                           <p className="truncate text-sm text-black">{d.name}</p>
-                          <p className="truncate text-[11px] text-grey">{d.email}</p>
+                          <p className="truncate text-[11px] text-grey">
+                            {d.role ? `${d.role} · ${d.email}` : d.email}
+                          </p>
                         </div>
                       </button>
                     ))

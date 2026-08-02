@@ -85,6 +85,7 @@ export async function getMemberProfile(email: string) {
     joined,
     directoryVisible: ext?.directoryVisible ?? true,
     community: communityName,
+    communityId: user?.communityId ?? null,
     commsEmail: ext?.commsEmail ?? true,
     commsSms: ext?.commsSms ?? true,
     commsPush: ext?.commsPush ?? false,

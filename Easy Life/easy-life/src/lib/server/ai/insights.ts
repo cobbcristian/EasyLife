@@ -8,6 +8,12 @@ import { normalizeMembershipTier } from "@/lib/membership-tiers";
 import { evaluateDependentEligibility } from "@/lib/dependent-membership";
 import { evaluateRejoinEligibility } from "@/lib/membership-rejoin";
 import { isMembershipDeactivated } from "@/lib/membership-status";
+import {
+  communityHasClubDining,
+  communityHasClubResignRejoin,
+  communityHasFbMinimum,
+  communityHasHouseholdMembership,
+} from "@/lib/community-features";
 import { ensureDependentPolicy } from "@/lib/server/dependent-membership";
 import { ensureRejoinPolicy } from "@/lib/server/membership-rejoin";
 
@@ -116,7 +122,11 @@ export async function buildMemberInsights(input: {
   } else if (courtish >= 3 && !["tennis", "national", "social_tennis"].includes(tier)) {
     suggested = "tennis";
     tierReason = "Frequent court bookings — Tennis or Social+Tennis may fit better.";
-  } else if (diningOrders.length >= 4 && tier === "social") {
+  } else if (
+    communityHasClubDining(communityId) &&
+    diningOrders.length >= 4 &&
+    tier === "social"
+  ) {
     tierReason = "Strong F&B use — current Social tier still fits; watch minimums.";
   }
   const tierFit = insight(
@@ -127,14 +137,16 @@ export async function buildMemberInsights(input: {
     "/member/membership",
   );
 
-  // F&B
-  const fb = fbPeriods[0];
+  // F&B — condo / HOA communities with no club dining minimum never show this.
+  const hasFbMinimum = communityHasFbMinimum(communityId);
+  const fb = hasFbMinimum ? fbPeriods[0] : undefined;
   const remaining =
     fb && fb.requiredAmount > 0
       ? Math.max(0, fb.requiredAmount - fb.spentAmount)
       : 0;
-  const fbSuggestions: string[] =
-    remaining > 0
+  const fbSuggestions: string[] = !hasFbMinimum
+    ? []
+    : remaining > 0
       ? [
           `$${remaining.toFixed(0)} left on F&B minimum`,
           "Order eat-in at The Terrace",
@@ -198,9 +210,13 @@ export async function buildMemberInsights(input: {
     .slice(0, 5)
     .map(({ name, email: e, reason }) => ({ name, email: e, reason }));
 
-  // Household / rejoin
+  // Household / rejoin (skip age-out policy for communities that don't use it)
   const householdAlerts: InsightScore[] = [];
-  if (profile?.householdRole === "dependent" || profile?.sponsorEmail) {
+  const usesHouseholdMembership = communityHasHouseholdMembership(communityId);
+  if (
+    usesHouseholdMembership &&
+    (profile?.householdRole === "dependent" || profile?.sponsorEmail)
+  ) {
     const policy = await ensureDependentPolicy(communityId);
     const sponsor = profile.sponsorEmail
       ? await prisma.memberProfileExt.findUnique({
@@ -229,7 +245,10 @@ export async function buildMemberInsights(input: {
       );
     }
   }
-  if (isMembershipDeactivated(profile?.membershipStatus)) {
+  if (
+    communityHasClubResignRejoin(communityId) &&
+    isMembershipDeactivated(profile?.membershipStatus)
+  ) {
     householdAlerts.push(
       insight(
         "deactivated",
@@ -239,7 +258,10 @@ export async function buildMemberInsights(input: {
         "/member/membership",
       ),
     );
-  } else if (profile?.membershipStatus === "resigned") {
+  } else if (
+    communityHasClubResignRejoin(communityId) &&
+    profile?.membershipStatus === "resigned"
+  ) {
     const policy = await ensureRejoinPolicy(communityId);
     const ev = evaluateRejoinEligibility({
       policyEnabled: policy.enabled,
@@ -263,7 +285,7 @@ export async function buildMemberInsights(input: {
   const forYou: InsightScore[] = [];
   if (churnRisk.score >= 55) forYou.push(churnRisk);
   if (tierFit.score >= 55) forYou.push(tierFit);
-  if (remaining > 0) {
+  if (hasFbMinimum && remaining > 0) {
     forYou.push(
       insight("fb", "F&B minimum", 60, fbSuggestions[0]!, "/member/dining"),
     );
@@ -280,7 +302,10 @@ export async function buildMemberInsights(input: {
     );
   }
   forYou.push(...householdAlerts);
-  if (amenities.some((a) => a.kind === "restaurant")) {
+  if (
+    communityHasClubDining(communityId) &&
+    amenities.some((a) => a.kind === "restaurant")
+  ) {
     forYou.push(
       insight(
         "dining",

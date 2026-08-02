@@ -337,6 +337,8 @@ export const config = {
     "/go/willowcreek/",
     "/go/alliant",
     "/go/alliant/",
+    "/go/oceansideresidents",
+    "/go/oceansideresidents/",
     "/login",
     "/dashboard/:path*",
     "/communities/:path*",

@@ -4,7 +4,9 @@
  *
  * Creates:
  * - Community: oceanside-residents (Pompano Beach, FL)
- * - Admin user: Dlms6768@gmail.com / Slater96!
+ * - Demo logins (member/board/pm/admin @ oceansideresidents.com, password: password)
+ * - Partner member dlms6768@gmail.com (role member; optional OCEANSIDE_MEMBER_PASSWORD)
+ * - Plaza amenities, knowledge base, tram vehicles/drivers
  * - Custom domain: oceansideresidents.com
  */
 import { resolve } from "node:path";
@@ -39,403 +41,19 @@ const CITY = "Pompano Beach";
 const STATE = "FL";
 const CUSTOM_DOMAIN = "oceansideresidents.com";
 
-const ADMIN_EMAIL = "Dlms6768@gmail.com";
-const ADMIN_PASSWORD = "Slater96!";
-const ADMIN_NAME = "Community Admin";
-
 async function main() {
   const { prisma } = await import("../src/lib/server/prisma");
-  const { hashPassword } = await import("../src/lib/server/password");
+  const { ensureOceansideResidentsDemoSeeded } = await import(
+    "../src/lib/server/oceanside-residents-seed"
+  );
 
   console.log(`Creating community: ${COMMUNITY_NAME} (${CITY}, ${STATE})`);
   console.log(`Custom domain: ${CUSTOM_DOMAIN}`);
-  console.log(`Admin email: ${ADMIN_EMAIL}`);
+  console.log("Seeding demo accounts + partner member…");
+  await ensureOceansideResidentsDemoSeeded();
 
-  // Check if community already exists
-  const existingCommunity = await prisma.community.findUnique({
-    where: { id: COMMUNITY_ID },
-  });
-
-  if (existingCommunity) {
-    console.log(`Community "${COMMUNITY_ID}" already exists. Updating...`);
-    await prisma.community.update({
-      where: { id: COMMUNITY_ID },
-      data: {
-        name: COMMUNITY_NAME,
-        location: `${CITY}, ${STATE}`,
-        customDomain: CUSTOM_DOMAIN,
-        stagingMode: false,
-      },
-    });
-  } else {
-    console.log(`Creating new community: ${COMMUNITY_ID}`);
-    await prisma.community.create({
-      data: {
-        id: COMMUNITY_ID,
-        name: COMMUNITY_NAME,
-        location: `${CITY}, ${STATE}`,
-        coverColor: "from-cyan-500 to-blue-600",
-        customDomain: CUSTOM_DOMAIN,
-        stagingMode: false,
-        members: {
-          create: [
-            { name: ADMIN_NAME, role: "Community Admin", isManagement: true },
-          ],
-        },
-      },
-    });
-  }
-
-  // Check if admin user exists
-  const existingUser = await prisma.user.findUnique({
-    where: { email: ADMIN_EMAIL.toLowerCase() },
-  });
-
-  if (existingUser) {
-    console.log(`User "${ADMIN_EMAIL}" already exists. Updating password and community...`);
-    await prisma.user.update({
-      where: { email: ADMIN_EMAIL.toLowerCase() },
-      data: {
-        password: hashPassword(ADMIN_PASSWORD),
-        communityId: COMMUNITY_ID,
-        role: "admin",
-        name: ADMIN_NAME,
-        status: "active",
-      },
-    });
-  } else {
-    console.log(`Creating admin user: ${ADMIN_EMAIL}`);
-    await prisma.user.create({
-      data: {
-        email: ADMIN_EMAIL.toLowerCase(),
-        password: hashPassword(ADMIN_PASSWORD),
-        role: "admin",
-        name: ADMIN_NAME,
-        communityId: COMMUNITY_ID,
-        status: "active",
-      },
-    });
-  }
-
-  // Delete existing amenities and recreate with full Plaza amenities
-  console.log("Setting up Plaza amenities...");
-  await prisma.amenity.deleteMany({
-    where: { communityId: COMMUNITY_ID },
-  });
-
-  await prisma.amenity.createMany({
-    data: [
-      // ===== EXISTING PLAZA AMENITIES =====
-      {
-        communityId: COMMUNITY_ID,
-        name: "Theatre",
-        description: "Private screening room with surround sound, comfortable seating for 20+, and streaming capabilities",
-        kind: "facility",
-        schedule: "9:00 AM - 11:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Billiards Room",
-        description: "Professional billiards tables, comfortable lounge seating, and refreshment area",
-        kind: "facility",
-        schedule: "8:00 AM - 11:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Tennis Court 1",
-        description: "Hard court tennis with lighting for night play",
-        kind: "court",
-        schedule: "7:00 AM - 10:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Tennis Court 2",
-        description: "Hard court tennis with lighting for night play",
-        kind: "court",
-        schedule: "7:00 AM - 10:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Resort Pool",
-        description: "Heated resort-style pool with sun deck, lounge chairs, and poolside service",
-        kind: "pool",
-        schedule: "6:00 AM - 10:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Outdoor Grill 1",
-        description: "Gas grill station with prep counter, sink, and covered seating area",
-        kind: "facility",
-        schedule: "8:00 AM - 10:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Outdoor Grill 2",
-        description: "Gas grill station with prep counter, sink, and covered seating area",
-        kind: "facility",
-        schedule: "8:00 AM - 10:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Fitness Center",
-        description: "State-of-the-art gym with cardio machines, free weights, and strength training equipment",
-        kind: "gym",
-        schedule: "5:00 AM - 11:00 PM Daily",
-        fee: 0,
-      },
-
-      // ===== NEW AMENITIES (from research) =====
-      // Wellness & Spa
-      {
-        communityId: COMMUNITY_ID,
-        name: "Sauna",
-        description: "Relaxing dry sauna for post-workout recovery",
-        kind: "spa",
-        schedule: "6:00 AM - 10:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Hot Tub / Spa",
-        description: "Heated spa with jets, adjacent to the pool area",
-        kind: "spa",
-        schedule: "6:00 AM - 10:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Yoga Studio",
-        description: "Dedicated yoga and Pilates studio with mirrors, mats, and props",
-        kind: "gym",
-        schedule: "6:00 AM - 9:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-
-      // Sports & Recreation
-      {
-        communityId: COMMUNITY_ID,
-        name: "Pickleball Court 1",
-        description: "Regulation pickleball court with lighting",
-        kind: "court",
-        schedule: "7:00 AM - 10:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Pickleball Court 2",
-        description: "Regulation pickleball court with lighting",
-        kind: "court",
-        schedule: "7:00 AM - 10:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Basketball Court",
-        description: "Half-court basketball with lighting",
-        kind: "court",
-        schedule: "7:00 AM - 10:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Golf Simulator",
-        description: "Indoor golf simulator with multiple course options",
-        kind: "facility",
-        schedule: "8:00 AM - 10:00 PM Daily",
-        fee: 25,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Bocce Ball Court",
-        description: "Outdoor bocce ball court",
-        kind: "court",
-        schedule: "7:00 AM - Dusk Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-
-      // Social & Entertainment
-      {
-        communityId: COMMUNITY_ID,
-        name: "Wine Room",
-        description: "Private wine tasting room with climate-controlled storage",
-        kind: "facility",
-        schedule: "5:00 PM - 11:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Private Dining Room",
-        description: "Elegant private dining space with catering kitchen, seats 12",
-        kind: "facility",
-        schedule: "11:00 AM - 10:00 PM Daily",
-        fee: 50,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Game Room",
-        description: "Ping pong, shuffleboard, video games, and card tables",
-        kind: "facility",
-        schedule: "8:00 AM - 11:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Fire Pit Lounge",
-        description: "Outdoor fire pit with comfortable seating for evening gatherings",
-        kind: "facility",
-        schedule: "5:00 PM - 11:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Pool Cabanas",
-        description: "Private poolside cabanas with shade and service",
-        kind: "facility",
-        schedule: "9:00 AM - 6:00 PM Daily",
-        fee: 25,
-        unitCount: 4,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Event Lawn",
-        description: "Open lawn space for community events and private parties",
-        kind: "facility",
-        schedule: "8:00 AM - 10:00 PM Daily",
-        fee: 100,
-        unitCount: 1,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Clubhouse",
-        description: "Main clubhouse with lounge areas, kitchen, and multi-purpose rooms",
-        kind: "facility",
-        schedule: "7:00 AM - 11:00 PM Daily",
-        fee: 0,
-      },
-
-      // Work & Business
-      {
-        communityId: COMMUNITY_ID,
-        name: "Co-Working Space",
-        description: "Professional workspace with desks, high-speed WiFi, and printing",
-        kind: "facility",
-        schedule: "6:00 AM - 10:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Conference Room",
-        description: "Private conference room with video conferencing, seats 8",
-        kind: "facility",
-        schedule: "8:00 AM - 8:00 PM Daily",
-        fee: 0,
-        unitCount: 1,
-      },
-
-      // Family & Kids
-      {
-        communityId: COMMUNITY_ID,
-        name: "Children's Playground",
-        description: "Outdoor playground with swings, slides, and climbing structures",
-        kind: "facility",
-        schedule: "Dawn - Dusk Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Kids Playroom",
-        description: "Indoor playroom with toys, games, and activities for children",
-        kind: "facility",
-        schedule: "8:00 AM - 8:00 PM Daily",
-        fee: 0,
-      },
-
-      // Pet Amenities
-      {
-        communityId: COMMUNITY_ID,
-        name: "Dog Park",
-        description: "Fenced off-leash dog park with separate areas for small and large dogs",
-        kind: "facility",
-        schedule: "6:00 AM - 10:00 PM Daily",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Pet Wash Station",
-        description: "Self-service pet grooming station with tub, dryer, and supplies",
-        kind: "facility",
-        schedule: "7:00 AM - 9:00 PM Daily",
-        fee: 0,
-      },
-
-      // Outdoor & Nature
-      {
-        communityId: COMMUNITY_ID,
-        name: "Walking Trail",
-        description: "Scenic walking and jogging path around the community",
-        kind: "facility",
-        schedule: "Open 24 hours",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Community Garden",
-        description: "Raised garden beds available for resident use",
-        kind: "facility",
-        schedule: "Dawn - Dusk Daily",
-        fee: 0,
-      },
-
-      // Services
-      {
-        communityId: COMMUNITY_ID,
-        name: "EV Charging Stations",
-        description: "Electric vehicle charging stations in the parking garage",
-        kind: "facility",
-        schedule: "Open 24 hours",
-        fee: 0,
-        unitCount: 8,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Bike Storage",
-        description: "Secure indoor bicycle storage with repair station",
-        kind: "facility",
-        schedule: "Open 24 hours",
-        fee: 0,
-      },
-      {
-        communityId: COMMUNITY_ID,
-        name: "Package Room",
-        description: "Secure package delivery room with lockers and refrigerated storage",
-        kind: "facility",
-        schedule: "Open 24 hours",
-        fee: 0,
-      },
-    ],
-  });
-
-  console.log("✅ Created 35 amenities for The Plaza");
+  // Amenities are synced inside ensureOceansideResidentsDemoSeeded (Plaza at Oceanside).
+  console.log("✅ Plaza amenities synced via Oceanside seed");
 
   // Create Knowledge Base articles
   console.log("Setting up Knowledge Base articles...");
@@ -481,9 +99,10 @@ async function main() {
       {
         communityId: COMMUNITY_ID,
         category: "Amenities",
-        question: "How do I reserve the tennis or pickleball courts?",
-        answer: "Use the Book feature in the app. Select the court, choose your date and time, and confirm your reservation. Courts can be booked up to 7 days in advance. Reservations are limited to 90 minutes per booking.",
-        keywords: "tennis, pickleball, court, reserve, book",
+        question: "How do I reserve the tennis courts?",
+        answer:
+          "Use the Book feature in the app. Select the court, choose your date and time, and confirm your reservation. Courts can be booked up to 7 days in advance. Reservations are limited to 90 minutes per booking.",
+        keywords: "tennis, court, reserve, book",
         sortOrder: 1,
         published: true,
         createdBy: "System",
@@ -501,9 +120,10 @@ async function main() {
       {
         communityId: COMMUNITY_ID,
         category: "Amenities",
-        question: "Can I reserve the private dining room for events?",
-        answer: "Yes! The private dining room can be reserved through the app. There's a $50 reservation fee. The room seats up to 12 and includes access to the catering kitchen. Book at least 48 hours in advance.",
-        keywords: "dining, party, event, reserve, catering",
+        question: "Can I reserve the Club Room for a gathering?",
+        answer:
+          "Yes. Reserve the Club Room, Sports Lounge, Wine Vault, or theatre in the app under Amenities. There is no on-site restaurant — residents bring their own food and drink per community rules. Book at least 48 hours in advance.",
+        keywords: "club room, party, event, reserve, gathering, theatre, wine",
         sortOrder: 3,
         published: true,
         createdBy: "System",
@@ -512,9 +132,21 @@ async function main() {
         communityId: COMMUNITY_ID,
         category: "Amenities",
         question: "How do I use the golf simulator?",
-        answer: "The golf simulator is available for $25/hour. Book through the app under Amenities > Golf Simulator. Equipment (clubs, balls) is provided. First-time users receive a brief orientation from staff.",
+        answer:
+          "Book the Golf Simulator in the app under Amenities. Resident reservations are complimentary. Equipment (clubs, balls) is provided. First-time users can ask the front desk for a brief orientation.",
         keywords: "golf, simulator, booking, fee",
         sortOrder: 4,
+        published: true,
+        createdBy: "System",
+      },
+      {
+        communityId: COMMUNITY_ID,
+        category: "Amenities",
+        question: "What amenities can I reserve?",
+        answer:
+          "Residents can book: Tennis Courts 1–2, Golf Simulator, Surround Sound Theatre, Outdoor Grills 1–2, Club Room, Sports Lounge, and Wine Vault. The infinity pool and fitness center are walk-in (no reservation). There is no pickleball, basketball, bocce, or clubhouse restaurant.",
+        keywords: "book, reserve, tennis, grill, theatre, amenities list",
+        sortOrder: 5,
         published: true,
         createdBy: "System",
       },
@@ -749,9 +381,12 @@ async function main() {
   console.log(`   Community Name: ${COMMUNITY_NAME}`);
   console.log(`   Location: ${CITY}, ${STATE}`);
   console.log(`   Custom Domain: ${CUSTOM_DOMAIN}`);
-  console.log(`\n🔐 Admin Login:`);
-  console.log(`   Email: ${ADMIN_EMAIL}`);
-  console.log(`   Password: ${ADMIN_PASSWORD}`);
+  console.log(`\n🔐 Demo logins (password: password):`);
+  console.log(`   Member  member.demo@oceansideresidents.com`);
+  console.log(`   Board   board.demo@oceansideresidents.com`);
+  console.log(`   PM      pm.demo@oceansideresidents.com`);
+  console.log(`   Admin   admin.demo@oceansideresidents.com`);
+  console.log(`\n👤 Partner member: dlms6768@gmail.com (their own password)`);
   console.log(`\n🌐 After deploying to Azure:`);
   console.log(`   1. Configure DNS: Point ${CUSTOM_DOMAIN} to your Azure App Service`);
   console.log(`   2. Add custom domain in Azure App Service → Custom domains`);

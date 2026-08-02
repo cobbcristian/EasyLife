@@ -104,8 +104,13 @@ export function tierDefinitionsForCommunity(
       }),
     );
   }
-  // HOA demos market “no minimum spending” — keep Membership/Payments consistent.
-  const hoaNoFbMin = new Set(["harbor-pointe", "willow-creek", "alliant"]);
+  // HOA demos / residential communities with no F&B minimum.
+  const hoaNoFbMin = new Set([
+    "harbor-pointe",
+    "willow-creek",
+    "alliant",
+    "oceanside-residents",
+  ]);
   if (hoaNoFbMin.has(communityId)) {
     return Object.fromEntries(
       (Object.keys(MEMBERSHIP_TIER_DEFINITIONS) as DefaultMembershipTierSlug[]).map(

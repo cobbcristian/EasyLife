@@ -12,8 +12,18 @@ import {
 import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { MemberMvpHomeSearch } from "@/components/member/member-mvp-home-search";
 import { ForYouInsights } from "@/components/member/for-you-insights";
-import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
+import {
+  RESIDENTIAL_HOA_ACCOUNT_LINKS,
+  UserAvatarMenu,
+} from "@/components/layout/user-avatar-menu";
 import { BrandStar } from "@/components/ui/brand-star";
+import {
+  communityHasClubDining,
+  communityHasLocalPros,
+  communityHasTournaments,
+  communityHasVendors,
+  communityIsResidentialHoa,
+} from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -60,6 +70,7 @@ interface HomeTournament {
 
 export interface MemberMvpHomeProps {
   profileName: string;
+  profileEmail?: string;
   avatarSrc?: string;
   clubName?: string;
   clubLogoSrc?: string | null;
@@ -183,6 +194,7 @@ function buildUpcomingRows(
 /** Figma MVP Home / Home w/ service added (nodes 4616:17702, 4616:21865). */
 export function MemberMvpHome({
   profileName,
+  profileEmail,
   avatarSrc,
   clubName,
   clubLogoSrc,
@@ -198,18 +210,54 @@ export function MemberMvpHome({
 }: MemberMvpHomeProps) {
   const { t } = useI18n();
   const firstName = profileName.split(" ")[0] ?? profileName;
-  const upcoming = buildUpcomingRows(bookings, events, serviceBookings, tournaments);
+  const accountLinks = communityIsResidentialHoa(communityId)
+    ? RESIDENTIAL_HOA_ACCOUNT_LINKS
+    : undefined;
+  const hasTournaments = communityHasTournaments(communityId);
+  const upcoming = buildUpcomingRows(
+    bookings,
+    events,
+    serviceBookings,
+    hasTournaments ? tournaments : [],
+  );
   const featured = (featuredTiles ?? []).filter((tile) => tile.sponsored === true);
   const badgeCount = Math.max(0, Math.floor(notificationCount));
   const isGolfClub = communityId === "spanish-wells";
+  const hasClubDining = communityHasClubDining(communityId);
+  const hasLocalPros = communityHasLocalPros(communityId);
+  const hasVendors = communityHasVendors(communityId);
   const bookSubtitle = isGolfClub
     ? "Tee times · Courts · Spa"
-    : "Courts · Spa · Clubhouse";
-  const featuredViewAllHref = isGolfClub ? "/member/bookings" : "/member/dining";
+    : hasClubDining
+      ? "Courts · Spa · Clubhouse"
+      : "Tennis · Pool · Fitness";
+  const featuredViewAllHref = isGolfClub
+    ? "/member/bookings"
+    : hasClubDining
+      ? "/member/dining"
+      : "/member/amenities";
   const showHoa = paysHoa && residencyStatus !== "non_resident";
   const categoryTiles = homeCategoryTiles
-    .filter((tile) => showHoa || tile.key !== "hoa")
+    .filter((tile) => {
+      if (!showHoa && tile.key === "hoa") return false;
+      if (!hasClubDining && tile.key === "food") return false;
+      if (
+        (!hasLocalPros || !hasVendors) &&
+        tile.key === "services"
+      ) {
+        return false;
+      }
+      return true;
+    })
     .map((tile) => {
+      if (tile.key === "hoa" && communityIsResidentialHoa(communityId)) {
+        return {
+          ...tile,
+          // Plaza tower — never the generic golf clubhouse manor.
+          image: brandAssets.communityOceansideBuilding,
+          href: "/member/payments",
+        };
+      }
       if (tile.key !== "hoa" || !isGolfClub) return tile;
       return { ...tile, label: "Dues", href: "/member/payments" };
     });
@@ -265,7 +313,9 @@ export function MemberMvpHome({
             </Link>
             <UserAvatarMenu
               name={profileName}
+              email={profileEmail}
               avatarSrc={avatarSrc ?? brandAssets.memberAvatar}
+              links={accountLinks}
               className="[&_button]:ring-2 [&_button]:ring-white/40"
             />
           </div>
@@ -360,15 +410,27 @@ export function MemberMvpHome({
               {t("Neighbors and staff")}
             </p>
           </Link>
-          <Link
-            href="/member/dining"
-            className="rounded-xl border border-[#eceff3] bg-white p-4"
-          >
-            <p className="text-[16px] font-semibold text-ink">{t("Dining")}</p>
-            <p className="mt-1 text-[12px] text-grey">
-              {t("Menus and reservations")}
-            </p>
-          </Link>
+          {hasClubDining ? (
+            <Link
+              href="/member/dining"
+              className="rounded-xl border border-[#eceff3] bg-white p-4"
+            >
+              <p className="text-[16px] font-semibold text-ink">{t("Dining")}</p>
+              <p className="mt-1 text-[12px] text-grey">
+                {t("Menus and reservations")}
+              </p>
+            </Link>
+          ) : (
+            <Link
+              href="/member/amenities"
+              className="rounded-xl border border-[#eceff3] bg-white p-4"
+            >
+              <p className="text-[16px] font-semibold text-ink">{t("Amenities")}</p>
+              <p className="mt-1 text-[12px] text-grey">
+                {t("Pool, courts, and more")}
+              </p>
+            </Link>
+          )}
         </section>
 
         {/* Categories — size so ~3 tiles + HOA peek (scroll cue) */}

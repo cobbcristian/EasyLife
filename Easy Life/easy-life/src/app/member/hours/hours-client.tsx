@@ -18,9 +18,13 @@ const KIND_GROUPS: Array<{ id: string; label: string; kinds: string[] }> = [
   { id: "stores", label: "Stores", kinds: ["store", "pro_shop"] },
   { id: "tennis", label: "Tennis", kinds: ["court"] },
   { id: "pickleball", label: "Pickleball", kinds: ["pickleball"] },
-  { id: "golf", label: "Golf", kinds: ["golf_course", "driving_range"] },
+  { id: "golf", label: "Golf", kinds: ["golf_course", "driving_range", "simulator"] },
   { id: "spa", label: "Spa", kinds: ["spa"] },
-  { id: "club", label: "Club amenities", kinds: ["clubhouse", "gym", "facility", "pool"] },
+  {
+    id: "club",
+    label: "Club amenities",
+    kinds: ["clubhouse", "gym", "facility", "pool", "theatre", "grill"],
+  },
   { id: "fitness", label: "Fitness classes", kinds: ["fitness_class"] },
 ];
 

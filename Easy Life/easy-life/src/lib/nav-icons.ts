@@ -27,6 +27,7 @@ export const lucideToNavIcon: Record<string, NavIconKey> = {
   Shirt: "briefcase",
   Bike: "briefcase",
   Users: "briefcase",
+  UserPlus: "briefcase",
   UsersRound: "briefcase",
   Sparkles: "briefcase",
   Wrench: "briefcase",

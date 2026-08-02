@@ -784,18 +784,21 @@ export const communities: Community[] = [
   },
   {
     id: "oceanside-residents",
-    name: "Oceanside Residents",
-    location: "Pompano Beach, FL",
-    residentCount: 0,
+    name: "The Plaza at Oceanside",
+    location: "1 North Ocean Blvd, Pompano Beach, FL 33062",
+    residentCount: 108,
     serviceCount: 0,
     activityCount: 0,
     coverColor: "from-cyan-500 to-blue-600",
     logoUrl: brandAssets.communityOceanside,
     primaryColor: "#0891b2",
-    appDisplayName: "Oceanside Residents",
+    appDisplayName: "The Plaza at Oceanside",
     customDomain: "oceansideresidents.com",
     management: [
-      { id: "or-m1", name: "Community Admin", role: "Community Admin", isManagement: true },
+      { id: "or-m1", name: "Dugald Yska", role: "Board", isManagement: true },
+      { id: "or-m2", name: "Ralph Grittani", role: "Board", isManagement: true },
+      { id: "or-m3", name: "Robert DiColo", role: "Board", isManagement: true },
+      { id: "or-m4", name: "Piero Carbone", role: "Board", isManagement: true },
     ],
     residents: [],
     providers: [],
@@ -1205,7 +1208,8 @@ function bookingsForCommunity(id: string): ServiceBooking[] {
     id === "spanish-wells" ||
     id === "harbor-pointe" ||
     id === "willow-creek" ||
-    id === "alliant"
+    id === "alliant" ||
+    id === "oceanside-residents"
   ) {
     return [];
   }

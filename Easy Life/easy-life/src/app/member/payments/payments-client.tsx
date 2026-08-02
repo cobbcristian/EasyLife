@@ -42,6 +42,10 @@ export function PaymentsClient() {
   const [membershipName, setMembershipName] = useState("");
   const [paysHoa, setPaysHoa] = useState<boolean | null>(null);
   const [residencyStatus, setResidencyStatus] = useState("");
+  const [hasClubDining, setHasClubDining] = useState(true);
+  const [hoaPortal, setHoaPortal] = useState<{ label: string; url: string } | null>(
+    null,
+  );
   const [fb, setFb] = useState<{
     required: number;
     spent: number;
@@ -67,7 +71,17 @@ export function PaymentsClient() {
         setMembershipName(d.membership?.tierName ?? "");
         setPaysHoa(d.membership?.paysHoa ?? null);
         setResidencyStatus(d.membership?.residencyStatus ?? "");
-        if (d.fbMinimum) {
+        setHasClubDining(d.membership?.hasClubDining !== false);
+        const portal = d.membership?.hoaPaymentPortal as
+          | { label?: string; url?: string }
+          | null
+          | undefined;
+        setHoaPortal(
+          portal?.label && portal?.url
+            ? { label: portal.label, url: portal.url }
+            : null,
+        );
+        if (d.fbMinimum && d.membership?.hasFbMinimum !== false) {
           setFb({
             required: d.fbMinimum.required,
             spent: d.fbMinimum.spent,
@@ -76,6 +90,8 @@ export function PaymentsClient() {
             periodEnd: d.fbMinimum.periodEnd,
             periodKind: d.fbMinimum.periodKind,
           });
+        } else {
+          setFb(null);
         }
         setStatementLines(d.statement?.lines ?? []);
         setTotals({
@@ -149,7 +165,11 @@ export function PaymentsClient() {
         </header>
 
         <div className="space-y-5 px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:py-6 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
-          <div className="grid grid-cols-3 gap-2">
+          <div
+            className={
+              hasClubDining ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"
+            }
+          >
             <div className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] p-3">
               <p className="text-[10px] font-medium uppercase tracking-wide text-grey">
                 {t("Amount Due")}
@@ -162,13 +182,41 @@ export function PaymentsClient() {
               </p>
               <p className="mt-1 text-sm font-bold text-ink">{paid}</p>
             </div>
-            <div className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] p-3">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-grey">
-                {t("Dining")}
-              </p>
-              <p className="mt-1 text-sm font-bold text-ink">{formatCurrency(totals.dining)}</p>
-            </div>
+            {hasClubDining ? (
+              <div className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] p-3">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-grey">
+                  {t("Dining")}
+                </p>
+                <p className="mt-1 text-sm font-bold text-ink">
+                  {formatCurrency(totals.dining)}
+                </p>
+              </div>
+            ) : null}
           </div>
+
+          {hoaPortal && paysHoa !== false ? (
+            <section className="rounded-2xl border border-[var(--mvp-blue)]/25 bg-[var(--mvp-blue)]/5 p-4">
+              <h2 className="text-[15px] font-semibold text-ink">
+                {t("Pay HOA dues")}
+              </h2>
+              <p className="mt-1 text-sm text-grey">
+                {t(
+                  "Association assessments for The Plaza at Oceanside are paid on ClickPay — the same portal residents use today.",
+                )}
+              </p>
+              <a
+                href={hoaPortal.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
+              >
+                {t("Open ClickPay")} →
+              </a>
+              <p className="mt-2 text-[11px] text-grey">
+                {t("Opens")} {hoaPortal.label} ({hoaPortal.url.replace(/^https?:\/\//, "")})
+              </p>
+            </section>
+          ) : null}
 
           {paysHoa === false ? (
             <p className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3 text-xs text-grey">
@@ -176,10 +224,16 @@ export function PaymentsClient() {
                 "You are a club member only — not an on-property HOA resident. You will not see HOA assessments, property tools, or association service requests. Club charges and F&B still appear below.",
               )}
             </p>
-          ) : paysHoa ? (
+          ) : paysHoa && !hoaPortal ? (
             <p className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3 text-xs text-grey">
               {t(
                 "You live on property and pay HOA / association dues in addition to club charges.",
+              )}
+            </p>
+          ) : paysHoa && hoaPortal ? (
+            <p className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3 text-xs text-grey">
+              {t(
+                "In-app balances below are for amenity and community charges. Monthly HOA assessments stay on ClickPay.",
               )}
             </p>
           ) : null}
@@ -240,18 +294,28 @@ export function PaymentsClient() {
               <div className="mt-3 rounded-xl bg-[#f7f8fa] p-5">
                 <p className="text-sm font-semibold text-ink">{t("No receipts yet")}</p>
                 <p className="mt-1 text-sm text-grey">
-                  {t("Dues and bookings will appear here after you pay.")}
+                  {hoaPortal
+                    ? t(
+                        "HOA dues stay on ClickPay. Amenity and community charges will appear here after you pay in-app.",
+                      )
+                    : t("Dues and bookings will appear here after you pay.")}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Link
-                    href="/member/dining"
-                    className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
-                  >
-                    {t("Order dining")}
-                  </Link>
+                  {hasClubDining ? (
+                    <Link
+                      href="/member/dining"
+                      className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
+                    >
+                      {t("Order dining")}
+                    </Link>
+                  ) : null}
                   <Link
                     href="/member/bookings"
-                    className="inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
+                    className={
+                      hasClubDining
+                        ? "inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
+                        : "inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
+                    }
                   >
                     {t("Book a court")}
                   </Link>
@@ -293,21 +357,29 @@ export function PaymentsClient() {
           <section id="statement">
             <h2 className="text-[15px] font-semibold text-ink">{t("Account statement")}</h2>
             <p className="mt-1 text-xs text-grey">
-              {t("What you spent this billing period — dining, lessons, and charges.")}
+              {hasClubDining
+                ? t("What you spent this billing period — dining, lessons, and charges.")
+                : t("What you spent this billing period — amenities, lessons, and charges.")}
             </p>
             {statementLines.length === 0 ? (
               <div className="mt-3 rounded-xl bg-[#f7f8fa] p-4">
                 <p className="text-sm text-grey">{t("No activity on this statement yet.")}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href="/member/dining"
-                    className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
-                  >
-                    {t("Order dining")}
-                  </Link>
+                  {hasClubDining ? (
+                    <Link
+                      href="/member/dining"
+                      className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
+                    >
+                      {t("Order dining")}
+                    </Link>
+                  ) : null}
                   <Link
                     href="/member/bookings"
-                    className="inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
+                    className={
+                      hasClubDining
+                        ? "inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
+                        : "inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
+                    }
                   >
                     {t("Book amenity")}
                   </Link>

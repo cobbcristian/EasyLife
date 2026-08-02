@@ -369,10 +369,32 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
     communityId &&
       (communityId === "harbor-pointe" ||
         communityId === "willow-creek" ||
-        communityId === "alliant"),
+        communityId === "alliant" ||
+        communityId === "oceanside-residents"),
   );
+  const isOceanside = communityId === "oceanside-residents";
+
+  if (
+    /vendor|club pro|tennis pro|golf pro|lesson with/.test(m) &&
+    isOceanside
+  ) {
+    return {
+      reply:
+        "Oceanside Residents does not have in-app vendors or pros yet. Use Amenities to book tennis courts, the golf simulator, theatre, grills, Club Room, Sports Lounge, or Wine Vault.",
+      actions: [{ type: "open", label: "Amenities", href: "/member/amenities" }],
+      provider: "heuristic",
+    };
+  }
 
   if (/grab\s*(&|and)?\s*go|fridge|concession|rfid/.test(m)) {
+    if (isOceanside) {
+      return {
+        reply:
+          "Oceanside Residents does not have Grab & Go. Use Amenities to book tennis, the golf simulator, theatre, grills, or Club Room.",
+        actions: [{ type: "open", label: "Amenities", href: "/member/amenities" }],
+        provider: "heuristic",
+      };
+    }
     return {
       reply:
         "Grab & Go unlocks with RFID, member ID, app QR, or card. Walk out and items charge to your house account.",
@@ -382,6 +404,14 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
   }
 
   if (/eat[\s-]?in|dine|restaurant|order food|takeout|dinner|lunch/.test(m)) {
+    if (isOceanside) {
+      return {
+        reply:
+          "Oceanside Residents does not have a club restaurant or Grab & Go. Outdoor grills, the Club Room, Sports Lounge, and Wine Vault are available for resident gatherings.",
+        actions: [{ type: "open", label: "Amenities", href: "/member/amenities" }],
+        provider: "heuristic",
+      };
+    }
     const eatIn = /eat[\s-]?in|table|dine/.test(m);
     actions.push({
       type: "prefill_dining",
@@ -400,6 +430,14 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
   }
 
   if (/age\s*out|dependent|junior|household|kid|child/.test(m)) {
+    if (isOceanside) {
+      return {
+        reply:
+          "Oceanside Residents is a condo community — there is no club dependent age-out membership policy. Contact management for household or account questions.",
+        actions: [{ type: "open", label: "Contact management", href: "/member/contact" }],
+        provider: "heuristic",
+      };
+    }
     return {
       reply:
         "Dependents typically age out at 25 and must share the sponsor address. You’ll get warnings before privileges end.",
@@ -418,6 +456,17 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
   }
 
   if (/tournament|court number|doubles|partner/.test(m)) {
+    if (isOceanside) {
+      return {
+        reply:
+          "Oceanside Residents does not run club tournaments in the app yet. You can still book tennis courts under Amenities.",
+        actions: [
+          { type: "open", label: "Amenities", href: "/member/amenities" },
+          { type: "open", label: "Bookings", href: "/member/bookings" },
+        ],
+        provider: "heuristic",
+      };
+    }
     return {
       reply:
         "Tennis court assignments send SMS/push to you and your doubles partner email when set. Check tournaments for brackets and times.",
@@ -436,12 +485,40 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
     };
   }
 
-  if (/f&b|minimum|dues|payment|statement|hoa/.test(m)) {
+  if (/f&b|minimum|dues|payment|statement|hoa|clickpay/.test(m)) {
+    if (isOceanside) {
+      return {
+        reply:
+          "Plaza at Oceanside HOA assessments are paid on ClickPay (clickpay.com/pay) — the same portal residents use today. Open Payments in Easy Life for the ClickPay link; in-app balances are for amenity and community charges only.",
+        actions: [
+          { type: "open", label: "Payments", href: "/member/payments" },
+          {
+            type: "open",
+            label: "Open ClickPay",
+            href: "https://www.clickpay.com/pay",
+          },
+        ],
+        provider: "heuristic",
+      };
+    }
     return {
       reply: hideGolf
         ? "View HOA assessments, statements, and payments in the Payments section. This community has no F&B minimum."
         : "View statements, F&B minimum progress, and payments in the Payments section.",
       actions: [{ type: "open", label: "Payments", href: "/member/payments" }],
+      provider: "heuristic",
+    };
+  }
+
+  if (isOceanside) {
+    return {
+      reply:
+        "I can help with amenity bookings, HOA payments, packages, and hours. Try: “Book a tennis court tomorrow at 10” or “How do I pay HOA dues?”",
+      actions: [
+        { type: "open", label: "Amenities", href: "/member/amenities" },
+        { type: "open", label: "Bookings", href: "/member/bookings" },
+        { type: "open", label: "Payments", href: "/member/payments" },
+      ],
       provider: "heuristic",
     };
   }

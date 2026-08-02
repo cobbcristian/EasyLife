@@ -1,0 +1,951 @@
+import { brandAssets } from "@/lib/brand-assets";
+import {
+  OCEANSIDE_BOARD,
+  OCEANSIDE_CONTACT,
+  OCEANSIDE_RESIDENTS,
+} from "@/lib/server/oceanside-directory-data";
+import { hashPassword } from "@/lib/server/password";
+import { prisma } from "@/lib/server/prisma";
+import { randomBytes } from "node:crypto";
+
+export const OCEANSIDE_COMMUNITY_ID = "oceanside-residents";
+export const OCEANSIDE_PARTNER_MEMBER_EMAIL = "dlms6768@gmail.com";
+
+const DEMO_PASSWORD = "password";
+const DOMAIN = "oceansideresidents.com";
+const ADMIN_EMAIL = `admin.demo@${DOMAIN}`;
+const SOCIAL_EMAIL = `social.committee@${DOMAIN}`;
+
+const DEMO_USERS = [
+  {
+    id: "u-or-member",
+    email: `member.demo@${DOMAIN}`,
+    role: "member",
+    name: "Jordan Hale",
+  },
+  {
+    id: "u-or-board",
+    email: `board.demo@${DOMAIN}`,
+    role: "board",
+    name: "Board Member",
+  },
+  {
+    id: "u-or-pm",
+    email: `pm.demo@${DOMAIN}`,
+    role: "pm",
+    name: "Property Manager",
+  },
+  {
+    id: "u-or-admin",
+    email: ADMIN_EMAIL,
+    role: "admin",
+    name: "Super Admin",
+  },
+  {
+    id: "u-or-social",
+    email: SOCIAL_EMAIL,
+    role: "member",
+    name: "Social Committee",
+  },
+] as const;
+
+/** Always appear first in Messages compose for residents. */
+export const OCEANSIDE_MESSAGE_CONTACTS = [
+  {
+    id: "or-cm-msg-admin",
+    name: "Super Admin",
+    role: "Super Admin",
+    email: ADMIN_EMAIL,
+    userRole: "admin",
+  },
+  {
+    id: "or-cm-msg-pm",
+    name: "Property Manager",
+    role: "Property Manager",
+    email: `pm.demo@${DOMAIN}`,
+    userRole: "pm",
+  },
+  {
+    id: "or-cm-msg-social",
+    name: "Social Committee",
+    role: "Social Committee",
+    email: SOCIAL_EMAIL,
+    userRole: "member",
+  },
+  {
+    id: "or-cm-msg-board",
+    name: "Board Member",
+    role: "Board Member",
+    email: `board.demo@${DOMAIN}`,
+    userRole: "board",
+  },
+] as const;
+
+/**
+ * Bookable amenities from oceansideresidents.com admin list (9 rows).
+ * Kinds must be in BOOKABLE_AMENITY_KINDS. Fitness / pool remain walk-in for Hours.
+ */
+export const OCEANSIDE_PLAZA_AMENITIES = [
+  {
+    name: "Tennis Court #1",
+    description:
+      "Tennis Court #1 is the court that is the closest to the building. Please be courteous to your fellow tennis players by cancelling any bookings that you have made and cannot attend. You can do so by going to your calendar (My Calendar), click on your booking and then click on cancel reservation. PLEASE NOTE: There is a 5 minute grace period to get to the court to keep your reservation. Arriving 5 minutes later than your scheduled time forfeits your reservation.",
+    kind: "court",
+    schedule: "7:00 AM - 7:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+    surface: "hard_court" as const,
+  },
+  {
+    name: "Tennis Court #2",
+    description:
+      "Tennis Court #2 is the court that is the furthest from the building. Please be courteous to your fellow tennis players by cancelling any bookings that you have made and cannot attend. You can do so by going to your calendar (My Calendar), click on your booking and then click on cancel reservation. PLEASE NOTE: There is a 5 minute grace period to get to the court to keep your reservation. Arriving 5 minutes later than your scheduled time forfeits your reservation.",
+    kind: "court",
+    schedule: "7:00 AM - 7:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+    surface: "hard_court" as const,
+  },
+  {
+    name: "Golf Simulator",
+    description:
+      "Enjoy the golf simulator and explore some of the best courses from all over the world.",
+    kind: "simulator",
+    schedule: "8:00 AM - 11:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+  {
+    name: "Theater",
+    description:
+      "Entertainment area to bring your own movies or watch sports on the big screen. Please contact the front desk for access if the theater is locked. The reservation reserves the use of the room for the time indicated.",
+    kind: "theatre",
+    schedule: "8:00 AM - 11:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+  {
+    name: "Grill #1 (Left Side)",
+    description:
+      "Grill #1 is the grill to your left when your back is to the building. PLEASE NOTE: There is a 5 minute grace period to get to the grill to keep your reservation. Arriving 5 minutes later than your scheduled time forfeits your reservation.",
+    kind: "grill",
+    schedule: "10:00 AM - 9:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+  {
+    name: "Grill #2 (Right Side)",
+    description:
+      "Grill #2 is the grill to your right when your back is to the building. PLEASE NOTE: There is a 5 minute grace period to get to the grill to keep your reservation. Arriving 5 minutes later than your scheduled time forfeits your reservation.",
+    kind: "grill",
+    schedule: "10:00 AM - 9:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+  {
+    name: "Billiard Table",
+    description:
+      "Billiard Table — please visit the front desk for the billiard balls and available cues.",
+    kind: "clubhouse",
+    schedule: "8:00 AM - 11:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+  {
+    name: "Board Room",
+    description:
+      "The board room is located in the alcove/hallway from the gym to the pool. The room is equipped with a large screen TV for your use.",
+    kind: "clubhouse",
+    schedule: "8:00 AM - 11:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+  {
+    name: "Massage Room",
+    description:
+      "The massage room is located in the Plaza at Oceanside gym, in between the Men and Ladies locker rooms.",
+    kind: "spa",
+    schedule: "8:00 AM - 10:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+  {
+    name: "Fitness Center",
+    description:
+      "Cardio, free weights, and strength equipment on the amenity level (walk-in).",
+    kind: "gym",
+    schedule: "5:00 AM - 11:00 PM Daily",
+    fee: 0,
+    unitCount: 1,
+  },
+] as const;
+
+/** Clear amenity / lesson bookings for Oceanside (admin calendar should start empty). */
+async function clearCommunityAdminBookings(): Promise<void> {
+  const bookings = await prisma.booking.findMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+    select: { id: true },
+  });
+  const bookingIds = bookings.map((b) => b.id);
+  if (bookingIds.length > 0) {
+    await prisma.bookingInvite.deleteMany({
+      where: { bookingId: { in: bookingIds } },
+    });
+  }
+  const deleted = await prisma.booking.deleteMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+  });
+  const lessons = await prisma.lessonBooking.deleteMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+  });
+  console.log(
+    `[oceanside] cleared community bookings: amenity=${deleted.count} lesson=${lessons.count}`,
+  );
+}
+
+/** Replace Oceanside amenities with the verified Plaza at Oceanside set. */
+async function syncOceansidePlazaAmenities(): Promise<void> {
+  await clearCommunityAdminBookings();
+  const removed = await prisma.amenity.deleteMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+  });
+  await prisma.amenity.createMany({
+    data: OCEANSIDE_PLAZA_AMENITIES.map((a) => ({
+      communityId: OCEANSIDE_COMMUNITY_ID,
+      name: a.name,
+      description: a.description,
+      kind: a.kind,
+      schedule: a.schedule,
+      fee: a.fee,
+      unitCount: a.unitCount,
+      surface: "surface" in a ? a.surface : null,
+    })),
+  });
+  console.log(
+    `[oceanside] synced Plaza amenities: removed=${removed.count} created=${OCEANSIDE_PLAZA_AMENITIES.length}`,
+  );
+}
+
+/**
+ * Ensures Oceanside Residents community + standard demo logins exist.
+ * Partner member (dlms6768@…) keeps their existing password unless
+ * OCEANSIDE_MEMBER_PASSWORD is set.
+ */
+export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+
+  await prisma.community.upsert({
+    where: { id: OCEANSIDE_COMMUNITY_ID },
+    create: {
+      id: OCEANSIDE_COMMUNITY_ID,
+      name: "The Plaza at Oceanside",
+      location: OCEANSIDE_CONTACT.address,
+      coverColor: "from-cyan-500 to-blue-600",
+      logoUrl: brandAssets.communityOceanside,
+      primaryColor: "#0891b2",
+      appDisplayName: "The Plaza at Oceanside",
+      customDomain: DOMAIN,
+      stagingMode: false,
+      inviteCode: "oceanside-demo",
+    },
+    update: {
+      name: "The Plaza at Oceanside",
+      location: OCEANSIDE_CONTACT.address,
+      logoUrl: brandAssets.communityOceanside,
+      primaryColor: "#0891b2",
+      appDisplayName: "The Plaza at Oceanside",
+      customDomain: DOMAIN,
+      stagingMode: false,
+    },
+  });
+
+  for (const user of DEMO_USERS) {
+    await prisma.user.upsert({
+      where: { email: user.email },
+      create: {
+        id: user.id,
+        email: user.email,
+        password: hashPassword(DEMO_PASSWORD),
+        role: user.role,
+        name: user.name,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        status: "active",
+      },
+      update: {
+        role: user.role,
+        name: user.name,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        status: "active",
+        password: hashPassword(DEMO_PASSWORD),
+      },
+    });
+  }
+
+  const partnerEmail = OCEANSIDE_PARTNER_MEMBER_EMAIL.toLowerCase();
+  const partnerPassword = (
+    process.env.OCEANSIDE_MEMBER_PASSWORD ??
+    process.env.OCEANSIDE_ADMIN_PASSWORD ??
+    ""
+  ).trim();
+  const existingPartner = await prisma.user.findUnique({
+    where: { email: partnerEmail },
+  });
+
+  if (existingPartner) {
+    await prisma.user.update({
+      where: { email: partnerEmail },
+      data: {
+        role: "member",
+        name: "David Mathieu",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        status: "active",
+        ...(partnerPassword
+          ? { password: hashPassword(partnerPassword) }
+          : {}),
+      },
+    });
+  } else if (partnerPassword) {
+    await prisma.user.create({
+      data: {
+        id: "u-or-partner-member",
+        email: partnerEmail,
+        password: hashPassword(partnerPassword),
+        role: "member",
+        name: "David Mathieu",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        status: "active",
+      },
+    });
+  } else {
+    console.warn(
+      "[oceanside] partner member missing; set OCEANSIDE_MEMBER_PASSWORD to create",
+    );
+  }
+
+  for (const profile of [
+    {
+      email: `member.demo@${DOMAIN}`,
+      unit: "402",
+      householdAddress: `${OCEANSIDE_CONTACT.address} #402`,
+    },
+    {
+      email: partnerEmail,
+      unit: "1112",
+      householdAddress: `${OCEANSIDE_CONTACT.address} #1112`,
+    },
+    ...OCEANSIDE_MESSAGE_CONTACTS.map((c) => ({
+      email: c.email,
+      unit: "Mgmt",
+      householdAddress: OCEANSIDE_CONTACT.address,
+    })),
+  ] as const) {
+    const user = await prisma.user.findUnique({
+      where: { email: profile.email },
+      select: { email: true },
+    });
+    if (!user) continue;
+    await prisma.memberProfileExt.upsert({
+      where: { userEmail: profile.email },
+      create: {
+        userEmail: profile.email,
+        membershipTier: "social",
+        residencyStatus: "resident",
+        paysHoa: true,
+        unit: profile.unit,
+        householdAddress: profile.householdAddress,
+        directoryVisible: true,
+      },
+      update: {
+        membershipTier: "social",
+        residencyStatus: "resident",
+        paysHoa: true,
+        unit: profile.unit,
+        householdAddress: profile.householdAddress,
+        directoryVisible: true,
+      },
+    });
+  }
+
+  await syncOceansidePlazaAmenities();
+  await syncOceansideRealEstateListings();
+  await syncOceansideDirectory();
+  await syncOceansideGallery();
+  await syncOceansideContactStaff();
+  // Condo HOA — never carry club F&B minimum periods from earlier seeds.
+  await prisma.memberFbPeriod.updateMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+    data: { requiredAmount: 0, status: "met" },
+  });
+  // No paid sponsorships / Clubhouse Restaurant featured placements.
+  await prisma.promotion.deleteMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID, type: "featured" },
+  });
+  // Go-live: no one has loyalty points yet — wipe demo balances.
+  const oceansideEmails = (
+    await prisma.user.findMany({
+      where: { communityId: OCEANSIDE_COMMUNITY_ID },
+      select: { email: true },
+    })
+  ).map((u) => u.email.toLowerCase());
+  if (oceansideEmails.length > 0) {
+    await prisma.rewardTransaction.deleteMany({
+      where: { userEmail: { in: oceansideEmails } },
+    });
+    await prisma.rewardAccount.updateMany({
+      where: { userEmail: { in: oceansideEmails } },
+      data: { points: 0, tier: "Bronze" },
+    });
+  }
+}
+
+/**
+ * Active Plaza at Oceanside (1 N Ocean Blvd) sale + rent inventory pulled from
+ * public MLS aggregators (Skyrises, Condo.net, Pompano Beach Realty, Compass, Zillow).
+ * Snapshot for demos — not a live feed; prices/status change on the open market.
+ */
+async function syncOceansideRealEstateListings(): Promise<void> {
+  const cover = brandAssets.communityOceansideCover;
+  const tower = brandAssets.communityOceansideBuilding;
+  const agentEmail = `pm.demo@${DOMAIN}`;
+
+  const listings = [
+    // —— For sale ——
+    {
+      id: "or-re-sale-607",
+      title: "Corner residence · Unit 607",
+      description:
+        "Furnished 3-bed corner home with wraparound balcony — sunrise and sunset views. Plaza at Oceanside, across from the beach. MLS B26036048.",
+      type: "sale",
+      price: 2149000,
+      beds: 3,
+      baths: 4,
+      sqft: 2726,
+      unit: "1 N Ocean Blvd #607",
+      color: "from-cyan-500 to-blue-800",
+      images: [cover, tower],
+      daysAgo: 1,
+    },
+    {
+      id: "or-re-sale-806",
+      title: "Ocean & city views · Unit 806",
+      description:
+        "Original-owner 3-bed / 3-bath with marble floors, Poggenpohl kitchen, den with Murphy bed, and ~286 sq ft terrace. Two garage spaces + storage. MLS A12004630.",
+      type: "sale",
+      price: 1895000,
+      beds: 3,
+      baths: 3,
+      sqft: 2108,
+      unit: "1 N Ocean Blvd #806",
+      color: "from-sky-500 to-slate-800",
+      images: [tower, cover],
+      daysAgo: 2,
+    },
+    {
+      id: "or-re-sale-1408",
+      title: "Intracoastal sky home · Unit 1408",
+      description:
+        "14th-floor residence with unobstructed Intracoastal views. Elegant finishes throughout. Listed with The Keyes Company.",
+      type: "sale",
+      price: 1850000,
+      beds: 2,
+      baths: 2,
+      sqft: 1815,
+      unit: "1 N Ocean Blvd #1408",
+      color: "from-teal-500 to-cyan-900",
+      images: [cover, tower],
+      daysAgo: 3,
+    },
+    {
+      id: "or-re-sale-903",
+      title: "Ocean-view private elevator · Unit 903",
+      description:
+        "2-bed / 2.5-bath with ocean views from every room and private elevator entry. MLS B26035976.",
+      type: "sale",
+      price: 1525000,
+      beds: 2,
+      baths: 3,
+      sqft: 1975,
+      unit: "1 N Ocean Blvd #903",
+      color: "from-blue-500 to-indigo-900",
+      images: [tower, cover],
+      daysAgo: 4,
+    },
+    {
+      id: "or-re-sale-513",
+      title: "Renovated 5th-floor home · Unit 513",
+      description:
+        "Fully renovated 2-bed / 2-bath, 1,463 sq ft. New listing on the Plaza market. MLS B26054806.",
+      type: "sale",
+      price: 1275000,
+      beds: 2,
+      baths: 2,
+      sqft: 1463,
+      unit: "1 N Ocean Blvd #513",
+      color: "from-cyan-400 to-blue-700",
+      images: [cover, tower],
+      daysAgo: 5,
+    },
+    {
+      id: "or-re-sale-814",
+      title: "SW corner sky residence · Unit 814",
+      description:
+        "Southwest corner “14” line with panoramic ocean, Intracoastal, city, and sunset views. High-end renovations throughout. MLS B26013501.",
+      type: "sale",
+      price: 1195000,
+      beds: 2,
+      baths: 2,
+      sqft: 1470,
+      unit: "1 N Ocean Blvd #814",
+      color: "from-amber-400 to-cyan-800",
+      images: [tower, cover],
+      daysAgo: 6,
+    },
+    {
+      id: "or-re-sale-709",
+      title: "Designer 2-bed near the pier · Unit 709",
+      description:
+        "2-bed / 2-bath with European kitchen, Viking appliances, and wood finishes. Close to pier, beach, shops. Price recently reduced (may show pending on some boards). MLS F10533162.",
+      type: "sale",
+      price: 975000,
+      beds: 2,
+      baths: 2,
+      sqft: 1478,
+      unit: "1 N Ocean Blvd #709",
+      color: "from-slate-500 to-cyan-800",
+      images: [cover, tower],
+      daysAgo: 7,
+    },
+    // —— For rent (monthly) ——
+    {
+      id: "or-re-rent-1007",
+      title: "Seasonal rental · Unit 1007",
+      description:
+        "Spacious 3-bed / 4-bath corner-style home (2,726 sq ft). Monthly lease at Plaza at Oceanside. MLS B26045955.",
+      type: "rent",
+      price: 8750,
+      beds: 3,
+      baths: 4,
+      sqft: 2726,
+      unit: "1 N Ocean Blvd #1007",
+      color: "from-emerald-400 to-teal-800",
+      images: [cover, tower],
+      daysAgo: 2,
+    },
+    {
+      id: "or-re-rent-1004",
+      title: "Ocean-view rental · Unit 1004",
+      description:
+        "Elegant 2-bed / 2.5-bath with private elevator foyer, motorized shades, and ocean-view balcony. Resort amenities included. Min. lease applies. Listed ~$8,000/mo.",
+      type: "rent",
+      price: 8000,
+      beds: 2,
+      baths: 2.5,
+      sqft: 1967,
+      unit: "1 N Ocean Blvd #1004",
+      color: "from-cyan-400 to-blue-800",
+      images: [tower, cover],
+      daysAgo: 3,
+    },
+    {
+      id: "or-re-rent-1214",
+      title: "High-season Intracoastal rental · Unit 1214",
+      description:
+        "Turnkey 2-bed / 2-bath with ~48-ft balcony, Intracoastal and ocean views. Available Sep 2026–May 2027 (6-month minimum). No pets / no smoking. $7,500/mo.",
+      type: "rent",
+      price: 7500,
+      beds: 2,
+      baths: 2,
+      sqft: 1470,
+      unit: "1 N Ocean Blvd #1214",
+      color: "from-sky-400 to-indigo-800",
+      images: [cover, tower],
+      daysAgo: 4,
+    },
+    {
+      id: "or-re-rent-812",
+      title: "Furnished rental · Unit 812",
+      description:
+        "2-bed / 2-bath, 1,439 sq ft. Monthly rental at the Plaza. MLS R11157745.",
+      type: "rent",
+      price: 7500,
+      beds: 2,
+      baths: 2,
+      sqft: 1439,
+      unit: "1 N Ocean Blvd #812",
+      color: "from-teal-400 to-slate-800",
+      images: [tower, cover],
+      daysAgo: 5,
+    },
+    {
+      id: "or-re-rent-513",
+      title: "Renovated rental · Unit 513",
+      description:
+        "2-bed / 2-bath also offered for rent while listed for sale. 1,463 sq ft. MLS B26030188.",
+      type: "rent",
+      price: 7500,
+      beds: 2,
+      baths: 2,
+      sqft: 1463,
+      unit: "1 N Ocean Blvd #513",
+      color: "from-blue-400 to-cyan-800",
+      images: [cover, tower],
+      daysAgo: 6,
+    },
+    {
+      id: "or-re-rent-508",
+      title: "Pool-deck level rental · Unit 508",
+      description:
+        "2-bed / 2-bath, 1,815 sq ft. Monthly lease. MLS R11165476.",
+      type: "rent",
+      price: 6500,
+      beds: 2,
+      baths: 2,
+      sqft: 1815,
+      unit: "1 N Ocean Blvd #508",
+      color: "from-cyan-500 to-teal-900",
+      images: [tower, cover],
+      daysAgo: 7,
+    },
+    {
+      id: "or-re-rent-913",
+      title: "Bright 2-bed rental · Unit 913",
+      description:
+        "2-bed / 2-bath, 1,463 sq ft at Plaza at Oceanside. MLS B26025268.",
+      type: "rent",
+      price: 6500,
+      beds: 2,
+      baths: 2,
+      sqft: 1463,
+      unit: "1 N Ocean Blvd #913",
+      color: "from-indigo-400 to-blue-900",
+      images: [cover, tower],
+      daysAgo: 8,
+    },
+  ] as const;
+
+  const keepIds = listings.map((l) => l.id);
+  await prisma.realEstateListing.deleteMany({
+    where: {
+      communityId: OCEANSIDE_COMMUNITY_ID,
+      id: { notIn: [...keepIds] },
+    },
+  });
+
+  for (const listing of listings) {
+    await prisma.realEstateListing.upsert({
+      where: { id: listing.id },
+      create: {
+        id: listing.id,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        memberEmail: agentEmail,
+        title: listing.title,
+        description: listing.description,
+        type: listing.type,
+        price: listing.price,
+        beds: listing.beds,
+        baths: listing.baths,
+        sqft: listing.sqft,
+        unit: listing.unit,
+        color: listing.color,
+        imagesJson: JSON.stringify(listing.images),
+        createdAt: new Date(Date.now() - listing.daysAgo * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        memberEmail: agentEmail,
+        title: listing.title,
+        description: listing.description,
+        type: listing.type,
+        price: listing.price,
+        beds: listing.beds,
+        baths: listing.baths,
+        sqft: listing.sqft,
+        unit: listing.unit,
+        color: listing.color,
+        imagesJson: JSON.stringify(listing.images),
+      },
+    });
+  }
+
+  console.log(
+    `[oceanside] synced real estate listings: ${listings.length} (sale + rent)`,
+  );
+}
+
+/** Board + resident CommunityMember rows + directory User stubs (no demo passwords). */
+async function syncOceansideDirectory(): Promise<void> {
+  const boardEmails = new Set(
+    OCEANSIDE_BOARD.map((b) => b.email.toLowerCase()),
+  );
+  const messageEmails = new Set(
+    OCEANSIDE_MESSAGE_CONTACTS.map((c) => c.email.toLowerCase()),
+  );
+  const byEmail = new Map<string, { first: string; last: string; email: string; role: string }>();
+
+  for (const b of OCEANSIDE_BOARD) {
+    byEmail.set(b.email.toLowerCase(), {
+      first: b.first,
+      last: b.last,
+      email: b.email,
+      role: "Board Member",
+    });
+  }
+  for (const r of OCEANSIDE_RESIDENTS) {
+    const key = r.email.toLowerCase();
+    if (byEmail.has(key) || messageEmails.has(key)) continue;
+    byEmail.set(key, {
+      first: r.first,
+      last: r.last,
+      email: r.email,
+      role: "Resident",
+    });
+  }
+
+  // Keep demo role accounts + partner; wipe other CommunityMember rows for this HOA.
+  await prisma.communityMember.deleteMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+  });
+
+  const residents = [...byEmail.values()].sort((a, b) =>
+    `${a.last} ${a.first}`.localeCompare(`${b.last} ${b.first}`),
+  );
+
+  // Message hubs first (exact User.name match so compose shows email).
+  await prisma.communityMember.createMany({
+    data: [
+      ...OCEANSIDE_MESSAGE_CONTACTS.map((c) => ({
+        id: c.id,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: c.name,
+        role: c.role,
+        isManagement: true,
+      })),
+      ...residents.map((m, i) => ({
+        id: `or-cm-${String(i + 1).padStart(3, "0")}`,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: `${m.first} ${m.last}`.replace(/\s+/g, " ").trim(),
+        role: m.role,
+        isManagement: boardEmails.has(m.email.toLowerCase()),
+      })),
+    ],
+  });
+
+  const members = residents;
+
+  // Directory emails come from User rows matched by name — create stub logins
+  // that cannot use the public demo password.
+  const stubPassword = hashPassword(`or-dir-${randomBytes(24).toString("hex")}`);
+  let usersUpserted = 0;
+  for (const m of members) {
+    const email = m.email.toLowerCase();
+    const name = `${m.first} ${m.last}`.replace(/\s+/g, " ").trim();
+    // Never overwrite partner or demo account passwords / roles.
+    if (
+      email === OCEANSIDE_PARTNER_MEMBER_EMAIL.toLowerCase() ||
+      email.endsWith(`@${DOMAIN}`)
+    ) {
+      continue;
+    }
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      await prisma.user.update({
+        where: { email },
+        data: {
+          name,
+          communityId: OCEANSIDE_COMMUNITY_ID,
+          role: boardEmails.has(email) ? "board" : "member",
+          status: "active",
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          id: `u-or-dir-${email.replace(/[^a-z0-9]+/g, "-").slice(0, 36)}`,
+          email,
+          password: stubPassword,
+          role: boardEmails.has(email) ? "board" : "member",
+          name,
+          communityId: OCEANSIDE_COMMUNITY_ID,
+          status: "active",
+        },
+      });
+    }
+    await prisma.memberProfileExt.upsert({
+      where: { userEmail: email },
+      create: {
+        userEmail: email,
+        membershipTier: "social",
+        residencyStatus: "resident",
+        paysHoa: true,
+        directoryVisible: true,
+        householdAddress: OCEANSIDE_CONTACT.address,
+      },
+      update: {
+        membershipTier: "social",
+        residencyStatus: "resident",
+        paysHoa: true,
+        directoryVisible: true,
+      },
+    });
+    usersUpserted += 1;
+  }
+
+  console.log(
+    `[oceanside] synced directory: members=${members.length} users=${usersUpserted}`,
+  );
+}
+
+async function syncOceansideGallery(): Promise<void> {
+  const photos = [
+    {
+      id: "or-gal-tennis",
+      title: "Tennis Courts",
+      category: "Amenities",
+      url: brandAssets.oceansideTennis,
+    },
+    {
+      id: "or-gal-fitness",
+      title: "Fitness Center",
+      category: "Amenities",
+      url: brandAssets.oceansideFitness,
+    },
+    {
+      id: "or-gal-lounge",
+      title: "Club Lounge",
+      category: "Amenities",
+      url: brandAssets.oceansideClubLounge,
+    },
+    {
+      id: "or-gal-theater",
+      title: "Theater",
+      category: "Amenities",
+      url: brandAssets.oceansideTheater,
+    },
+    {
+      id: "or-gal-patio",
+      title: "Ocean Patio",
+      category: "Amenities",
+      url: brandAssets.oceansidePatio,
+    },
+    {
+      id: "or-gal-grill",
+      title: "Community Grills",
+      category: "Amenities",
+      url: brandAssets.oceansideGrill,
+    },
+    {
+      id: "or-gal-tower",
+      title: "Plaza at night",
+      category: "Building",
+      url: brandAssets.oceansideTowerNight,
+    },
+    {
+      id: "or-gal-pier",
+      title: "Pompano Beach Pier",
+      category: "Neighborhood",
+      url: brandAssets.oceansidePier,
+    },
+  ] as const;
+
+  for (const photo of photos) {
+    await prisma.galleryImage.upsert({
+      where: { id: photo.id },
+      create: {
+        id: photo.id,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        title: photo.title,
+        category: photo.category,
+        url: photo.url,
+        uploadedBy: "Oceanside Management",
+      },
+      update: {
+        title: photo.title,
+        category: photo.category,
+        url: photo.url,
+      },
+    });
+  }
+  console.log(`[oceanside] synced gallery photos: ${photos.length}`);
+}
+
+async function syncOceansideContactStaff(): Promise<void> {
+  await prisma.clubStaff.deleteMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+  });
+  await prisma.clubStaff.createMany({
+    data: [
+      {
+        id: "or-staff-super-admin",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: "Super Admin",
+        title: "Super Admin",
+        department: "Administration",
+        email: ADMIN_EMAIL,
+        phone: OCEANSIDE_CONTACT.phone,
+        category: "management",
+        sortOrder: 1,
+        active: true,
+      },
+      {
+        id: "or-staff-pm",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: "Property Manager",
+        title: "Property Manager",
+        department: "Management",
+        email: `pm.demo@${DOMAIN}`,
+        phone: OCEANSIDE_CONTACT.phone,
+        category: "management",
+        sortOrder: 2,
+        active: true,
+      },
+      {
+        id: "or-staff-social",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: "Social Committee",
+        title: "Social Committee",
+        department: "Social",
+        email: SOCIAL_EMAIL,
+        phone: OCEANSIDE_CONTACT.phone,
+        category: "management",
+        sortOrder: 3,
+        active: true,
+      },
+      {
+        id: "or-staff-board-hub",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: "Board Member",
+        title: "Board Member",
+        department: "Board",
+        email: `board.demo@${DOMAIN}`,
+        phone: OCEANSIDE_CONTACT.phone,
+        category: "management",
+        sortOrder: 4,
+        active: true,
+      },
+      {
+        id: "or-staff-mgmt-office",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: "Oceanside Management Office",
+        title: "Front Desk / Support",
+        department: "Management",
+        email: OCEANSIDE_CONTACT.email,
+        phone: OCEANSIDE_CONTACT.phone,
+        category: "management",
+        sortOrder: 5,
+        active: true,
+      },
+      ...OCEANSIDE_BOARD.map((b, i) => ({
+        id: `or-staff-board-${i + 1}`,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: `${b.first} ${b.last}`,
+        title: "Board Member",
+        department: "Board",
+        email: b.email,
+        phone: OCEANSIDE_CONTACT.phone,
+        category: "management",
+        sortOrder: 10 + i,
+        active: true,
+      })),
+    ],
+  });
+  console.log("[oceanside] synced contact / message hubs + board staff");
+}
