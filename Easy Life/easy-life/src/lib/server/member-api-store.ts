@@ -1,3 +1,4 @@
+import { communityIsResidentialHoa } from "@/lib/community-features";
 import { prisma } from "@/lib/server/prisma";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { ensureHuntersRidgeDemoSeeded } from "@/lib/server/hunters-ridge-seed";
@@ -64,8 +65,18 @@ export async function getMemberProfile(email: string) {
         select: { name: true, appDisplayName: true },
       })
     : null;
-  const residencyStatus = ext?.residencyStatus === "resident" ? "resident" : "non_resident";
-  const paysHoa = residencyStatus === "non_resident" ? false : ext?.paysHoa !== false;
+  const communityId = user?.communityId ?? null;
+  const residentialHoa = communityIsResidentialHoa(communityId);
+  const residencyStatus = residentialHoa
+    ? "resident"
+    : ext?.residencyStatus === "resident"
+      ? "resident"
+      : "non_resident";
+  const paysHoa = residentialHoa
+    ? true
+    : residencyStatus === "non_resident"
+      ? false
+      : ext?.paysHoa !== false;
   const communityName =
     community?.name ??
     community?.appDisplayName ??
@@ -85,12 +96,12 @@ export async function getMemberProfile(email: string) {
     joined,
     directoryVisible: ext?.directoryVisible ?? true,
     community: communityName,
-    communityId: user?.communityId ?? null,
+    communityId,
     commsEmail: ext?.commsEmail ?? true,
     commsSms: ext?.commsSms ?? true,
     commsPush: ext?.commsPush ?? false,
     householdRole: ext?.householdRole ?? "owner",
-    membershipTier: ext?.membershipTier ?? "social",
+    membershipTier: residentialHoa ? "hoa" : (ext?.membershipTier ?? "social"),
     residencyStatus,
     paysHoa,
   };

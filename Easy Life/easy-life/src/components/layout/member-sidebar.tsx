@@ -33,6 +33,7 @@ const tournamentsHrefs = new Set(["/member/tournaments"]);
 const rentalsHrefs = new Set(["/member/rentals"]);
 const householdMembershipHrefs = new Set(["/member/household"]);
 const tramHrefs = new Set(["/member/tram"]);
+const rewardsHrefs = new Set(["/member/rewards"]);
 
 /** Primary life-first nav — matches mobile: Home / Book / Calendar / Connect / Payments. */
 const primaryNav = [
@@ -160,6 +161,7 @@ export function MemberSidebar({
   const hasRentals = communityHasRentals(communityId);
   const hasHouseholdMembership = communityHasHouseholdMembership(communityId);
   const hasTram = communityHasTramService(communityId);
+  const hasRewards = communityHasRewards(communityId);
   const productName = appName?.trim() || "Easy Life";
   const isWhiteLabel = Boolean(productName !== "Easy Life" && logoUrl);
   // Prefer DB/session community id; also treat Oceanside white-label as residential
@@ -188,6 +190,7 @@ export function MemberSidebar({
     if (!hasTournaments && tournamentsHrefs.has(item.href)) return false;
     if (!hasRentals && rentalsHrefs.has(item.href)) return false;
     if (!tramEnabled && tramHrefs.has(item.href)) return false;
+    if (!hasRewards && rewardsHrefs.has(item.href)) return false;
     return true;
   });
   const moreActive = visibleMoreNav.some(

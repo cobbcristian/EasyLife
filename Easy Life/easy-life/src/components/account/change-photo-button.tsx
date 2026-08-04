@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { AvatarCropDialog } from "@/components/account/avatar-crop-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
@@ -22,14 +23,27 @@ export function ChangePhotoButton({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const { toast } = useToast();
   const { t } = useI18n();
 
-  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "warning",
+        title: t("Could not upload photo"),
+        description: t("Please choose an image file."),
+      });
+      return;
+    }
+    setCropFile(file);
+  }
 
+  async function uploadCropped(file: File) {
+    setCropFile(null);
     setBusy(true);
     const form = new FormData();
     form.append("photo", file);
@@ -70,6 +84,13 @@ export function ChangePhotoButton({
       >
         {children ?? (busy ? t("Uploading…") : (label ?? t("Change photo")))}
       </Button>
+      {cropFile ? (
+        <AvatarCropDialog
+          file={cropFile}
+          onCancel={() => setCropFile(null)}
+          onCropped={uploadCropped}
+        />
+      ) : null}
     </>
   );
 }

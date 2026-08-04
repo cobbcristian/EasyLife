@@ -51,7 +51,9 @@ export async function createPendingResident(input: {
     create: {
       userEmail: email,
       unit,
-      membershipTier: "social",
+      membershipTier: communityIsResidentialHoa(input.communityId)
+        ? "hoa"
+        : "social",
       residencyStatus: "resident",
       paysHoa: true,
       directoryVisible,
@@ -128,6 +130,10 @@ export async function approvePendingMember(opts: {
   });
   const directoryVisible = existingProfile?.directoryVisible ?? true;
 
+  const hoaTier = communityIsResidentialHoa(user.communityId)
+    ? "hoa"
+    : "social";
+
   const profile = await prisma.memberProfileExt.upsert({
     where: { userEmail: user.email },
     create: {
@@ -135,11 +141,12 @@ export async function approvePendingMember(opts: {
       residencyStatus: "resident",
       paysHoa: true,
       directoryVisible,
-      membershipTier: "social",
+      membershipTier: hoaTier,
     },
     update: {
       residencyStatus: "resident",
       paysHoa: true,
+      membershipTier: hoaTier,
       // Keep the preference they chose at signup.
       directoryVisible,
     },

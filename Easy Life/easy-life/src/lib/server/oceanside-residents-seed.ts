@@ -324,7 +324,7 @@ export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
       where: { userEmail: profile.email },
       create: {
         userEmail: profile.email,
-        membershipTier: "social",
+        membershipTier: "hoa",
         residencyStatus: "resident",
         paysHoa: true,
         unit: profile.unit,
@@ -332,7 +332,7 @@ export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
         directoryVisible: true,
       },
       update: {
-        membershipTier: "social",
+        membershipTier: "hoa",
         residencyStatus: "resident",
         paysHoa: true,
         unit: profile.unit,
@@ -717,9 +717,9 @@ async function syncOceansideDirectory(): Promise<void> {
       where: { userEmail: c.email },
       create: {
         userEmail: c.email,
-        membershipTier: "social",
+        membershipTier: "hoa",
         residencyStatus: "resident",
-        paysHoa: false,
+        paysHoa: true,
         unit: "Mgmt",
         directoryVisible: true,
         householdAddress: OCEANSIDE_CONTACT.address,
@@ -727,6 +727,9 @@ async function syncOceansideDirectory(): Promise<void> {
       update: {
         directoryVisible: true,
         unit: "Mgmt",
+        residencyStatus: "resident",
+        paysHoa: true,
+        membershipTier: "hoa",
       },
     });
   }

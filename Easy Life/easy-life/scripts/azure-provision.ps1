@@ -51,7 +51,7 @@ Invoke-Az webapp create `
   --name $APP `
   --resource-group $RG `
   --plan $PLAN `
-  --runtime "NODE:20-lts"
+  --runtime "NODE:22-lts"
 
 Write-Host "==> PostgreSQL Flexible Server $DB (this takes several minutes)"
 Invoke-Az postgres flexible-server create `
@@ -71,7 +71,7 @@ Write-Host "==> Database $DB_NAME"
 Invoke-Az postgres flexible-server db create `
   --resource-group $RG `
   --server-name $DB `
-  --database-name $DB_NAME
+  --name $DB_NAME
 
 $PgHost = "$DB.postgres.database.azure.com"
 # URL-encode password for connection string (basic)

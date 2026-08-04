@@ -263,7 +263,12 @@ export function MemberMvpProfile({
             </p>
           ) : null}
           <div className="mt-4 flex flex-col items-center">
-            <Avatar name={form.name} src={avatarUrl} size="lg" />
+            <Avatar
+              name={form.name}
+              src={avatarUrl}
+              size="lg"
+              className="h-24 w-24 text-2xl"
+            />
             <ChangePhotoButton
               className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--mvp-blue)]"
               onPhotoChange={(url) => setAvatarUrl(url)}

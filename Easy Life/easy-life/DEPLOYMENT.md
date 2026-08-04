@@ -291,6 +291,10 @@ az webapp restart \
 | `NEXTAUTH_URL` | Full URL of the app | Yes |
 | `VAPID_PUBLIC_KEY` | Push notification public key | Optional |
 | `VAPID_PRIVATE_KEY` | Push notification private key | Optional |
+| `VAPID_SUBJECT` | `mailto:` contact for web push | Optional |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google SSO | Optional |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` | Microsoft Entra SSO (`common` default) | Optional |
+| `APPLE_CLIENT_ID` / `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` | Sign in with Apple | Optional |
 | `STRIPE_SECRET_KEY` | Stripe secret key for Checkout (per-unit HOA amounts via `price_data`) | For payments |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`/api/stripe/webhook`) | For payments |
 | `STRIPE_PROVIDER_PRICE_ID` | Fixed Price ID for **provider** platform billing only — not HOA dues | Optional |
