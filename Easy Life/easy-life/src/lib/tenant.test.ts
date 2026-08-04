@@ -300,7 +300,10 @@ describe("demo tenant", () => {
     expect(ready.every((t) => t.salesReady !== false)).toBe(true);
     expect(ready.some((t) => t.id === "ironcrest")).toBe(true);
     expect(ready.some((t) => t.id === "spanishwells")).toBe(true);
-    expect(ready.some((t) => t.id === "oceansideresidents")).toBe(true);
+    // Oceanside is live resident production — not listed as a sales demo.
+    expect(ready.some((t) => t.id === "oceansideresidents")).toBe(false);
+    expect(ready.some((t) => t.id === "ironcrest")).toBe(true);
+    expect(ready.some((t) => t.id === "goldenocala")).toBe(true);
     expect(all.some((t) => t.id === "fallsclub" && t.salesReady === false)).toBe(
       true,
     );
