@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { BrandStar } from "@/components/ui/brand-star";
+import { communityHasClubDining } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 
 interface Favorite {
@@ -17,14 +18,20 @@ export default function MemberFavoritesPage() {
   const { t } = useI18n();
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [communityId, setCommunityId] = useState<string | null>(null);
 
   useEffect(() => {
     let on = true;
-    fetch("/api/favorites")
-      .then((r) => r.json())
-      .then((favData) => {
+    Promise.all([
+      fetch("/api/favorites").then((r) => r.json()),
+      fetch("/api/auth/session").then((r) => r.json()),
+    ])
+      .then(([favData, session]) => {
         if (!on) return;
         setFavorites(favData.favorites ?? []);
+        setCommunityId(
+          typeof session?.communityId === "string" ? session.communityId : null,
+        );
       })
       .catch(() => {})
       .finally(() => on && setLoading(false));
@@ -39,6 +46,8 @@ export default function MemberFavoritesPage() {
     });
     if (res.ok) setFavorites((prev) => prev.filter((f) => f.id !== id));
   }
+
+  const showDining = communityHasClubDining(communityId);
 
   return (
     <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink md:bg-[linear-gradient(180deg,#f7f8fa_0%,#ffffff_28%)]">
@@ -66,12 +75,21 @@ export default function MemberFavoritesPage() {
                 >
                   {t("Browse Fun Stuff")}
                 </Link>
-                <Link
-                  href="/member/dining"
-                  className="inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
-                >
-                  {t("Dining")}
-                </Link>
+                {showDining ? (
+                  <Link
+                    href="/member/dining"
+                    className="inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
+                  >
+                    {t("Dining")}
+                  </Link>
+                ) : (
+                  <Link
+                    href="/member/bookings"
+                    className="inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
+                  >
+                    {t("Book amenities")}
+                  </Link>
+                )}
               </div>
             </div>
           ) : (
