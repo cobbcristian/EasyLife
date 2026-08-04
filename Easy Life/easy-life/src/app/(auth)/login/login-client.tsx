@@ -29,6 +29,8 @@ type LoginBranding = {
   defaultEmail: string;
   locked: boolean;
   demoLogins?: DemoLogin[];
+  /** Live resident tenant (Oceanside) — no sales-demo chrome. */
+  liveProduction?: boolean;
 };
 
 const SUPER_ADMIN_EMAIL = "superadmin@gmail.com";
@@ -330,7 +332,7 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
         </p>
       ) : null}
 
-      {branding?.locked ? (
+      {branding?.locked && branding.liveProduction ? null : branding?.locked ? (
         <>
           <p className="mt-6 text-center text-[14px] font-medium text-grey">
             {t("Demo access for")} {productLabel}

@@ -52,7 +52,7 @@ function AppleIcon() {
   );
 }
 
-const ICONS: Record<Provider, () => React.ReactNode> = {
+const ICONS: Record<Provider, () => ReactNode> = {
   google: GoogleIcon,
   microsoft: MicrosoftIcon,
   apple: AppleIcon,

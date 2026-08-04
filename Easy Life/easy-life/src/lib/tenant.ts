@@ -600,7 +600,6 @@ export function tenantByCommunityId(
 const SALES_DIRECTORY_TENANT_IDS = new Set<DemoTenantId>([
   "ironcrest",
   "goldenocala",
-  "oceansideresidents",
 ]);
 
 /** Tenants shown on the /go sales directory. */

@@ -6,6 +6,11 @@ import {
 } from "@/lib/tenant";
 import LoginClient from "./login-client";
 
+/** Oceanside is live resident production — never surface sales-demo logins. */
+function isLiveResidentTenant(tenantId: string): boolean {
+  return tenantId === "oceansideresidents";
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const headerStore = await headers();
   const tenant = resolveDemoTenantFromCookieHeader(
@@ -36,6 +41,7 @@ export default async function LoginPage() {
     headerStore.get("host"),
     headerStore.get("cookie"),
   );
+  const live = tenant ? isLiveResidentTenant(tenant.id) : false;
   const branding = tenant
     ? {
         tenantId: tenant.id,
@@ -43,9 +49,11 @@ export default async function LoginPage() {
         communityName: tenant.communityName,
         logoSrc: tenant.logoSrc,
         loginHeroSrc: tenant.loginHeroSrc,
-        defaultEmail: tenant.defaultLoginEmail,
+        // Empty email for live Oceanside — residents type their own.
+        defaultEmail: live ? "" : tenant.defaultLoginEmail,
         locked: true as const,
-        demoLogins: demoLoginsForTenant(tenant),
+        demoLogins: live ? [] : demoLoginsForTenant(tenant),
+        liveProduction: live,
       }
     : null;
 
