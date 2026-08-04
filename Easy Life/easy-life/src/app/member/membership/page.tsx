@@ -69,14 +69,14 @@ export default async function MemberMembershipPage() {
       <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink">
         <div className="mx-auto w-full max-w-lg px-4 py-6 md:max-w-2xl md:px-6">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-grey">
-            {isCondo ? "Resident" : "Member"}
+            {isCondo ? "Community" : "Member"}
           </p>
           <h1 className="text-[22px] font-semibold md:text-[26px]">
-            {isCondo ? "Resident access" : "Membership"}
+            {isCondo ? "Your access" : "Membership"}
           </h1>
           <p className="mt-1 text-sm text-grey">
             {isCondo
-              ? "Your condo community access and HOA account."
+              ? "Your building access and community account."
               : "Your plan, privileges, and account actions."}
           </p>
 
@@ -93,12 +93,7 @@ export default async function MemberMembershipPage() {
                   ? "No F&B minimum"
                   : `F&B minimum $${def.fbMinimumAmount.toFixed(0)} / ${periodLabel}`}
               </p>
-            ) : (
-              <p className="mt-2 text-sm text-grey">
-                Owners live on property · HOA dues apply · no club resign / rejoin
-                policy
-              </p>
-            )}
+            ) : null}
             <ul className="mt-4 space-y-2">
               {accessKinds.map((kind) => (
                 <li key={kind} className="flex items-start gap-2 text-sm text-ink">
@@ -115,7 +110,7 @@ export default async function MemberMembershipPage() {
                     className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--mvp-blue)]"
                     aria-hidden
                   />
-                  Resident amenities &amp; HOA services
+                  Building amenities &amp; community services
                 </li>
               ) : null}
             </ul>

@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     role?: AuthRole;
     communityId?: string;
     inviteCode?: string;
+    unit?: string;
     plan?: ProviderPlanId;
   };
   try {
@@ -66,16 +67,14 @@ export async function POST(request: Request) {
     if (!body.communityId) {
       return NextResponse.json({ error: "Select your community" }, { status: 400 });
     }
-    if (!body.inviteCode?.trim()) {
-      return NextResponse.json({ error: "Invite code is required" }, { status: 400 });
-    }
     const joinRole = body.role === "provider" ? "provider" : "member";
     result = await registerMember({
       email,
       password,
       name,
       communityId: body.communityId,
-      inviteCode: body.inviteCode.trim(),
+      inviteCode: body.inviteCode?.trim(),
+      unit: body.unit?.trim(),
       role: joinRole,
     });
     if (!("error" in result) && joinRole === "provider") {
@@ -90,6 +89,15 @@ export async function POST(request: Request) {
 
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 409 });
+  }
+
+  if (result.status === "pending") {
+    return NextResponse.json({
+      ok: true,
+      pending: true,
+      message:
+        "Registration received. You can sign in after association management approves your account.",
+    });
   }
 
   const token = await createSessionToken({

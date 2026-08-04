@@ -5,9 +5,8 @@
  * Creates:
  * - Community: oceanside-residents (Pompano Beach, FL)
  * - Demo logins (member/board/pm/admin @ oceansideresidents.com, password: password)
- * - Partner member dlms6768@gmail.com (role member; optional OCEANSIDE_MEMBER_PASSWORD)
+ * - Residents self-enroll at go-live (no seeded personal partner logins)
  * - Plaza amenities, knowledge base, tram vehicles/drivers
- * - Custom domain: oceansideresidents.com
  */
 import { resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
@@ -386,7 +385,7 @@ async function main() {
   console.log(`   Board   board.demo@oceansideresidents.com`);
   console.log(`   PM      pm.demo@oceansideresidents.com`);
   console.log(`   Admin   admin.demo@oceansideresidents.com`);
-  console.log(`\n👤 Partner member: dlms6768@gmail.com (their own password)`);
+  console.log(`\n👥 Residents self-enroll at go-live (no seeded personal logins).`);
   console.log(`\n🌐 After deploying to Azure:`);
   console.log(`   1. Configure DNS: Point ${CUSTOM_DOMAIN} to your Azure App Service`);
   console.log(`   2. Add custom domain in Azure App Service → Custom domains`);

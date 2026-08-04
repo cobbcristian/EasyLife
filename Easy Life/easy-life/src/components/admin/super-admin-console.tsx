@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { StaffBookForMember } from "@/components/admin/staff-book-for-member";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -185,42 +186,55 @@ export function SuperAdminConsole({ initialTab = "bookings" }: { initialTab?: Ta
       />
 
       {tab === "bookings" ? (
-        <div className="overflow-hidden rounded-2xl border border-[#e8ebf0] bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#fafbfc] text-[12px] uppercase tracking-wide text-grey">
-              <tr>
-                <th className="px-4 py-3">{t("Club")}</th>
-                <th className="px-4 py-3">{t("Amenity")}</th>
-                <th className="px-4 py-3">{t("Member")}</th>
-                <th className="px-4 py-3">{t("When")}</th>
-                <th className="px-4 py-3">{t("Status")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBookings.map((b) => (
-                <tr key={b.id} className="border-t border-[#eceff3]">
-                  <td className="px-4 py-3">{b.communityName}</td>
-                  <td className="px-4 py-3 font-medium">{b.amenity}</td>
-                  <td className="px-4 py-3">{b.memberName}</td>
-                  <td className="px-4 py-3 text-grey">
-                    {b.date} · {b.startTime}–{b.endTime}
-                  </td>
-                  <td className="px-4 py-3 capitalize">{b.status}</td>
+        <div className="space-y-6">
+          <StaffBookForMember
+            showRecent={false}
+            onCreated={() => {
+              fetch("/api/admin/overview")
+                .then((r) => r.json())
+                .then((d) => {
+                  if (d.stats) setData(d as Overview);
+                })
+                .catch(() => {});
+            }}
+          />
+          <div className="overflow-hidden rounded-2xl border border-[#e8ebf0] bg-white">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#fafbfc] text-[12px] uppercase tracking-wide text-grey">
+                <tr>
+                  <th className="px-4 py-3">{t("Club")}</th>
+                  <th className="px-4 py-3">{t("Amenity")}</th>
+                  <th className="px-4 py-3">{t("Member")}</th>
+                  <th className="px-4 py-3">{t("When")}</th>
+                  <th className="px-4 py-3">{t("Status")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredBookings.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <p className="text-sm text-grey">{t("No bookings found.")}</p>
-              <a
-                href="/communities"
-                className="mt-3 inline-flex text-sm font-semibold text-[var(--mvp-blue)]"
-              >
-                {t("Browse communities")} →
-              </a>
-            </div>
-          ) : null}
+              </thead>
+              <tbody>
+                {filteredBookings.map((b) => (
+                  <tr key={b.id} className="border-t border-[#eceff3]">
+                    <td className="px-4 py-3">{b.communityName}</td>
+                    <td className="px-4 py-3 font-medium">{b.amenity}</td>
+                    <td className="px-4 py-3">{b.memberName}</td>
+                    <td className="px-4 py-3 text-grey">
+                      {b.date} · {b.startTime}–{b.endTime}
+                    </td>
+                    <td className="px-4 py-3 capitalize">{b.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredBookings.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <p className="text-sm text-grey">{t("No bookings found.")}</p>
+                <a
+                  href="/communities"
+                  className="mt-3 inline-flex text-sm font-semibold text-[var(--mvp-blue)]"
+                >
+                  {t("Browse communities")} →
+                </a>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

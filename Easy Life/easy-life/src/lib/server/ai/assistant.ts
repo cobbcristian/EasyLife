@@ -489,7 +489,7 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
     if (isOceanside) {
       return {
         reply:
-          "Plaza at Oceanside HOA assessments are paid on ClickPay (clickpay.com/pay) — the same portal residents use today. Open Payments in Easy Life for the ClickPay link; in-app balances are for amenity and community charges only.",
+          "Plaza at Oceanside HOA assessments are paid on ClickPay (clickpay.com/pay) — the same portal residents use today. Open Payments in Easy Life for the ClickPay link. In-app Stripe checkout will replace this once unit fees and Stripe are configured.",
         actions: [
           { type: "open", label: "Payments", href: "/member/payments" },
           {

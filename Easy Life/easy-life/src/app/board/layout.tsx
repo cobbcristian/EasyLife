@@ -14,6 +14,7 @@ const nav = [
   { label: "Budget", href: "/board/budget", icon: "PiggyBank" },
   { label: "Invoices", href: "/board/invoices", icon: "ReceiptText" },
   { label: "Announcements", href: "/board/announcements", icon: "Megaphone" },
+  { label: "Member approvals", href: "/board/member-approvals", icon: "UserCheck" },
   { label: "Invites", href: "/board/invites", icon: "Mail" },
   { label: "Documents", href: "/board/documents", icon: "FileText" },
   { label: "Reports", href: "/board/reports", icon: "BarChart3" },

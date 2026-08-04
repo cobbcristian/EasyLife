@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BrandIcon } from "@/components/ui/brand-icon";
+import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -28,10 +29,17 @@ export function MemberMvpHomeSearch({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const hoaNoGolf = new Set(["harbor-pointe", "willow-creek", "alliant"]);
-  const placeholder = hoaNoGolf.has(communityId ?? "")
-    ? "Search for tennis, spa, plumbing, etc."
-    : "Search for tennis, golf, plumbing, etc.";
+  const hoaNoGolf = new Set([
+    "harbor-pointe",
+    "willow-creek",
+    "alliant",
+    "oceanside-residents",
+    "oceansideresidents",
+  ]);
+  const placeholder =
+    communityIsResidentialHoa(communityId) || hoaNoGolf.has(communityId ?? "")
+      ? "Search for amenities, pool, plumbing, etc."
+      : "Search for tennis, golf, plumbing, etc.";
 
   const search = useCallback(async (q: string) => {
     if (q.trim().length < 2) {
@@ -68,7 +76,14 @@ export function MemberMvpHomeSearch({
   return (
     <div ref={wrapRef} className={cn("relative z-10", className)}>
       <div className="flex h-12 items-center gap-3 rounded-[22px] bg-white px-4 shadow-[0_5px_10px_rgba(0,0,0,0.15)]">
-        <BrandIcon name="Search" className="h-4 w-4 shrink-0" />
+        <Link
+          href="/member/assistant"
+          className="shrink-0 rounded-md p-0.5 text-[var(--mvp-blue)] hover:bg-[var(--mvp-blue)]/10"
+          aria-label={t("Ask assistant")}
+          title={t("Ask assistant")}
+        >
+          <BrandIcon name="Search" className="h-4 w-4" />
+        </Link>
         <input
           type="search"
           value={query}

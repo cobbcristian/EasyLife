@@ -44,6 +44,8 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
 
   // Switching /go/[tenant] must reset the form — useState alone keeps the old club email.
   // One-tap sales links pass ?email=&password= through /go/[tenant].
@@ -65,9 +67,25 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
     );
     setPassword(qPassword || roleMatch?.password || "");
     setError(null);
+    setMfaToken(null);
+    setMfaCode("");
   }, [branding?.tenantId, branding?.defaultEmail, branding?.demoLogins, branding?.locked, searchParams]);
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !loading;
+  const canSubmit =
+    !loading &&
+    (mfaToken
+      ? mfaCode.trim().length >= 6
+      : email.trim().length > 0 && password.length > 0);
+
+  async function completeLogin(data: { redirectTo?: string }) {
+    const redirect = searchParams.get("redirect");
+    const destination =
+      redirect && redirect.startsWith("/")
+        ? redirect
+        : (data.redirectTo ?? "/dashboard");
+    router.push(destination);
+    router.refresh();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +93,25 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
     setError(null);
     setLoading(true);
     try {
+      if (mfaToken) {
+        const res = await fetch("/api/auth/mfa/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mfaToken, code: mfaCode.trim() }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          redirectTo?: string;
+        };
+        if (!res.ok) {
+          setError(data.error ?? "Invalid code");
+          setLoading(false);
+          return;
+        }
+        await completeLogin(data);
+        return;
+      }
+
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,7 +121,13 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
           demoTenantId: branding?.tenantId,
         }),
       });
-      let data: { error?: string; redirectTo?: string; suggestedGo?: string } = {};
+      let data: {
+        error?: string;
+        redirectTo?: string;
+        suggestedGo?: string;
+        mfaRequired?: boolean;
+        mfaToken?: string;
+      } = {};
       try {
         data = await res.json();
       } catch {
@@ -125,13 +168,13 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
         setLoading(false);
         return;
       }
-      const redirect = searchParams.get("redirect");
-      const destination =
-        redirect && redirect.startsWith("/")
-          ? redirect
-          : (data.redirectTo ?? "/dashboard");
-      router.push(destination);
-      router.refresh();
+      if (data.mfaRequired && data.mfaToken) {
+        setMfaToken(data.mfaToken);
+        setMfaCode("");
+        setLoading(false);
+        return;
+      }
+      await completeLogin(data);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -177,46 +220,82 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
             {error}
           </div>
         ) : null}
-        <input
-          type="email"
-          name="email"
-          placeholder={t("Email")}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-          className={fieldClass}
-        />
-        <div className="relative">
-          <input
-            type={showPassword ? "text" : "password"}
-            name="password"
-            placeholder={t("Password")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className={`${fieldClass} pr-14`}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((s) => !s)}
-            className="absolute right-5 top-1/2 -translate-y-1/2 text-[#bfbfbf]"
-            aria-label={showPassword ? "Hide password" : "Show password"}
+        {mfaToken ? (
+          <>
+            <p className="text-sm text-grey">
+              {t(
+                "Enter the 6-digit code from your authenticator app, or a recovery code.",
+              )}
+            </p>
+            <input
+              type="text"
+              name="mfaCode"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder={t("Authentication code")}
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value)}
+              required
+              className={fieldClass}
+            />
+            <button
+              type="button"
+              className="text-sm text-[var(--mvp-blue)]"
+              onClick={() => {
+                setMfaToken(null);
+                setMfaCode("");
+                setError(null);
+              }}
+            >
+              {t("Back to sign in")}
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              type="email"
+              name="email"
+              placeholder={t("Email")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              className={fieldClass}
+            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder={t("Password")}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className={`${fieldClass} pr-14`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-[#bfbfbf]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </>
+        )}
+        {mfaToken ? null : (
+          <Link
+            href="/forgot-password"
+            className="block text-[10px] font-normal text-[#007aff] hover:underline"
           >
-            {showPassword ? (
-              <EyeOff className="h-5 w-5" />
-            ) : (
-              <Eye className="h-5 w-5" />
-            )}
-          </button>
-        </div>
-        <Link
-          href="/forgot-password"
-          className="block text-[10px] font-normal text-[#007aff] hover:underline"
-        >
-          {t("Forgot Password?")}
-        </Link>
+            {t("Forgot Password?")}
+          </Link>
+        )}
 
         <button
           type="submit"
@@ -227,9 +306,24 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
               : "mt-5 flex h-[50px] w-full cursor-not-allowed items-center justify-center rounded-lg bg-[#eee] text-base font-medium text-[#c4c4c4]"
           }
         >
-          {loading ? t("Signing in...") : t("Login")}
+          {loading
+            ? t("Signing in...")
+            : mfaToken
+              ? t("Verify")
+              : t("Login")}
         </button>
       </form>
+
+      {branding?.locked &&
+      branding.tenantId === "oceansideresidents" &&
+      !mfaToken ? (
+        <p className="mt-5 text-center text-sm text-grey">
+          New resident?{" "}
+          <Link href="/register" className="font-semibold text-[#007aff] hover:underline">
+            Register
+          </Link>
+        </p>
+      ) : null}
 
       {branding?.locked ? (
         <>
@@ -291,22 +385,25 @@ export default function LoginClient({
         ? tenantFaviconSrc(tenant)
         : branding.logoSrc;
       if (iconHref) {
+        document
+          .querySelectorAll(
+            'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]',
+          )
+          .forEach((el) => el.remove());
+        const bust = `${iconHref}?v=plaza-tab-3`;
         for (const rel of ["icon", "shortcut icon", "apple-touch-icon"] as const) {
-          let link = document.querySelector<HTMLLinkElement>(
-            `link[rel="${rel}"]`,
-          );
-          if (!link) {
-            link = document.createElement("link");
-            link.rel = rel;
-            document.head.appendChild(link);
-          }
+          const link = document.createElement("link");
+          link.rel = rel;
           link.href =
             rel === "apple-touch-icon"
-              ? branding.logoSrc || iconHref
-              : iconHref;
-          if (iconHref.endsWith(".svg") && rel !== "apple-touch-icon") {
+              ? `${branding.logoSrc || iconHref}?v=plaza-tab-3`
+              : bust;
+          if (!bust.includes(".svg") && rel !== "apple-touch-icon") {
+            link.type = "image/png";
+          } else if (bust.includes(".svg") && rel !== "apple-touch-icon") {
             link.type = "image/svg+xml";
           }
+          document.head.appendChild(link);
         }
       }
       return;

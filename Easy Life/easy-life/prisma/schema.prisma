@@ -11,16 +11,20 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  password    String
-  role        String
-  name        String
-  avatarUrl   String?
-  communityId String?
-  /// active | frozen — frozen accounts cannot log in
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  role              String
+  name              String
+  avatarUrl         String?
+  communityId       String?
+  /// active | pending | frozen — pending = awaiting HOA approval; frozen cannot log in
+  status            String   @default("active")
+  /// Authenticator TOTP (optional). Secret is base32; recovery codes are hashed JSON.
+  mfaEnabled        Boolean  @default(false)
+  mfaSecret         String?
+  mfaRecoveryHashes String?
+  createdAt         DateTime @default(now())
 }
 
 model Community {
@@ -459,6 +463,24 @@ model MemberCharge {
   createdAt     DateTime @default(now())
 
   @@index([payToken])
+}
+
+/// Per-unit HOA assessment schedule. Checkout amounts are always read from here
+/// (or from an open hoa MemberCharge derived from it) — never from a fixed Stripe Price ID.
+model UnitHoaFee {
+  id             String   @id @default(cuid())
+  communityId    String
+  unit           String
+  /// Recurring monthly assessment in USD (e.g. 875.00).
+  monthlyAmount  Float
+  /// Open balance for the next resident-initiated payment (late fees, special
+  /// assessments, credits). Null means bill the monthlyAmount.
+  currentBalance Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([communityId, unit])
+  @@index([communityId])
 }
 
 model ContentTemplate {

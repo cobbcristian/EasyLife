@@ -7,6 +7,8 @@ import {
   listAdminUsers,
   setUserStatus,
 } from "@/lib/server/db";
+import { approvePendingMember } from "@/lib/server/member-enrollment";
+import { prisma } from "@/lib/server/prisma";
 import { logEvent } from "@/lib/server/records";
 
 export async function PATCH(
@@ -19,18 +21,60 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  let body: { status?: "active" | "frozen" };
+  let body: { status?: "active" | "frozen" | "pending" };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  if (body.status !== "active" && body.status !== "frozen") {
-    return NextResponse.json({ error: "status must be active or frozen" }, { status: 400 });
+  if (
+    body.status !== "active" &&
+    body.status !== "frozen" &&
+    body.status !== "pending"
+  ) {
+    return NextResponse.json(
+      { error: "status must be active, pending, or frozen" },
+      { status: 400 },
+    );
   }
 
   if (id === session.sub && body.status === "frozen") {
     return NextResponse.json({ error: "You cannot freeze your own account" }, { status: 400 });
+  }
+
+  const existing = await prisma.user.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!isSuperAdmin(session) && existing.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Approving a pending resident also turns on directory visibility.
+  if (
+    body.status === "active" &&
+    existing.role === "member" &&
+    existing.status === "pending"
+  ) {
+    const approved = await approvePendingMember({
+      userId: id,
+      communityId: isSuperAdmin(session) ? undefined : session.communityId,
+    });
+    if (!approved.ok) {
+      return NextResponse.json(
+        { error: approved.error },
+        { status: approved.status },
+      );
+    }
+    await logEvent({
+      communityId: approved.user.communityId,
+      userName: session.name,
+      action: "Member approved",
+      detail: approved.user.email,
+    });
+    revalidatePath("/users");
+    revalidatePath("/pm/member-approvals");
+    return NextResponse.json({ ok: true, user: approved.user });
   }
 
   const updated = await setUserStatus(id, body.status);
@@ -45,7 +89,12 @@ export async function PATCH(
   await logEvent({
     communityId: updated.communityId,
     userName: session.name,
-    action: body.status === "frozen" ? "User frozen" : "User unfrozen",
+    action:
+      body.status === "frozen"
+        ? "User frozen"
+        : body.status === "pending"
+          ? "User set pending"
+          : "User unfrozen",
     detail: updated.email,
   });
 

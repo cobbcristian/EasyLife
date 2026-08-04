@@ -128,5 +128,4 @@ export const OCEANSIDE_RESIDENTS: Array<{
   { last: "Berchielli", first: "Diana", email: "dlbmer@aol.com" },
   { last: "Benson", first: "Sharlee", email: "sharbenson@yahoo.com" },
   { last: "Barbe", first: "Reginald", email: "barbe_reginald@yahoo.ca" },
-  { last: "Mathieu", first: "David", email: "dlms6768@gmail.com" },
 ];

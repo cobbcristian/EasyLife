@@ -12,6 +12,7 @@ import {
   communityHasClubDining,
   communityHasFbMinimum,
   communityHoaPaymentPortal,
+  communitySupportsInAppHoaCheckout,
 } from "@/lib/community-features";
 
 export async function GET(request: Request) {
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
   const hasFbMinimum = communityHasFbMinimum(communityId);
   const hasClubDining = communityHasClubDining(communityId);
   const hoaPaymentPortal = communityHoaPaymentPortal(communityId);
+  const hoaInAppCheckout = communitySupportsInAppHoaCheckout(communityId);
 
   const [statement, tierSlug, fb, residency] = await Promise.all([
     buildMemberStatement({
@@ -55,6 +57,7 @@ export async function GET(request: Request) {
       hasFbMinimum,
       hasClubDining,
       hoaPaymentPortal,
+      hoaInAppCheckout,
     },
     fbMinimum: hasFbMinimum
       ? {

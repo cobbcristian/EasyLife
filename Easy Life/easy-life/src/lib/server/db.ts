@@ -9,6 +9,10 @@ import { prisma } from "@/lib/server/prisma";
 import { hashPassword } from "@/lib/server/password";
 import { defaultCommunityForRole } from "@/lib/server/auth";
 import { isDemoSeedAllowed } from "@/lib/server/demo-mode";
+import {
+  communityRequiresEnrollmentApproval,
+  createPendingResident,
+} from "@/lib/server/member-enrollment";
 import { sendBusinessInvitationEmail } from "@/lib/server/notify";
 import type { AuthUser, Community, Provider } from "@/lib/types";
 
@@ -632,6 +636,9 @@ export async function findUserByEmail(
           name: match.name,
           communityId: match.communityId,
           status: (match.status as AuthUser["status"]) ?? "active",
+          mfaEnabled: Boolean(
+            (match as { mfaEnabled?: boolean }).mfaEnabled,
+          ),
         }
       : undefined;
   }
@@ -643,6 +650,7 @@ export async function findUserByEmail(
     name: user.name,
     communityId: user.communityId,
     status: (user.status as AuthUser["status"]) ?? "active",
+    mfaEnabled: Boolean((user as { mfaEnabled?: boolean }).mfaEnabled),
   };
 }
 
@@ -652,6 +660,7 @@ export async function createUser(input: {
   role: AuthUser["role"];
   name: string;
   communityId?: string | null;
+  status?: "active" | "pending" | "frozen";
 }): Promise<AuthUser | { error: string }> {
   await ensureSeeded();
   const existing = await findUserByEmail(input.email);
@@ -666,6 +675,7 @@ export async function createUser(input: {
     return { error: "A community is required for this account type" };
   }
 
+  const status = input.status ?? "active";
   const user = await prisma.user.create({
     data: {
       email: input.email,
@@ -673,6 +683,7 @@ export async function createUser(input: {
       role: input.role,
       name: input.name,
       communityId,
+      status,
     },
   });
   return {
@@ -682,7 +693,7 @@ export async function createUser(input: {
     role: user.role as AuthUser["role"],
     name: user.name,
     communityId: user.communityId,
-    status: "active" as const,
+    status,
   };
 }
 
@@ -693,7 +704,7 @@ export type AdminUserRow = {
   role: AuthUser["role"];
   communityId: string | null;
   communityName: string | null;
-  status: "active" | "frozen";
+  status: "active" | "pending" | "frozen";
   createdAt: string;
 };
 
@@ -716,14 +727,14 @@ export async function listAdminUsers(opts?: {
     role: u.role as AuthUser["role"],
     communityId: u.communityId,
     communityName: u.communityId ? (nameById.get(u.communityId) ?? null) : null,
-    status: (u.status as "active" | "frozen") ?? "active",
+    status: (u.status as AdminUserRow["status"]) ?? "active",
     createdAt: u.createdAt.toISOString(),
   }));
 }
 
 export async function setUserStatus(
   id: string,
-  status: "active" | "frozen",
+  status: "active" | "pending" | "frozen",
 ): Promise<AdminUserRow | null> {
   await ensureSeeded();
   const existing = await prisma.user.findUnique({ where: { id } });
@@ -745,7 +756,7 @@ export async function setUserStatus(
     role: updated.role as AuthUser["role"],
     communityId: updated.communityId,
     communityName: community?.name ?? null,
-    status: (updated.status as "active" | "frozen") ?? "active",
+    status: (updated.status as AdminUserRow["status"]) ?? "active",
     createdAt: updated.createdAt.toISOString(),
   };
 }
@@ -891,8 +902,10 @@ export async function registerMember(input: {
   password: string;
   name: string;
   communityId: string;
-  inviteCode: string;
+  inviteCode?: string;
+  unit?: string;
   role?: "member" | "provider";
+  directoryVisible?: boolean;
 }): Promise<AuthUser | { error: string }> {
   await ensureSeeded();
   const community = await prisma.community.findUnique({
@@ -900,20 +913,39 @@ export async function registerMember(input: {
     select: { id: true, inviteCode: true },
   });
   if (!community) return { error: "Community not found" };
-  if (!input.inviteCode?.trim()) {
-    return { error: "Invite code is required" };
-  }
-  if (!community.inviteCode) {
-    return { error: "Community invite code is not configured" };
-  }
-  if (input.inviteCode.trim() !== community.inviteCode) {
+
+  const requiresApproval = communityRequiresEnrollmentApproval(community.id);
+  const invite = input.inviteCode?.trim() ?? "";
+  // Oceanside: invite optional (self-enroll). Other clubs: invite required.
+  if (!requiresApproval) {
+    if (!invite) return { error: "Invite code is required" };
+    if (!community.inviteCode) {
+      return { error: "Community invite code is not configured" };
+    }
+    if (invite !== community.inviteCode) {
+      return { error: "Invalid invite code for this community" };
+    }
+  } else if (invite && community.inviteCode && invite !== community.inviteCode) {
     return { error: "Invalid invite code for this community" };
   }
+
+  const role = input.role ?? "member";
+  if (requiresApproval && role === "member") {
+    return createPendingResident({
+      email: input.email,
+      password: input.password,
+      name: input.name,
+      communityId: community.id,
+      unit: input.unit ?? "",
+      directoryVisible: input.directoryVisible,
+    });
+  }
+
   return createUser({
     email: input.email,
     password: input.password,
     name: input.name,
-    role: input.role ?? "member",
+    role,
     communityId: community.id,
   });
 }

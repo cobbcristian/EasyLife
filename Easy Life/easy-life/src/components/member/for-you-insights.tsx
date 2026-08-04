@@ -35,9 +35,6 @@ export function ForYouInsights() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[21px] font-medium text-black">{t("For you")}</h2>
-        <Link href="/member/assistant" className="text-[11px] text-[var(--mvp-blue)]">
-          {t("Ask assistant")}
-        </Link>
       </div>
       <ul className="space-y-3">
         {items.slice(0, 4).map((item) => (

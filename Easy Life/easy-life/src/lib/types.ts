@@ -125,7 +125,7 @@ export interface Provider {
   type: "service" | "activity";
   imageUrl?: string;
   rating?: number;
-  status?: "active" | "frozen";
+  status?: "active" | "pending" | "frozen";
 }
 
 export interface Community {
@@ -189,7 +189,8 @@ export interface AuthUser {
   role: AuthRole;
   name: string;
   communityId?: string | null;
-  status?: "active" | "frozen";
+  status?: "active" | "pending" | "frozen";
+  mfaEnabled?: boolean;
 }
 
 export interface SessionPayload {

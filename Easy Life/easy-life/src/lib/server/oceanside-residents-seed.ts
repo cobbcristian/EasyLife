@@ -2,14 +2,14 @@ import { brandAssets } from "@/lib/brand-assets";
 import {
   OCEANSIDE_BOARD,
   OCEANSIDE_CONTACT,
-  OCEANSIDE_RESIDENTS,
 } from "@/lib/server/oceanside-directory-data";
+import { syncOceansideUnitHoaFees } from "@/lib/server/hoa-dues";
 import { hashPassword } from "@/lib/server/password";
 import { prisma } from "@/lib/server/prisma";
-import { randomBytes } from "node:crypto";
 
 export const OCEANSIDE_COMMUNITY_ID = "oceanside-residents";
-export const OCEANSIDE_PARTNER_MEMBER_EMAIL = "dlms6768@gmail.com";
+/** Removed from go-live seed — partners self-enroll. Kept only to delete old rows. */
+const LEGACY_PARTNER_MEMBER_EMAIL = "dlms6768@gmail.com";
 
 const DEMO_PASSWORD = "password";
 const DOMAIN = "oceansideresidents.com";
@@ -228,8 +228,7 @@ async function syncOceansidePlazaAmenities(): Promise<void> {
 
 /**
  * Ensures Oceanside Residents community + standard demo logins exist.
- * Partner member (dlms6768@…) keeps their existing password unless
- * OCEANSIDE_MEMBER_PASSWORD is set.
+ * Personal partner accounts are not seeded — residents self-enroll at go-live.
  */
 export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
@@ -281,57 +280,32 @@ export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
     });
   }
 
-  const partnerEmail = OCEANSIDE_PARTNER_MEMBER_EMAIL.toLowerCase();
-  const partnerPassword = (
-    process.env.OCEANSIDE_MEMBER_PASSWORD ??
-    process.env.OCEANSIDE_ADMIN_PASSWORD ??
-    ""
-  ).trim();
-  const existingPartner = await prisma.user.findUnique({
-    where: { email: partnerEmail },
+  // Remove previously seeded partner login (self-enroll at go-live instead).
+  const legacyPartner = LEGACY_PARTNER_MEMBER_EMAIL.toLowerCase();
+  await prisma.memberProfileExt.deleteMany({
+    where: { userEmail: legacyPartner },
   });
-
-  if (existingPartner) {
-    await prisma.user.update({
-      where: { email: partnerEmail },
-      data: {
-        role: "member",
-        name: "David Mathieu",
-        communityId: OCEANSIDE_COMMUNITY_ID,
-        status: "active",
-        ...(partnerPassword
-          ? { password: hashPassword(partnerPassword) }
-          : {}),
-      },
-    });
-  } else if (partnerPassword) {
-    await prisma.user.create({
-      data: {
-        id: "u-or-partner-member",
-        email: partnerEmail,
-        password: hashPassword(partnerPassword),
-        role: "member",
-        name: "David Mathieu",
-        communityId: OCEANSIDE_COMMUNITY_ID,
-        status: "active",
-      },
-    });
-  } else {
-    console.warn(
-      "[oceanside] partner member missing; set OCEANSIDE_MEMBER_PASSWORD to create",
-    );
-  }
+  await prisma.communityMember.deleteMany({
+    where: {
+      communityId: OCEANSIDE_COMMUNITY_ID,
+      name: "David Mathieu",
+    },
+  });
+  await prisma.user.deleteMany({
+    where: {
+      OR: [
+        { email: legacyPartner },
+        { id: "u-or-partner-member" },
+      ],
+    },
+  });
+  console.log("[oceanside] removed legacy partner login (self-enroll)");
 
   for (const profile of [
     {
       email: `member.demo@${DOMAIN}`,
       unit: "402",
       householdAddress: `${OCEANSIDE_CONTACT.address} #402`,
-    },
-    {
-      email: partnerEmail,
-      unit: "1112",
-      householdAddress: `${OCEANSIDE_CONTACT.address} #1112`,
     },
     ...OCEANSIDE_MESSAGE_CONTACTS.map((c) => ({
       email: c.email,
@@ -371,6 +345,7 @@ export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
   await syncOceansideDirectory();
   await syncOceansideGallery();
   await syncOceansideContactStaff();
+  await syncOceansideUnitHoaFees();
   // Condo HOA — never carry club F&B minimum periods from earlier seeds.
   await prisma.memberFbPeriod.updateMany({
     where: { communityId: OCEANSIDE_COMMUNITY_ID },
@@ -671,126 +646,91 @@ async function syncOceansideRealEstateListings(): Promise<void> {
   );
 }
 
-/** Board + resident CommunityMember rows + directory User stubs (no demo passwords). */
+/**
+ * Go-live directory: message hubs only. Scraped ~108 residents are removed.
+ * Real residents self-enroll → pending → approve → directoryVisible.
+ * Preserves CommunityMember rows for existing self-registered users.
+ */
 async function syncOceansideDirectory(): Promise<void> {
-  const boardEmails = new Set(
-    OCEANSIDE_BOARD.map((b) => b.email.toLowerCase()),
-  );
-  const messageEmails = new Set(
-    OCEANSIDE_MESSAGE_CONTACTS.map((c) => c.email.toLowerCase()),
-  );
-  const byEmail = new Map<string, { first: string; last: string; email: string; role: string }>();
-
-  for (const b of OCEANSIDE_BOARD) {
-    byEmail.set(b.email.toLowerCase(), {
-      first: b.first,
-      last: b.last,
-      email: b.email,
-      role: "Board Member",
-    });
-  }
-  for (const r of OCEANSIDE_RESIDENTS) {
-    const key = r.email.toLowerCase();
-    if (byEmail.has(key) || messageEmails.has(key)) continue;
-    byEmail.set(key, {
-      first: r.first,
-      last: r.last,
-      email: r.email,
-      role: "Resident",
-    });
-  }
-
-  // Keep demo role accounts + partner; wipe other CommunityMember rows for this HOA.
-  await prisma.communityMember.deleteMany({
-    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+  const hubIdList: string[] = OCEANSIDE_MESSAGE_CONTACTS.map((c) => c.id);
+  const hubIds = new Set(hubIdList);
+  const liveMembers = await prisma.user.findMany({
+    where: {
+      communityId: OCEANSIDE_COMMUNITY_ID,
+      role: "member",
+      status: { in: ["active", "pending"] },
+    },
+    select: { name: true, email: true },
   });
+  const keepNames = new Set(liveMembers.map((u) => u.name));
 
-  const residents = [...byEmail.values()].sort((a, b) =>
-    `${a.last} ${a.first}`.localeCompare(`${b.last} ${b.first}`),
-  );
+  const existing = await prisma.communityMember.findMany({
+    where: { communityId: OCEANSIDE_COMMUNITY_ID },
+    select: { id: true, name: true },
+  });
+  for (const row of existing) {
+    if (hubIds.has(row.id)) continue;
+    if (keepNames.has(row.name)) continue;
+    // Drop scraped stub rows (or-cm-001…) and other demo directory entries.
+    await prisma.communityMember.delete({ where: { id: row.id } });
+  }
 
-  // Message hubs first (exact User.name match so compose shows email).
-  await prisma.communityMember.createMany({
-    data: [
-      ...OCEANSIDE_MESSAGE_CONTACTS.map((c) => ({
+  for (const c of OCEANSIDE_MESSAGE_CONTACTS) {
+    await prisma.communityMember.upsert({
+      where: { id: c.id },
+      create: {
         id: c.id,
         communityId: OCEANSIDE_COMMUNITY_ID,
         name: c.name,
         role: c.role,
         isManagement: true,
-      })),
-      ...residents.map((m, i) => ({
-        id: `or-cm-${String(i + 1).padStart(3, "0")}`,
+      },
+      update: {
+        name: c.name,
+        role: c.role,
+        isManagement: true,
         communityId: OCEANSIDE_COMMUNITY_ID,
-        name: `${m.first} ${m.last}`.replace(/\s+/g, " ").trim(),
-        role: m.role,
-        isManagement: boardEmails.has(m.email.toLowerCase()),
-      })),
-    ],
+      },
+    });
+  }
+
+  const stubs = await prisma.user.findMany({
+    where: {
+      communityId: OCEANSIDE_COMMUNITY_ID,
+      id: { startsWith: "u-or-dir-" },
+    },
+    select: { id: true, email: true },
   });
+  if (stubs.length > 0) {
+    await prisma.memberProfileExt.deleteMany({
+      where: { userEmail: { in: stubs.map((s) => s.email) } },
+    });
+    await prisma.user.deleteMany({
+      where: { id: { in: stubs.map((s) => s.id) } },
+    });
+  }
 
-  const members = residents;
-
-  // Directory emails come from User rows matched by name — create stub logins
-  // that cannot use the public demo password.
-  const stubPassword = hashPassword(`or-dir-${randomBytes(24).toString("hex")}`);
-  let usersUpserted = 0;
-  for (const m of members) {
-    const email = m.email.toLowerCase();
-    const name = `${m.first} ${m.last}`.replace(/\s+/g, " ").trim();
-    // Never overwrite partner or demo account passwords / roles.
-    if (
-      email === OCEANSIDE_PARTNER_MEMBER_EMAIL.toLowerCase() ||
-      email.endsWith(`@${DOMAIN}`)
-    ) {
-      continue;
-    }
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      await prisma.user.update({
-        where: { email },
-        data: {
-          name,
-          communityId: OCEANSIDE_COMMUNITY_ID,
-          role: boardEmails.has(email) ? "board" : "member",
-          status: "active",
-        },
-      });
-    } else {
-      await prisma.user.create({
-        data: {
-          id: `u-or-dir-${email.replace(/[^a-z0-9]+/g, "-").slice(0, 36)}`,
-          email,
-          password: stubPassword,
-          role: boardEmails.has(email) ? "board" : "member",
-          name,
-          communityId: OCEANSIDE_COMMUNITY_ID,
-          status: "active",
-        },
-      });
-    }
+  for (const c of OCEANSIDE_MESSAGE_CONTACTS) {
     await prisma.memberProfileExt.upsert({
-      where: { userEmail: email },
+      where: { userEmail: c.email },
       create: {
-        userEmail: email,
+        userEmail: c.email,
         membershipTier: "social",
         residencyStatus: "resident",
-        paysHoa: true,
+        paysHoa: false,
+        unit: "Mgmt",
         directoryVisible: true,
         householdAddress: OCEANSIDE_CONTACT.address,
       },
       update: {
-        membershipTier: "social",
-        residencyStatus: "resident",
-        paysHoa: true,
         directoryVisible: true,
+        unit: "Mgmt",
       },
     });
-    usersUpserted += 1;
   }
 
   console.log(
-    `[oceanside] synced directory: members=${members.length} users=${usersUpserted}`,
+    `[oceanside] directory ready for self-enroll (hubs=${OCEANSIDE_MESSAGE_CONTACTS.length}, stubs removed=${stubs.length})`,
   );
 }
 

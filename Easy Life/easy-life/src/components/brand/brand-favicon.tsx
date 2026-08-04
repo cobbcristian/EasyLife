@@ -17,29 +17,45 @@ function readCookie(name: string): string | null {
   return decodeURIComponent(match.slice(name.length + 1));
 }
 
-function setLinkIcon(rel: string, href: string, type?: string) {
-  let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
-  if (!link) {
-    link = document.createElement("link");
-    link.rel = rel;
-    document.head.appendChild(link);
-  }
-  link.href = href;
-  if (type) link.type = type;
-  else link.removeAttribute("type");
+function clearHeadIcons() {
+  document
+    .querySelectorAll<HTMLLinkElement>(
+      'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]',
+    )
+    .forEach((el) => el.remove());
 }
 
-/** Keep the browser tab icon on the locked /go demo brand (not Vercel / Easy Life). */
+function setLinkIcon(rel: string, href: string, type?: string) {
+  const link = document.createElement("link");
+  link.rel = rel;
+  link.href = href;
+  if (type) link.type = type;
+  document.head.appendChild(link);
+}
+
+/** Force the locked /go demo brand into the browser tab (not Vercel / Easy Life). */
 export function BrandFavicon() {
   useEffect(() => {
-    const tenantId = readCookie(DEMO_TENANT_COOKIE);
-    const tenant = getDemoTenantById(tenantId);
-    if (!tenant) return;
-    const href = tenantFaviconSrc(tenant);
-    const type = href.endsWith(".svg") ? "image/svg+xml" : undefined;
-    setLinkIcon("icon", href, type);
-    setLinkIcon("shortcut icon", href, type);
-    setLinkIcon("apple-touch-icon", tenant.logoSrc);
+    function apply() {
+      const tenantId = readCookie(DEMO_TENANT_COOKIE);
+      const tenant = getDemoTenantById(tenantId);
+      if (!tenant) return;
+      const href = `${tenantFaviconSrc(tenant)}?v=plaza-tab-3`;
+      const type = href.includes(".svg") ? "image/svg+xml" : "image/png";
+      clearHeadIcons();
+      setLinkIcon("icon", href, type);
+      setLinkIcon("shortcut icon", href, type);
+      setLinkIcon("apple-touch-icon", `${tenant.logoSrc}?v=plaza-tab-3`);
+    }
+
+    apply();
+    // Re-apply after Next soft navigations / late metadata injection.
+    const t1 = window.setTimeout(apply, 50);
+    const t2 = window.setTimeout(apply, 400);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, []);
 
   return null;

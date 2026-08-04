@@ -25,6 +25,15 @@ export const bookingSchema = z
   .refine((d) => d.endTime > d.startTime, { message: "End must be after start" })
   .refine((d) => Boolean(d.amenity || d.amenityId), { message: "Amenity required" });
 
+/** Staff booking an amenity for a member (admin / PM). */
+export const adminBookingSchema = bookingSchema.and(
+  z.object({
+    memberEmail: z.string().email(),
+    memberName: z.string().min(1).optional(),
+    communityId: z.string().min(1).optional(),
+  }),
+);
+
 export const serviceRequestSchema = z.object({
   title: z.string().min(1),
   category: z.string().min(1),

@@ -61,11 +61,13 @@ export async function generateMetadata(): Promise<Metadata> {
       description: `${tenant.productName} — private club membership for ${tenant.communityName}.`,
       icons: {
         icon: [
-          { url: favicon, type: favicon.endsWith(".svg") ? "image/svg+xml" : undefined },
-          { url: tenant.logoSrc },
+          {
+            url: `${favicon}?v=plaza-tab-3`,
+            type: favicon.endsWith(".svg") ? "image/svg+xml" : "image/png",
+          },
         ],
-        apple: [{ url: tenant.logoSrc }],
-        shortcut: favicon,
+        apple: [{ url: `${tenant.logoSrc}?v=plaza-tab-3` }],
+        shortcut: `${favicon}?v=plaza-tab-3`,
       },
       manifest: "/manifest.json",
       appleWebApp: {

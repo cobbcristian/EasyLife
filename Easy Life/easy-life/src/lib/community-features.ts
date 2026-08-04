@@ -57,6 +57,20 @@ export function communityHasRentals(
   return true;
 }
 
+/** On-property tram / shuttle pickup — golf-club ops, not condo HOA. */
+export function communityHasTramService(
+  communityId: string | null | undefined,
+): boolean {
+  if (!communityId) return true;
+  if (
+    communityId === "oceanside-residents" ||
+    communityId === "oceansideresidents"
+  ) {
+    return false;
+  }
+  return true;
+}
+
 /** Court / clinic guest fee invoices (club policy — not condo HOA). */
 export function communityHasGuestFees(
   communityId: string | null | undefined,
@@ -110,12 +124,28 @@ export function communityHasClubResignRejoin(
 export function communityIsResidentialHoa(
   communityId: string | null | undefined,
 ): boolean {
-  return communityId === "oceanside-residents";
+  if (!communityId) return false;
+  // DB community id and /go tenant slug both identify Oceanside.
+  return (
+    communityId === "oceanside-residents" ||
+    communityId === "oceansideresidents"
+  );
 }
 
 /**
- * External HOA dues portal (e.g. ClickPay). When set, Easy Life does not collect
- * association assessments in-app — residents pay on the linked portal.
+ * True when residents pay HOA assessments in-app via Stripe Checkout with
+ * per-unit dynamic amounts (price_data). Off until Stripe keys + real unit
+ * fees are ready — Oceanside uses ClickPay in the meantime.
+ */
+export function communitySupportsInAppHoaCheckout(
+  _communityId: string | null | undefined,
+): boolean {
+  return false;
+}
+
+/**
+ * External HOA dues portal (ClickPay) — primary for Oceanside until Stripe
+ * in-app checkout is enabled via {@link communitySupportsInAppHoaCheckout}.
  */
 export function communityHoaPaymentPortal(
   communityId: string | null | undefined,
@@ -123,7 +153,6 @@ export function communityHoaPaymentPortal(
   if (communityId === "oceanside-residents") {
     return {
       label: "ClickPay",
-      // Resident login / Pay Now — https://www.clickpay.com/
       url: "https://www.clickpay.com/pay",
     };
   }

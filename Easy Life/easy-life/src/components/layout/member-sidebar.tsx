@@ -17,6 +17,7 @@ import {
   communityHasLocalPros,
   communityHasRentals,
   communityHasTournaments,
+  communityHasTramService,
   communityHasVendors,
   communityIsResidentialHoa,
 } from "@/lib/community-features";
@@ -30,6 +31,7 @@ const vendorsHrefs = new Set(["/member/vendors"]);
 const tournamentsHrefs = new Set(["/member/tournaments"]);
 const rentalsHrefs = new Set(["/member/rentals"]);
 const householdMembershipHrefs = new Set(["/member/household"]);
+const tramHrefs = new Set(["/member/tram"]);
 
 /** Primary life-first nav — matches mobile: Home / Book / Calendar / Connect / Payments. */
 const primaryNav = [
@@ -156,7 +158,15 @@ export function MemberSidebar({
   const hasTournaments = communityHasTournaments(communityId);
   const hasRentals = communityHasRentals(communityId);
   const hasHouseholdMembership = communityHasHouseholdMembership(communityId);
-  const isResidentialHoa = communityIsResidentialHoa(communityId);
+  const hasTram = communityHasTramService(communityId);
+  const productName = appName?.trim() || "Easy Life";
+  const isWhiteLabel = Boolean(productName !== "Easy Life" && logoUrl);
+  // Prefer DB/session community id; also treat Oceanside white-label as residential
+  // so "Resident · pays HOA" never flashes when communityId is still loading.
+  const isResidentialHoa =
+    communityIsResidentialHoa(communityId) ||
+    /oceanside/i.test(productName);
+  const tramEnabled = hasTram && !isResidentialHoa;
   const visiblePrimaryNav = primaryNav
     .filter(
       (item) =>
@@ -164,7 +174,7 @@ export function MemberSidebar({
     )
     .map((item) =>
       isResidentialHoa && item.href === "/member/membership"
-        ? { ...item, label: "Resident access" }
+        ? { ...item, label: "Your access" }
         : item,
     );
   const visibleMoreNav = moreNav.filter((item) => {
@@ -176,14 +186,13 @@ export function MemberSidebar({
     if (!hasVendors && vendorsHrefs.has(item.href)) return false;
     if (!hasTournaments && tournamentsHrefs.has(item.href)) return false;
     if (!hasRentals && rentalsHrefs.has(item.href)) return false;
+    if (!tramEnabled && tramHrefs.has(item.href)) return false;
     return true;
   });
   const moreActive = visibleMoreNav.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
   const [moreOpen, setMoreOpen] = useState(moreActive);
-  const productName = appName?.trim() || "Easy Life";
-  const isWhiteLabel = Boolean(productName !== "Easy Life" && logoUrl);
 
   useEffect(() => {
     setCommunityId(communityIdProp);
@@ -244,9 +253,11 @@ export function MemberSidebar({
             {isWhiteLabel && appName && appName !== "Easy Life" ? (
               <p className="mt-1 truncate text-xs font-medium text-grey">{appName}</p>
             ) : null}
-            <p className="mt-1 text-[11px] font-medium text-grey">
-              {paysHoa ? t("Resident · pays HOA") : t("Club member · no HOA")}
-            </p>
+            {!isResidentialHoa ? (
+              <p className="mt-1 text-[11px] font-medium text-grey">
+                {paysHoa ? t("Resident · pays HOA") : t("Club member · no HOA")}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"

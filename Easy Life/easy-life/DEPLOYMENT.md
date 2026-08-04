@@ -20,9 +20,20 @@ This guide covers deploying Easy Life to Azure App Service with Azure Database f
 
 ## Step 1: Create Azure Resources
 
+### Fast path (recommended)
+From `easy-life/` after `az login`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/azure-provision.ps1
+```
+
+That creates `easy-life-rg`, App Service plan/app, PostgreSQL Flexible Server, database, and sets `DATABASE_URL` / `AUTH_SECRET` / `NEXT_PUBLIC_APP_URL`.
+
 ### Login to Azure
 ```bash
 az login
+# or device code:
+az login --use-device-code
 ```
 
 ### Create Resource Group
@@ -280,6 +291,9 @@ az webapp restart \
 | `NEXTAUTH_URL` | Full URL of the app | Yes |
 | `VAPID_PUBLIC_KEY` | Push notification public key | Optional |
 | `VAPID_PRIVATE_KEY` | Push notification private key | Optional |
+| `STRIPE_SECRET_KEY` | Stripe secret key for Checkout (per-unit HOA amounts via `price_data`) | For payments |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`/api/stripe/webhook`) | For payments |
+| `STRIPE_PROVIDER_PRICE_ID` | Fixed Price ID for **provider** platform billing only — not HOA dues | Optional |
 
 ---
 

@@ -11,7 +11,6 @@ import {
 } from "@/lib/brand-assets";
 import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { MemberMvpHomeSearch } from "@/components/member/member-mvp-home-search";
-import { ForYouInsights } from "@/components/member/for-you-insights";
 import {
   RESIDENTIAL_HOA_ACCOUNT_LINKS,
   UserAvatarMenu,
@@ -223,14 +222,21 @@ export function MemberMvpHome({
   const featured = (featuredTiles ?? []).filter((tile) => tile.sponsored === true);
   const badgeCount = Math.max(0, Math.floor(notificationCount));
   const isGolfClub = communityId === "spanish-wells";
+  const isResidentialHoa =
+    communityIsResidentialHoa(communityId) || /oceanside/i.test(clubName ?? "");
   const hasClubDining = communityHasClubDining(communityId);
   const hasLocalPros = communityHasLocalPros(communityId);
   const hasVendors = communityHasVendors(communityId);
-  const bookSubtitle = isGolfClub
-    ? "Tee times · Courts · Spa"
-    : hasClubDining
-      ? "Courts · Spa · Clubhouse"
-      : "Tennis · Pool · Fitness";
+  const bookSubtitle = isResidentialHoa
+    ? "Amenities · Fitness · Pool"
+    : isGolfClub
+      ? "Tee times · Courts · Spa"
+      : hasClubDining
+        ? "Courts · Spa · Clubhouse"
+        : "Tennis · Pool · Fitness";
+  const emptyScheduleCta = isResidentialHoa
+    ? "Book an amenity or service"
+    : "Book a court or service";
   const featuredViewAllHref = isGolfClub
     ? "/member/bookings"
     : hasClubDining
@@ -250,7 +256,7 @@ export function MemberMvpHome({
       return true;
     })
     .map((tile) => {
-      if (tile.key === "hoa" && communityIsResidentialHoa(communityId)) {
+      if (tile.key === "hoa" && isResidentialHoa) {
         return {
           ...tile,
           // Plaza tower — never the generic golf clubhouse manor.
@@ -261,127 +267,81 @@ export function MemberMvpHome({
       if (tile.key !== "hoa" || !isGolfClub) return tile;
       return { ...tile, label: "Dues", href: "/member/payments" };
     });
-  const accessLabel = showHoa
-    ? t("Resident · pays HOA")
-    : t("Club member · no HOA");
+  const accessLabel = isResidentialHoa
+    ? null
+    : showHoa
+      ? t("Resident · pays HOA")
+      : t("Club member · no HOA");
 
   return (
     <div className="font-[family-name:var(--font-poppins)]">
-      {/* Blue header band */}
-      <div className="relative bg-[var(--mvp-blue)] px-4 pb-14 pt-6 lg:rounded-t-2xl">
-        <div className="mx-auto flex max-w-lg items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-2">
-            <button
-              type="button"
-              className="rounded-lg p-1.5 text-white hover:bg-white/10 lg:hidden"
-              aria-label={t("Open menu")}
-              onClick={() => window.dispatchEvent(new Event("member:open-sidebar"))}
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <div className="min-w-0">
+      {/* Blue header band — roomy logo, tight greeting */}
+      <div className="relative bg-[var(--mvp-blue)] px-4 pb-9 pt-4 lg:rounded-t-2xl">
+        <div className="mx-auto max-w-lg">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                className="shrink-0 rounded-lg p-1.5 text-white hover:bg-white/10 lg:hidden"
+                aria-label={t("Open menu")}
+                onClick={() => window.dispatchEvent(new Event("member:open-sidebar"))}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               {clubLogoSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={clubLogoSrc}
                   alt={clubName ?? ""}
-                  className="mb-2 h-12 w-auto max-w-[190px] rounded-lg bg-white px-2 py-1 object-contain"
+                  className="h-12 w-auto max-w-[min(220px,58vw)] shrink-0 rounded-lg bg-white px-2.5 py-1.5 object-contain sm:h-14 sm:max-w-[260px]"
                 />
+              ) : clubName ? (
+                <p className="truncate text-[17px] font-semibold text-white">{clubName}</p>
               ) : null}
-              <h1 className="truncate text-[25px] font-medium leading-tight text-white">
-                {t("Hi")}, {firstName}
-              </h1>
-              <p className="mt-1 text-[12px] font-medium text-white/85">{accessLabel}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                href="/member/notifications"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15"
+                aria-label={
+                  badgeCount > 0
+                    ? `${badgeCount} ${t("Notifications")}`
+                    : t("Notifications")
+                }
+              >
+                <Bell className="h-5 w-5 text-white" strokeWidth={1.75} />
+                {badgeCount > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3b30] px-1 text-[10px] font-bold leading-none text-white">
+                    {badgeCount > 9 ? "9+" : badgeCount}
+                  </span>
+                ) : null}
+              </Link>
+              <UserAvatarMenu
+                name={profileName}
+                email={profileEmail}
+                avatarSrc={avatarSrc ?? brandAssets.memberAvatar}
+                links={accountLinks}
+                className="[&_button]:ring-2 [&_button]:ring-white/40"
+              />
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2 pt-1">
-            <Link
-              href="/member/notifications"
-              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15"
-              aria-label={
-                badgeCount > 0
-                  ? `${badgeCount} ${t("Notifications")}`
-                  : t("Notifications")
-              }
-            >
-              <Bell className="h-5 w-5 text-white" strokeWidth={1.75} />
-              {badgeCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3b30] px-1 text-[10px] font-bold leading-none text-white">
-                  {badgeCount > 9 ? "9+" : badgeCount}
-                </span>
-              ) : null}
-            </Link>
-            <UserAvatarMenu
-              name={profileName}
-              email={profileEmail}
-              avatarSrc={avatarSrc ?? brandAssets.memberAvatar}
-              links={accountLinks}
-              className="[&_button]:ring-2 [&_button]:ring-white/40"
-            />
-          </div>
+          <h1 className="mt-3 truncate text-[22px] font-medium leading-tight text-white">
+            {t("Hi")}, {firstName}
+          </h1>
+          {accessLabel ? (
+            <p className="mt-0.5 truncate text-[12px] font-medium text-white/85">
+              {accessLabel}
+            </p>
+          ) : null}
         </div>
       </div>
 
       {/* Search overlaps header */}
-      <div className="relative z-10 mx-auto -mt-6 max-w-lg px-4">
+      <div className="relative z-10 mx-auto -mt-5 max-w-lg px-4">
         <MemberMvpHomeSearch communityId={communityId} />
       </div>
 
       <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-5 md:pb-10">
-        <ForYouInsights />
-
-        {/* Next up + Book — life-first entry */}
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[21px] font-medium text-black">{t("Next up")}</h2>
-            <Link href="/member/calendar" className="text-[11px] text-[var(--mvp-blue)]">
-              {t("See calendar")}
-            </Link>
-          </div>
-          {upcoming[0] ? (
-            <Link
-              href={upcoming[0].href}
-              className="flex gap-3 rounded-xl bg-[#F7F8FA] p-3"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={upcoming[0].image}
-                alt=""
-                className="h-[72px] w-[72px] rounded-lg object-cover"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-semibold text-ink">
-                  {upcoming[0].title}
-                </p>
-                <p className="mt-1 text-[13px] text-grey">
-                  {formatDate(upcoming[0].date)}
-                  {upcoming[0].time ? ` · ${upcoming[0].time}` : ""}
-                </p>
-                <p
-                  className={cn(
-                    "mt-1 text-[12px] font-semibold",
-                    upcoming[0].statusTone === "going" && "text-[var(--mvp-blue)]",
-                    upcoming[0].statusTone === "reserved" && "text-[var(--mvp-status-going)]",
-                    upcoming[0].statusTone === "pending" && "text-amber-600",
-                  )}
-                >
-                  {t(upcoming[0].statusLabel)}
-                </p>
-              </div>
-            </Link>
-          ) : (
-            <Link
-              href="/member/bookings"
-              className="block rounded-xl bg-[#F7F8FA] p-4"
-            >
-              <p className="text-[15px] font-semibold text-ink">{t("Nothing scheduled")}</p>
-              <p className="mt-1 text-sm font-semibold text-[var(--mvp-blue)]">
-                {t("Book a court or service")} →
-              </p>
-            </Link>
-          )}
-        </section>
-
         <section className="grid grid-cols-2 gap-3">
           <Link
             href="/member/bookings"
@@ -518,7 +478,7 @@ export function MemberMvpHome({
             >
               <p className="text-[15px] font-semibold text-ink">{t("Nothing scheduled yet.")}</p>
               <p className="mt-1 text-sm font-semibold text-[var(--mvp-blue)]">
-                {t("Book a court or service")} →
+                {t(emptyScheduleCta)} →
               </p>
             </Link>
           ) : (

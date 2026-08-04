@@ -191,10 +191,6 @@ async function main() {
       where: { email: "member.demo@oceansideresidents.com" },
       select: { id: true },
     });
-    const oceansidePartner = await p.user.findUnique({
-      where: { email: "dlms6768@gmail.com" },
-      select: { id: true, role: true },
-    });
     console.log(
       JSON.stringify(
         {
@@ -208,7 +204,6 @@ async function main() {
           spanishWellsMember: Boolean(spanishWells),
           alliantPm: Boolean(alliantPm),
           oceansideMember: Boolean(oceansideMember),
-          oceansidePartnerRole: oceansidePartner?.role ?? null,
         },
         null,
         2,

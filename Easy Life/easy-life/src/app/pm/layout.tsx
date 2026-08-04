@@ -9,11 +9,13 @@ import {
 import {
   communityHasClubDining,
   communityHasGuestFees,
+  communityHasTramService,
 } from "@/lib/community-features";
 
 const nav = [
   { label: "Home", href: "/pm", icon: "LayoutDashboard" },
   { label: "Front Desk", href: "/pm/front-desk", icon: "DoorOpen" },
+  { label: "Member bookings", href: "/pm/bookings", icon: "CalendarCheck" },
   { label: "Tram Dispatch", href: "/pm/tram", icon: "Bus" },
   { label: "Packages", href: "/pm/packages", icon: "Package" },
   { label: "Violations", href: "/pm/violations", icon: "AlertTriangle" },
@@ -22,6 +24,7 @@ const nav = [
   { label: "Announcements", href: "/pm/announcements", icon: "Megaphone" },
   { label: "Events", href: "/pm/events", icon: "CalendarDays" },
   { label: "Dining", href: "/pm/dining", icon: "UtensilsCrossed" },
+  { label: "Member approvals", href: "/pm/member-approvals", icon: "UserCheck" },
   { label: "Invites", href: "/pm/invites", icon: "Mail" },
   { label: "Documents", href: "/pm/documents", icon: "FileText" },
   { label: "Knowledge Base", href: "/pm/knowledge", icon: "HelpCircle" },
@@ -47,9 +50,11 @@ export default async function PmLayout({
     null;
   const hideDining = !communityHasClubDining(communityId);
   const hideGuestFees = !communityHasGuestFees(communityId);
+  const hideTram = !communityHasTramService(communityId);
   const navItems = nav.filter((item) => {
     if (hideDining && item.href === "/pm/dining") return false;
     if (hideGuestFees && item.href === "/pm/guest-fees") return false;
+    if (hideTram && item.href === "/pm/tram") return false;
     return true;
   });
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, MoreHorizontal, Search, X } from "lucide-react";
+import { StaffBookForMember } from "@/components/admin/staff-book-for-member";
 import { ContentHeader, PageBody } from "@/components/layout/content-header";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
@@ -174,6 +175,10 @@ export function CommunityAdminBookings({
       />
       <PageBody>
         <p className="mb-4 text-sm text-grey">{communityName}</p>
+        <StaffBookForMember
+          preferredCommunityId={communityId}
+          className="mb-8"
+        />
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <div className="inline-flex rounded-lg bg-[#f2f2f7] p-0.5">
             <button

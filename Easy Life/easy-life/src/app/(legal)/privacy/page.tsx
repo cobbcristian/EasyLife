@@ -25,7 +25,7 @@ const sections = [
   },
   {
     h: "7. Contact",
-    p: "For privacy questions, contact your community administrator or privacy@easylife.com.",
+    p: "For privacy questions, contact your community administrator or privacy@easylife.com. The Plaza at Oceanside mobile apps use the same Easy Life platform and this policy.",
   },
 ];
 

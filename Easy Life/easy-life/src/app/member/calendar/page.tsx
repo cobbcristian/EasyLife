@@ -38,6 +38,7 @@ export default async function MemberCalendarPage() {
 
   return (
     <MemberMvpCalendar
+      communityId={session?.communityId}
       ads={ads.map((a) => ({
         id: a.id,
         title: a.title,

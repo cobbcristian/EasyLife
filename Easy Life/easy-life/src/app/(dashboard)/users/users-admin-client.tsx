@@ -17,7 +17,7 @@ type UserRow = {
   role: string;
   communityId: string | null;
   communityName: string | null;
-  status: "active" | "frozen";
+  status: "active" | "pending" | "frozen";
 };
 
 type CommunityOpt = { id: string; name: string };
@@ -100,7 +100,7 @@ export function UsersAdminClient({
     await load();
   }
 
-  async function setStatus(id: string, status: "active" | "frozen") {
+  async function setStatus(id: string, status: "active" | "pending" | "frozen") {
     setBusyId(id);
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
@@ -116,7 +116,12 @@ export function UsersAdminClient({
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, status } : u)));
       toast({
         variant: "success",
-        title: status === "frozen" ? t("User frozen") : t("User unfrozen"),
+        title:
+          status === "frozen"
+            ? t("User frozen")
+            : status === "pending"
+              ? t("User set pending")
+              : t("Member approved"),
       });
     } finally {
       setBusyId(null);
@@ -287,24 +292,41 @@ export function UsersAdminClient({
                           "rounded-full px-2 py-0.5 text-xs font-semibold",
                           u.status === "frozen"
                             ? "bg-amber-100 text-amber-800"
-                            : "bg-emerald-100 text-emerald-800",
+                            : u.status === "pending"
+                              ? "bg-sky-100 text-sky-800"
+                              : "bg-emerald-100 text-emerald-800",
                         )}
                       >
-                        {u.status === "frozen" ? t("Frozen") : t("Active")}
+                        {u.status === "frozen"
+                          ? t("Frozen")
+                          : u.status === "pending"
+                            ? t("Pending")
+                            : t("Active")}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={busyId === u.id}
-                          onClick={() =>
-                            setStatus(u.id, u.status === "frozen" ? "active" : "frozen")
-                          }
-                          className="text-xs font-medium text-[var(--mvp-blue)] hover:underline disabled:opacity-50"
-                        >
-                          {u.status === "frozen" ? t("Unfreeze") : t("Freeze")}
-                        </button>
+                        {u.status === "pending" ? (
+                          <button
+                            type="button"
+                            disabled={busyId === u.id}
+                            onClick={() => setStatus(u.id, "active")}
+                            className="text-xs font-medium text-[var(--mvp-blue)] hover:underline disabled:opacity-50"
+                          >
+                            {t("Approve")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busyId === u.id}
+                            onClick={() =>
+                              setStatus(u.id, u.status === "frozen" ? "active" : "frozen")
+                            }
+                            className="text-xs font-medium text-[var(--mvp-blue)] hover:underline disabled:opacity-50"
+                          >
+                            {u.status === "frozen" ? t("Unfreeze") : t("Freeze")}
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={busyId === u.id}

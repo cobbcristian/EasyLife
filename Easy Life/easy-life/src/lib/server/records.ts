@@ -598,7 +598,9 @@ export async function createBooking(input: {
       timeRangesOverlap(input.startTime, input.endTime, b.startTime, b.endTime),
     )
   ) {
-    throw new BookingConflictError("You already have a booking during this time.");
+    throw new BookingConflictError(
+      "This member already has a booking during this time.",
+    );
   }
 
   const amenityName = amenityRecord?.name ?? input.amenity;
@@ -3461,20 +3463,44 @@ export async function listResidentDirectory(communityId?: string | null) {
     prisma.memberProfileExt.findMany(),
   ]);
   const profilesByEmail = new Map(profiles.map((profile) => [profile.userEmail, profile]));
+  const activeUsers = users.filter(
+    (u) => (u.status ?? "active") === "active" || u.role !== "member",
+  );
   const rows = members.map((member) => {
-    const user = users.find((candidate) => candidate.name === member.name);
-    const profile = user ? profilesByEmail.get(user.email) : undefined;
+    const linkedUser = users.find((candidate) => candidate.name === member.name);
+    // Pending / frozen residents stay out of the directory until approved.
+    if (
+      linkedUser &&
+      linkedUser.role === "member" &&
+      linkedUser.status !== "active"
+    ) {
+      return null;
+    }
+    const user = activeUsers.find((candidate) => candidate.name === member.name);
+    const profile = user
+      ? profilesByEmail.get(user.email)
+      : linkedUser
+        ? profilesByEmail.get(linkedUser.email)
+        : undefined;
+    if (!user && linkedUser?.role === "member") {
+      return null;
+    }
+    const visible =
+      user?.role === "member"
+        ? Boolean(profile?.directoryVisible)
+        : (profile?.directoryVisible ?? true);
     return {
       id: member.id,
       name: member.name,
       role: member.role,
       unit: profile?.unit ?? (member.isManagement ? "Mgmt" : "—"),
-      visible: profile?.directoryVisible ?? true,
+      visible,
       email: user?.email ?? "",
       isManagement: member.isManagement,
     };
-  });
-  for (const u of users) {
+  }).filter((row): row is NonNullable<typeof row> => row != null);
+  for (const u of activeUsers) {
+    if (u.role === "member" && u.status === "pending") continue;
     if (!rows.some((r) => r.name === u.name)) {
       const profile = profilesByEmail.get(u.email);
       const isStaff =
@@ -3484,7 +3510,10 @@ export async function listResidentDirectory(communityId?: string | null) {
         name: u.name,
         role: u.role === "member" ? "Member" : u.role,
         unit: profile?.unit ?? "—",
-        visible: profile?.directoryVisible ?? true,
+        visible:
+          u.role === "member"
+            ? Boolean(profile?.directoryVisible)
+            : (profile?.directoryVisible ?? true),
         email: u.email,
         isManagement: isStaff,
       });
@@ -3498,7 +3527,7 @@ export async function listResidentDirectory(communityId?: string | null) {
       "social.committee@oceansideresidents.com",
       "board.demo@oceansideresidents.com",
     ];
-    const rank = new Map(hubOrder.map((email, i) => [email, i]));
+    const rank = new Map<string, number>(hubOrder.map((email, i) => [email, i]));
     rows.sort((a, b) => {
       const ar = rank.get(a.email.toLowerCase());
       const br = rank.get(b.email.toLowerCase());

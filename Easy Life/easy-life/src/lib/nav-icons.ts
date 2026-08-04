@@ -58,6 +58,7 @@ export const lucideToNavIcon: Record<string, NavIconKey> = {
   Shield: "userCircle",
   ShieldCheck: "userCircle",
   UserCircle: "userCircle",
+  UserCheck: "userCircle",
 };
 
 export function navIconForLucide(name: string): NavIconKey {

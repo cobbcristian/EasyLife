@@ -8,6 +8,12 @@ import {
 } from "@/lib/server/auth";
 import { createUser, registerClubAdmin, registerMember } from "@/lib/server/db";
 import { upsertProviderSubscription } from "@/lib/server/provider-subscriptions";
+import { communityRequiresEnrollmentApproval } from "@/lib/server/member-enrollment";
+import {
+  isPasswordStrongEnough,
+  passwordPolicyMessages,
+  passwordPolicyIssues,
+} from "@/lib/password-policy";
 import type { AuthRole } from "@/lib/types";
 import type { ProviderPlanId } from "@/lib/provider-plans";
 
@@ -29,10 +35,12 @@ export async function POST(request: Request) {
     role?: AuthRole;
     communityId?: string;
     inviteCode?: string;
+    unit?: string;
     communityName?: string;
     city?: string;
     state?: string;
     plan?: ProviderPlanId;
+    directoryVisible?: boolean;
   };
   try {
     body = await request.json();
@@ -50,6 +58,19 @@ export async function POST(request: Request) {
   if (!email || !password || !name) {
     return NextResponse.json(
       { error: "Name, email, and password are required" },
+      { status: 400 },
+    );
+  }
+
+  if (
+    mode === "join" &&
+    body.communityId &&
+    communityRequiresEnrollmentApproval(body.communityId) &&
+    !isPasswordStrongEnough(password)
+  ) {
+    const messages = passwordPolicyMessages(passwordPolicyIssues(password));
+    return NextResponse.json(
+      { error: messages.join(" ") || "Password does not meet requirements" },
       { status: 400 },
     );
   }
@@ -74,17 +95,16 @@ export async function POST(request: Request) {
     if (!body.communityId) {
       return NextResponse.json({ error: "Select your community" }, { status: 400 });
     }
-    if (!body.inviteCode?.trim()) {
-      return NextResponse.json({ error: "Invite code is required" }, { status: 400 });
-    }
     const joinRole = body.role === "provider" ? "provider" : "member";
     result = await registerMember({
       email,
       password,
       name,
       communityId: body.communityId,
-      inviteCode: body.inviteCode.trim(),
+      inviteCode: body.inviteCode?.trim(),
+      unit: body.unit?.trim(),
       role: joinRole,
+      directoryVisible: body.directoryVisible,
     });
     if (!("error" in result) && joinRole === "provider") {
       await upsertProviderSubscription({
@@ -113,6 +133,15 @@ export async function POST(request: Request) {
 
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 409 });
+  }
+
+  // HOA self-enroll: wait for staff approval — do not issue a session yet.
+  if (result.status === "pending") {
+    return NextResponse.json({
+      ok: true,
+      pending: true,
+      redirectTo: "/register/pending",
+    });
   }
 
   const token = await createSessionToken({

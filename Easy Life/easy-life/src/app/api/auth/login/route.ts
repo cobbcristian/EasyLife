@@ -10,6 +10,7 @@ import {
   homeForRole,
   sessionCookieOptions,
 } from "@/lib/server/auth";
+import { createMfaPendingToken } from "@/lib/server/mfa";
 import {
   ACTIVE_COMMUNITY_COOKIE,
   DEMO_TENANT_COOKIE,
@@ -57,6 +58,16 @@ export async function POST(request: Request) {
     );
   }
 
+  if (user.status === "pending") {
+    return NextResponse.json(
+      {
+        error:
+          "Your registration is pending approval. You will be able to sign in after association management approves your account.",
+      },
+      { status: 403 },
+    );
+  }
+
   const cookieHeader = request.headers.get("cookie");
   // Prefer the tenant shown on the login page (avoids stale duplicate cookies
   // from switching /go/[tenant] on the same Vercel host).
@@ -86,6 +97,21 @@ export async function POST(request: Request) {
       { error: "This club is in staging mode. Member access is not open yet." },
       { status: 403 },
     );
+  }
+
+  if (user.mfaEnabled) {
+    const mfaToken = await createMfaPendingToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      communityId: user.communityId,
+    });
+    return NextResponse.json({
+      ok: true,
+      mfaRequired: true,
+      mfaToken,
+    });
   }
 
   const token = await createSessionToken({

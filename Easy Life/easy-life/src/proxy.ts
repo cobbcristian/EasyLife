@@ -57,6 +57,7 @@ const STAGING_EXEMPT_API_PREFIXES = [
   "/api/stripe/",
   "/api/pay/",
   "/api/mobile/login",
+  "/api/mobile/bridge",
   "/api/mobile/register",
   "/api/mobile/communities",
   "/api/health",
@@ -69,6 +70,7 @@ function isStagingExemptApi(pathname: string) {
 
 const MOBILE_PUBLIC_API = [
   "/api/mobile/login",
+  "/api/mobile/bridge",
   "/api/mobile/register",
   "/api/mobile/communities",
 ];

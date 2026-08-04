@@ -50,3 +50,18 @@ export function canManageCommunity(
   if (isSuperAdmin(session)) return true;
   return session.communityId === communityId;
 }
+
+/** Super admin, club admin, or PM/front desk can book amenities for members. */
+export function canStaffBookForMembers(session: SessionPayload): boolean {
+  return session.role === "admin" || session.role === "pm";
+}
+
+/** Staff may create amenity bookings in this community. */
+export function canStaffBookInCommunity(
+  session: SessionPayload,
+  communityId: string,
+): boolean {
+  if (!canStaffBookForMembers(session)) return false;
+  if (isSuperAdmin(session)) return true;
+  return session.communityId === communityId;
+}

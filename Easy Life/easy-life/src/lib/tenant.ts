@@ -447,10 +447,11 @@ export const OCEANSIDE_RESIDENTS_TENANT: DemoTenant = {
   brandName: "The Plaza at Oceanside",
   productName: "The Plaza at Oceanside",
   communityName: "The Plaza at Oceanside",
-  /** Partner member account — password is never shipped in demo login links. */
-  defaultLoginEmail: "dlms6768@gmail.com",
+  /** Demo resident — partners self-enroll at go-live (no seeded personal logins). */
+  defaultLoginEmail: "member.demo@oceansideresidents.com",
+  // Wordmark for UI; square favicon for the browser tab (wide PNG is ignored by Chrome → Vercel triangle).
   logoSrc: "/brand/community-oceanside.png",
-  faviconSrc: "/brand/favicon-oceanside.svg",
+  faviconSrc: "/brand/favicon-oceanside.png",
   /** Official Plaza wordmark in the login ring (not the pier cover photo). */
   loginHeroSrc: "/brand/community-oceanside.png",
   hostHints: ["oceansideresidents", "oceanside-residents", "oceansideresidents.com"],
@@ -592,9 +593,22 @@ export function tenantByCommunityId(
   );
 }
 
-/** Tenants shown on the /go sales directory (hides salesReady: false). */
+/**
+ * Active sales demos on /go (plus Super Admin card on the page).
+ * Direct /go/[id] still works for other tenants when needed.
+ */
+const SALES_DIRECTORY_TENANT_IDS = new Set<DemoTenantId>([
+  "ironcrest",
+  "goldenocala",
+  "oceansideresidents",
+]);
+
+/** Tenants shown on the /go sales directory. */
 export function listSalesReadyTenants(): DemoTenant[] {
-  return Object.values(DEMO_TENANTS).filter((t) => t.salesReady !== false);
+  return Object.values(DEMO_TENANTS).filter(
+    (t) =>
+      SALES_DIRECTORY_TENANT_IDS.has(t.id) && t.salesReady !== false,
+  );
 }
 
 export function listAllDemoTenants(): DemoTenant[] {

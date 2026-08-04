@@ -9,6 +9,7 @@ import { AddEventSheet } from "@/components/member/add-event-sheet";
 import { CalendarSyncSheet } from "@/components/member/calendar-sync-sheet";
 import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { buildIcsEvent, downloadIcs } from "@/lib/calendar-ics";
+import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
@@ -17,6 +18,7 @@ import type { CalendarEventDTO } from "@/lib/member-dtos";
 type Props = {
   events: CalendarEventDTO[];
   ads: { id: string; title: string; sponsor: string; linkUrl: string | null }[];
+  communityId?: string | null;
 };
 
 type CalendarView = "list" | "week" | "month";
@@ -240,7 +242,7 @@ function AgendaRow({
 }
 
 /** Figma-aligned member community calendar — club + personal day agenda. */
-export function MemberMvpCalendar({ events, ads }: Props) {
+export function MemberMvpCalendar({ events, ads, communityId }: Props) {
   const { t } = useI18n();
   const { toast } = useToast();
   const router = useRouter();
@@ -600,7 +602,11 @@ export function MemberMvpCalendar({ events, ads }: Props) {
             </div>
           </div>
           <p className="mt-1 text-[12px] text-grey">
-            {t("Club activity and your bookings, dining, and service visits.")}
+            {t(
+              communityIsResidentialHoa(communityId)
+                ? "Building activity and your bookings, dining, and service visits."
+                : "Club activity and your bookings, dining, and service visits.",
+            )}
           </p>
           <div className="mt-3 flex rounded-full bg-[#f2f4f7] p-1">
             {(

@@ -16,6 +16,8 @@ import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { avatarForReviewer } from "@/lib/brand-assets";
+import { communityIsResidentialHoa } from "@/lib/community-features";
+import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 import { formatDate, cn } from "@/lib/utils";
 import type { PetDTO, VehicleDTO } from "@/lib/member-dtos";
 
@@ -47,6 +49,8 @@ export function MemberMvpProfile({
   const { t } = useI18n();
   const router = useRouter();
   const { toast } = useToast();
+  const session = useSessionProfile();
+  const hideHoaResidentLabels = communityIsResidentialHoa(session.communityId);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -243,7 +247,7 @@ export function MemberMvpProfile({
           <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink md:text-[26px]">
             {t("Account")}
           </h1>
-          {profile.residencyStatus ? (
+          {!hideHoaResidentLabels && profile.residencyStatus ? (
             <p className="mt-1 text-xs text-grey">
               {profile.residencyStatus === "resident"
                 ? t("On-property resident (HOA)")
@@ -252,6 +256,10 @@ export function MemberMvpProfile({
               {profile.membershipTier
                 ? ` · ${t("Tier")}: ${profile.membershipTier.replace(/_/g, " ")}`
                 : ""}
+            </p>
+          ) : profile.membershipTier ? (
+            <p className="mt-1 text-xs text-grey">
+              {t("Tier")}: {profile.membershipTier.replace(/_/g, " ")}
             </p>
           ) : null}
           <div className="mt-4 flex flex-col items-center">
@@ -331,6 +339,13 @@ export function MemberMvpProfile({
               className="flex h-12 items-center justify-between rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 text-sm text-ink"
             >
               {t("Change Password")}
+              <ChevronRight className="h-4 w-4 text-grey" />
+            </Link>
+            <Link
+              href="/member/security"
+              className="flex h-12 items-center justify-between rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 text-sm text-ink"
+            >
+              {t("Two-factor authentication")}
               <ChevronRight className="h-4 w-4 text-grey" />
             </Link>
             <Link
