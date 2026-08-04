@@ -1,0 +1,117 @@
+# Deploys Easy Life (Next.js standalone) to Azure App Service.
+# App root in this monorepo: Easy Life/easy-life
+
+name: Azure Deploy Easy Life
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "Easy Life/easy-life/**"
+      - ".github/workflows/azure-deploy-easylife.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: azure-deploy-easylife
+  cancel-in-progress: true
+
+env:
+  AZURE_WEBAPP_NAME: easylife-plaza-app
+  AZURE_RESOURCE_GROUP: easy-life-rg
+  AZURE_STORAGE_ACCOUNT: easylifeplaza5934
+  NODE_VERSION: "22.x"
+  APP_DIR: Easy Life/easy-life
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (Prisma + Next standalone)
+        run: npm run azure:build
+        env:
+          DATABASE_URL: ${{ secrets.AZURE_DATABASE_URL }}
+          POSTGRES_PRISMA_URL: ${{ secrets.AZURE_DATABASE_URL }}
+          ALLOW_DEMO_SEED: "0"
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXT_PUBLIC_APP_URL: https://easylife-plaza-app.azurewebsites.net
+
+      - name: Package standalone zip
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -euo pipefail
+          STAGING="${RUNNER_TEMP}/easylife-package"
+          rm -rf "$STAGING"
+          mkdir -p "$STAGING"
+          cp -a .next/standalone/. "$STAGING/"
+          mkdir -p "$STAGING/.next"
+          cp -a .next/static "$STAGING/.next/static"
+          if [ -d public ]; then cp -a public "$STAGING/public"; fi
+          cd "$STAGING"
+          zip -r "$RUNNER_TEMP/easylife-standalone.zip" . -q
+          ls -lh "$RUNNER_TEMP/easylife-standalone.zip"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Upload package + set WEBSITE_RUN_FROM_PACKAGE
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ env.AZURE_STORAGE_ACCOUNT }}
+          AZURE_RESOURCE_GROUP: ${{ env.AZURE_RESOURCE_GROUP }}
+          AZURE_WEBAPP_NAME: ${{ env.AZURE_WEBAPP_NAME }}
+        run: |
+          set -euo pipefail
+          ZIP="$RUNNER_TEMP/easylife-standalone.zip"
+          KEY=$(az storage account keys list -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_STORAGE_ACCOUNT" --query "[0].value" -o tsv)
+          az storage container create --account-name "$AZURE_STORAGE_ACCOUNT" --account-key "$KEY" --name deploys -o none
+          az storage blob upload \
+            --account-name "$AZURE_STORAGE_ACCOUNT" \
+            --account-key "$KEY" \
+            --container-name deploys \
+            --name easylife-standalone.zip \
+            --file "$ZIP" \
+            --overwrite true \
+            -o none
+          EXPIRY=$(date -u -d "+30 days" +%Y-%m-%dT%H:%MZ)
+          SAS=$(az storage blob generate-sas \
+            --account-name "$AZURE_STORAGE_ACCOUNT" \
+            --account-key "$KEY" \
+            --container-name deploys \
+            --name easylife-standalone.zip \
+            --permissions r \
+            --expiry "$EXPIRY" \
+            -o tsv)
+          URL="https://${AZURE_STORAGE_ACCOUNT}.blob.core.windows.net/deploys/easylife-standalone.zip?${SAS}"
+          # JSON file avoids shell mangling of & in SAS
+          printf '%s' "{\"WEBSITE_RUN_FROM_PACKAGE\":\"${URL}\"}" > "$RUNNER_TEMP/rfpp.json"
+          az webapp config appsettings set \
+            -g "$AZURE_RESOURCE_GROUP" \
+            -n "$AZURE_WEBAPP_NAME" \
+            --settings @"$RUNNER_TEMP/rfpp.json" \
+            -o none
+          az webapp config set \
+            -g "$AZURE_RESOURCE_GROUP" \
+            -n "$AZURE_WEBAPP_NAME" \
+            --startup-file "node server.js" \
+            -o none
+          az webapp restart -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_WEBAPP_NAME" -o none

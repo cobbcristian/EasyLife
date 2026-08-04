@@ -1,56 +1,18 @@
-# Azure App Service Deployment for Easy Life
-# This workflow builds and deploys the Next.js app to Azure App Service
+# Canonical workflow lives at repo root:
+#   .github/workflows/azure-deploy-easylife.yml
+# GitHub only runs workflows from the repository root .github folder.
+# Keep this file as a pointer for discoverability inside the app tree.
 
-name: Azure Deploy
+name: Azure Deploy (moved)
 
 on:
-  push:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
-env:
-  AZURE_WEBAPP_NAME: easy-life-app  # Set this to your Azure Web App name
-  NODE_VERSION: '20.x'
-
 jobs:
-  build-and-deploy:
+  notice:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Build Next.js app
-        run: npm run build
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Login to Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: .
-
-      - name: Run Database Migrations
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Point to root workflow
+        run: |
+          echo "Use workflow 'Azure Deploy Easy Life' at .github/workflows/azure-deploy-easylife.yml"
+          echo "This nested path is not executed by GitHub Actions."
