@@ -2380,9 +2380,23 @@ async function backfillDemoTournamentScores(): Promise<void> {
 }
 
 async function ensureDemoTournamentsForCommunity(communityId: string): Promise<void> {
-  // HOA /go demos (not Spanish Wells golf club) should never plant a golf scramble.
-  const hoaDemoIds = new Set(["harbor-pointe", "willow-creek", "alliant"]);
-  if (hoaDemoIds.has(communityId)) {
+  // Live Oceanside is not a golf club — never plant seed tournaments; strip known demos only.
+  if (communityId === "oceanside-residents") {
+    await prisma.tournament.deleteMany({
+      where: {
+        communityId,
+        title: { in: ["Member Golf Scramble", "Summer Tennis Open"] },
+      },
+    });
+    return;
+  }
+
+  const noGolfScrambleIds = new Set([
+    "harbor-pointe",
+    "willow-creek",
+    "alliant",
+  ]);
+  if (noGolfScrambleIds.has(communityId)) {
     await prisma.tournament.deleteMany({
       where: {
         communityId,
@@ -2425,7 +2439,7 @@ async function ensureDemoTournamentsForCommunity(communityId: string): Promise<v
       .map((name) => ({ tournamentId: tennis.id, name, paid: true })),
   });
 
-  if (hoaDemoIds.has(communityId)) return;
+  if (noGolfScrambleIds.has(communityId)) return;
 
   await prisma.tournament.create({
     data: {
