@@ -16,6 +16,7 @@ import {
   communityHasHouseholdMembership,
   communityHasLocalPros,
   communityHasRentals,
+  communityHasRewards,
   communityHasTournaments,
   communityHasTramService,
   communityHasVendors,

@@ -120,6 +120,15 @@ export function communityHasClubResignRejoin(
   return true;
 }
 
+/** Loyalty rewards / redeem catalog — off for Oceanside until HOA defines perks. */
+export function communityHasRewards(
+  communityId: string | null | undefined,
+): boolean {
+  if (!communityId) return true;
+  if (communityId === "oceanside-residents") return false;
+  return true;
+}
+
 /** True for condo / residential HOA communities (owners live on property). */
 export function communityIsResidentialHoa(
   communityId: string | null | undefined,

@@ -2709,12 +2709,9 @@ export const REWARD_PERKS = [
   { id: "pk3", label: "Priority booking window", cost: 1200 },
 ] as const;
 
-/** Condo HOA — no clubhouse restaurant / club dining perks. */
-const OCEANSIDE_REWARD_PERKS = [
-  { id: "pk1", label: "10% off amenity fees", cost: 500 },
-  { id: "pk2", label: "Free court hour", cost: 800 },
-  { id: "pk3", label: "Priority booking window", cost: 1200 },
-] as const;
+/** Condo HOA — no seeded redeem catalog until the association defines real perks. */
+const OCEANSIDE_REWARD_PERKS: readonly { id: string; label: string; cost: number }[] =
+  [];
 
 const TIER_THRESHOLDS = [
   { tier: "Platinum", min: 1500 },
