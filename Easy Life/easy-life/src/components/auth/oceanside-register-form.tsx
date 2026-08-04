@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SsoButtons } from "@/components/auth/sso-buttons";
 import {
   isPasswordStrongEnough,
   passwordPolicyIssues,
@@ -208,6 +209,8 @@ export function OceansideRegisterForm({
               {loading ? "Signing up…" : "Sign Up"}
             </button>
           </form>
+
+          <SsoButtons className="mt-2" />
 
           <p className="mt-6 text-center text-sm text-[#666]">
             Already have an account?{" "}

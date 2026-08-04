@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { findUserByEmail } from "@/lib/server/db";
-import { verifyPassword } from "@/lib/server/password";
+import { verifyPassword, passwordNeedsRehash } from "@/lib/server/password";
+import { findUserByEmail, updateUserPassword } from "@/lib/server/db";
 import { clientIp, rateLimit } from "@/lib/server/rate-limit";
 import { logEvent } from "@/lib/server/records";
 import { isCommunityStaging } from "@/lib/server/staging";
@@ -49,6 +49,11 @@ export async function POST(request: Request) {
       { error: "Invalid email or password" },
       { status: 401 },
     );
+  }
+
+  // Migrate ASP.NET Identity / plaintext hashes to scrypt after a successful login.
+  if (passwordNeedsRehash(user.password)) {
+    await updateUserPassword(user.email, password);
   }
 
   if (user.status === "frozen") {

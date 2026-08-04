@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { findUserByEmail } from "@/lib/server/db";
-import { verifyPassword } from "@/lib/server/password";
+import { findUserByEmail, updateUserPassword } from "@/lib/server/db";
+import { passwordNeedsRehash, verifyPassword } from "@/lib/server/password";
 import { clientIp, rateLimit } from "@/lib/server/rate-limit";
 import { logEvent } from "@/lib/server/records";
 import { isCommunityStaging } from "@/lib/server/staging";
@@ -47,6 +47,10 @@ export async function POST(request: Request) {
       { error: "Invalid email or password" },
       { status: 401 },
     );
+  }
+
+  if (passwordNeedsRehash(user.password)) {
+    await updateUserPassword(user.email, password);
   }
 
   if (user.status === "frozen") {

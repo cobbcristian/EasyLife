@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { LoginHero } from "@/components/auth/login-hero";
 import { DemoLoginCheatSheet } from "@/components/auth/demo-login-cheat-sheet";
+import { SsoButtons } from "@/components/auth/sso-buttons";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useI18n } from "@/lib/i18n";
 import { brandAssets } from "@/lib/brand-assets";
@@ -52,6 +53,8 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
   useEffect(() => {
     const qEmail = searchParams.get("email");
     const qPassword = searchParams.get("password");
+    const qError = searchParams.get("error");
+    const qMfa = searchParams.get("mfaToken");
     const roleHint = searchParams.get("role")?.toLowerCase();
     const roleMatch =
       roleHint && branding?.demoLogins
@@ -66,8 +69,8 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
         "",
     );
     setPassword(qPassword || roleMatch?.password || "");
-    setError(null);
-    setMfaToken(null);
+    setError(qError);
+    setMfaToken(qMfa);
     setMfaCode("");
   }, [branding?.tenantId, branding?.defaultEmail, branding?.demoLogins, branding?.locked, searchParams]);
 
@@ -313,6 +316,8 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
               : t("Login")}
         </button>
       </form>
+
+      {!mfaToken ? <SsoButtons /> : null}
 
       {branding?.locked &&
       branding.tenantId === "oceansideresidents" &&
