@@ -275,14 +275,14 @@ export function MemberMvpHome({
 
   return (
     <div className="font-[family-name:var(--font-poppins)]">
-      {/* Blue header band — roomy logo, tight greeting */}
-      <div className="relative bg-[var(--mvp-blue)] px-4 pb-9 pt-4 lg:rounded-t-2xl">
+      {/* Blue header — compact band, large logo, centered greeting */}
+      <div className="relative bg-[var(--mvp-blue)] px-3 pb-7 pt-3 lg:rounded-t-2xl">
         <div className="mx-auto max-w-lg">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
               <button
                 type="button"
-                className="shrink-0 rounded-lg p-1.5 text-white hover:bg-white/10 lg:hidden"
+                className="shrink-0 rounded-lg p-1 text-white hover:bg-white/10 lg:hidden"
                 aria-label={t("Open menu")}
                 onClick={() => window.dispatchEvent(new Event("member:open-sidebar"))}
               >
@@ -293,16 +293,16 @@ export function MemberMvpHome({
                 <img
                   src={clubLogoSrc}
                   alt={clubName ?? ""}
-                  className="h-12 w-auto max-w-[min(220px,58vw)] shrink-0 rounded-lg bg-white px-2.5 py-1.5 object-contain sm:h-14 sm:max-w-[260px]"
+                  className="h-[4.25rem] w-auto max-w-[min(280px,72vw)] shrink-0 rounded-xl bg-white px-3 py-2 object-contain sm:h-20 sm:max-w-[320px]"
                 />
               ) : clubName ? (
                 <p className="truncate text-[17px] font-semibold text-white">{clubName}</p>
               ) : null}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 self-start">
               <Link
                 href="/member/notifications"
-                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/15"
                 aria-label={
                   badgeCount > 0
                     ? `${badgeCount} ${t("Notifications")}`
@@ -325,11 +325,11 @@ export function MemberMvpHome({
               />
             </div>
           </div>
-          <h1 className="mt-3 truncate text-[22px] font-medium leading-tight text-white">
+          <h1 className="mt-2 truncate text-center text-[22px] font-medium leading-tight text-white">
             {t("Hi")}, {firstName}
           </h1>
           {accessLabel ? (
-            <p className="mt-0.5 truncate text-[12px] font-medium text-white/85">
+            <p className="mt-0.5 truncate text-center text-[12px] font-medium text-white/85">
               {accessLabel}
             </p>
           ) : null}
@@ -337,7 +337,7 @@ export function MemberMvpHome({
       </div>
 
       {/* Search overlaps header */}
-      <div className="relative z-10 mx-auto -mt-5 max-w-lg px-4">
+      <div className="relative z-10 mx-auto -mt-4 max-w-lg px-4">
         <MemberMvpHomeSearch communityId={communityId} />
       </div>
 
