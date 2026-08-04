@@ -18,12 +18,6 @@ const SOCIAL_EMAIL = `social.committee@${DOMAIN}`;
 
 const DEMO_USERS = [
   {
-    id: "u-or-member",
-    email: `member.demo@${DOMAIN}`,
-    role: "member",
-    name: "Jordan Hale",
-  },
-  {
     id: "u-or-board",
     email: `board.demo@${DOMAIN}`,
     role: "board",
@@ -301,12 +295,20 @@ export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
   });
   console.log("[oceanside] removed legacy partner login (self-enroll)");
 
-  for (const profile of [
-    {
-      email: `member.demo@${DOMAIN}`,
-      unit: "402",
-      householdAddress: `${OCEANSIDE_CONTACT.address} #402`,
+  // Remove retired seed resident (live Oceanside uses self-enroll only).
+  await prisma.memberProfileExt.deleteMany({
+    where: { userEmail: `member.demo@${DOMAIN}` },
+  });
+  await prisma.user.deleteMany({
+    where: {
+      OR: [
+        { email: `member.demo@${DOMAIN}` },
+        { id: "u-or-member" },
+      ],
     },
+  });
+
+  for (const profile of [
     ...OCEANSIDE_MESSAGE_CONTACTS.map((c) => ({
       email: c.email,
       unit: "Mgmt",

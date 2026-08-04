@@ -447,8 +447,8 @@ export const OCEANSIDE_RESIDENTS_TENANT: DemoTenant = {
   brandName: "The Plaza at Oceanside",
   productName: "The Plaza at Oceanside",
   communityName: "The Plaza at Oceanside",
-  /** Demo resident — partners self-enroll at go-live (no seeded personal logins). */
-  defaultLoginEmail: "member.demo@oceansideresidents.com",
+  /** Residents self-enroll — staff use board/pm/admin demos when needed. */
+  defaultLoginEmail: "pm.demo@oceansideresidents.com",
   // Wordmark for UI; square favicon for the browser tab (wide PNG is ignored by Chrome → Vercel triangle).
   logoSrc: "/brand/community-oceanside.png",
   faviconSrc: "/brand/favicon-oceanside.png",
@@ -733,11 +733,6 @@ export function demoLoginsForTenant(
       ];
     case "oceansideresidents":
       return [
-        {
-          role: "Member",
-          email: "member.demo@oceansideresidents.com",
-          password: DEMO_PASSWORD,
-        },
         {
           role: "Board",
           email: "board.demo@oceansideresidents.com",
