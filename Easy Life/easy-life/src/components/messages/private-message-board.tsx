@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ImagePlus, Paperclip } from "lucide-react";
+import {
+  ChatComposer,
+  ChatThreadScroll,
+} from "@/components/messages/chat-composer";
 import { ContentHeader, PageBody, PortalPageIntro } from "@/components/layout/content-header";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/page-header";
@@ -16,7 +20,22 @@ interface Message {
   time: string;
 }
 
-/** Board / PM private channel — MVP bubble layout (no PortalPageHero). */
+function setNativeChromeless(chromeless: boolean) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("member:chromeless", { detail: { chromeless } }),
+  );
+  const rn = (
+    window as Window & {
+      ReactNativeWebView?: { postMessage: (msg: string) => void };
+    }
+  ).ReactNativeWebView;
+  rn?.postMessage(
+    JSON.stringify({ type: "plaza-chromeless", chromeless }),
+  );
+}
+
+/** Board / PM private channel — iMessage-style bubbles + blue up-arrow send. */
 export function PrivateMessageBoard({
   channel,
   title,
@@ -33,8 +52,6 @@ export function PrivateMessageBoard({
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch(`/api/messages?channel=${channel}`)
@@ -44,8 +61,9 @@ export function PrivateMessageBoard({
   }, [channel]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages.length]);
+    setNativeChromeless(true);
+    return () => setNativeChromeless(false);
+  }, []);
 
   async function sendBody(body: string) {
     const trimmed = body.trim();
@@ -66,11 +84,6 @@ export function PrivateMessageBoard({
     setDraft("");
   }
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    await sendBody(draft);
-  }
-
   function attach(kind: "file" | "image") {
     const body =
       kind === "file"
@@ -79,80 +92,73 @@ export function PrivateMessageBoard({
     void sendBody(body);
   }
 
-  return (
-    <div className="font-[family-name:var(--font-poppins)]">
-      <ContentHeader title={t(title)} right="avatar" avatarName={avatarName} />
-      <PageBody>
-        <PortalPageIntro
-          eyebrow={channel === "board" ? "Board workspace" : "Property manager workspace"}
-          title={title}
-          description={subtitle}
-        />
-        <div className="flex min-h-[60vh] flex-col overflow-hidden rounded-2xl border border-border-2 bg-white">
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
-            {messages.length === 0 ? (
-              <EmptyState
-                title={t("No messages yet.")}
-                description={t("Start a private thread with your board or property team.")}
-                className="border-0 bg-transparent"
-                action={
-                  <button
-                    type="button"
-                    onClick={() => inputRef.current?.focus()}
-                    className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
-                  >
-                    {t("Start conversation")}
-                  </button>
-                }
-              />
-            ) : (
-              messages.map((m) => {
-                const isMine = m.author === avatarName;
-                return (
+  const thread = (
+    <>
+      <ChatThreadScroll scrollKey={`${channel}-${messages.length}`}>
+        {messages.length === 0 ? (
+          <EmptyState
+            title={t("No messages yet.")}
+            description={t("Start a private thread with your board or property team.")}
+            className="border-0 bg-transparent"
+          />
+        ) : (
+          messages.map((m) => {
+            const isMine = m.author === avatarName;
+            return (
+              <div
+                key={m.id}
+                className={cn("flex gap-2", isMine ? "flex-row-reverse" : "flex-row")}
+              >
+                {!isMine ? (
+                  <Avatar
+                    name={m.author}
+                    size="sm"
+                    className="mt-1 shrink-0 !bg-[#007aff]"
+                  />
+                ) : null}
+                <div
+                  className={cn(
+                    "flex max-w-[78%] flex-col",
+                    isMine ? "items-end" : "items-start",
+                  )}
+                >
+                  {!isMine ? (
+                    <span className="mb-1 px-1 text-[11px] text-[#8e8e93]">
+                      {m.author}
+                    </span>
+                  ) : null}
                   <div
-                    key={m.id}
-                    className={cn("flex gap-3", isMine ? "flex-row-reverse" : "flex-row")}
+                    className={cn(
+                      "rounded-[18px] px-3.5 py-2 text-[15px] leading-snug",
+                      isMine
+                        ? "rounded-br-[4px] bg-[#007aff] text-white"
+                        : "rounded-bl-[4px] bg-[#e9e9eb] text-black",
+                    )}
                   >
-                    <Avatar
-                      name={m.author}
-                      size="sm"
-                      className="shrink-0 !bg-[var(--mvp-blue)]"
-                    />
-                    <div className={cn("max-w-[75%]", isMine ? "items-end" : "items-start")}>
-                      <div
-                        className={cn(
-                          "mb-1 flex items-center gap-2 text-[12px] text-grey",
-                          isMine && "justify-end",
-                        )}
-                      >
-                        <span className="font-medium text-ink">{m.author}</span>
-                        <span>{formatDate(m.time)}</span>
-                      </div>
-                      <div
-                        className={cn(
-                          "rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                          isMine
-                            ? "rounded-br-md bg-[var(--mvp-blue)] text-white"
-                            : "rounded-bl-md bg-[#f2f2f7] text-black",
-                        )}
-                      >
-                        {m.body}
-                      </div>
-                    </div>
+                    {m.body}
                   </div>
-                );
-              })
-            )}
-          </div>
-          <form
-            onSubmit={send}
-            className="flex items-center gap-3 border-t border-border-2 px-5 py-4"
-          >
+                  <span className="mt-1 px-1 text-[10px] text-[#8e8e93]">
+                    {formatDate(m.time)}
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </ChatThreadScroll>
+      <ChatComposer
+        value={draft}
+        onChange={setDraft}
+        onSend={() => sendBody(draft)}
+        disabled={busy}
+        placeholder={t("Message")}
+        leading={
+          <>
             <button
               type="button"
               onClick={() => attach("file")}
               disabled={busy}
-              className="text-grey disabled:opacity-40"
+              className="rounded-full p-2"
               aria-label={t("Attach")}
             >
               <Paperclip className="h-5 w-5" />
@@ -161,28 +167,46 @@ export function PrivateMessageBoard({
               type="button"
               onClick={() => attach("image")}
               disabled={busy}
-              className="text-grey disabled:opacity-40"
+              className="rounded-full p-2"
               aria-label={t("Add photo")}
             >
               <ImagePlus className="h-5 w-5" />
             </button>
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t("Message")}
-              className="h-10 flex-1 rounded-full border border-border-2 px-4 text-sm placeholder:text-grey focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mvp-blue)]"
-            />
-            <button
-              type="submit"
-              disabled={busy || !draft.trim()}
-              className="h-10 rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white disabled:opacity-40"
-            >
-              {busy ? t("Sending…") : t("Send")}
-            </button>
-          </form>
+          </>
+        }
+      />
+    </>
+  );
+
+  return (
+    <div className="font-[family-name:var(--font-poppins)]">
+      {/* Mobile — full-screen iMessage layout */}
+      <div className="fixed inset-0 z-40 flex flex-col bg-[#f2f2f7] lg:hidden">
+        <div className="flex shrink-0 flex-col items-center border-b border-[#e5e5ea] bg-white/95 px-4 py-3 backdrop-blur">
+          <p className="text-[17px] font-semibold text-black">{t(title)}</p>
+          <p className="text-[11px] text-[#8e8e93]">{t(subtitle)}</p>
         </div>
-      </PageBody>
+        {thread}
+      </div>
+
+      {/* Desktop */}
+      <div className="hidden lg:block">
+        <ContentHeader title={t(title)} right="avatar" avatarName={avatarName} />
+        <PageBody>
+          <PortalPageIntro
+            eyebrow={
+              channel === "board"
+                ? "Board workspace"
+                : "Property manager workspace"
+            }
+            title={title}
+            description={subtitle}
+          />
+          <div className="flex min-h-[60vh] flex-col overflow-hidden rounded-2xl border border-border-2 bg-[#f2f2f7]">
+            {thread}
+          </div>
+        </PageBody>
+      </div>
     </div>
   );
 }

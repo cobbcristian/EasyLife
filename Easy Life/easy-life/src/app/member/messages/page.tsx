@@ -260,8 +260,20 @@ export default function MemberMessagesPage() {
         detail: { chromeless: mobileConversation && Boolean(activeId) },
       }),
     );
+    const rn = (
+      window as Window & {
+        ReactNativeWebView?: { postMessage: (msg: string) => void };
+      }
+    ).ReactNativeWebView;
+    rn?.postMessage(
+      JSON.stringify({
+        type: "plaza-chromeless",
+        chromeless: mobileConversation && Boolean(activeId),
+      }),
+    );
     return () => {
       window.dispatchEvent(new CustomEvent("member:chromeless", { detail: { chromeless: false } }));
+      rn?.postMessage(JSON.stringify({ type: "plaza-chromeless", chromeless: false }));
     };
   }, [mobileConversation, activeId]);
 

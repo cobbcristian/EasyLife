@@ -144,6 +144,18 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
       .catch(() => setMessages([]));
   }, [activeId]);
 
+  useEffect(() => {
+    const chromeless = Boolean(active && mobileConversation);
+    const rn = (
+      window as Window & {
+        ReactNativeWebView?: { postMessage: (msg: string) => void };
+      }
+    ).ReactNativeWebView;
+    rn?.postMessage(
+      JSON.stringify({ type: "plaza-chromeless", chromeless }),
+    );
+  }, [active, mobileConversation]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return threads.filter((th) => {
