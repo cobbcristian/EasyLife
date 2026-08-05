@@ -406,8 +406,21 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
       startTime: startPart,
       endTime: endPart ?? event.endTime ?? startPart,
     });
-    downloadIcs(`${event.title.replace(/\s+/g, "-").toLowerCase()}.ics`, ics);
-    toast({ variant: "success", title: t("Added to calendar") });
+    void downloadIcs(
+      `${event.title.replace(/\s+/g, "-").toLowerCase()}.ics`,
+      ics,
+    ).then((result) => {
+      toast({
+        variant: result.ok ? "success" : "warning",
+        title: result.ok
+          ? t("Added to calendar")
+          : t("Could not add to calendar"),
+        description:
+          result.method === "native" || result.method === "share"
+            ? t("Choose Calendar to save this booking.")
+            : undefined,
+      });
+    });
   }
 
   const monthLabel = monthCursor.toLocaleDateString("en-US", {

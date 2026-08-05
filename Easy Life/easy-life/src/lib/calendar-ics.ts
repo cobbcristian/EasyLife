@@ -75,16 +75,64 @@ export function buildIcsCalendar(input: {
   return `${lines.join("\r\n")}\r\n`;
 }
 
-export function downloadIcs(filename: string, ics: string) {
+export type DownloadIcsResult =
+  | { ok: true; method: "native" | "share" | "download" }
+  | { ok: false; method: "none" };
+
+/**
+ * Prefer sharing / native bridge over navigating to a blob URL.
+ * WKWebView often ignores `a.download` and traps users on raw ICS text.
+ */
+export async function downloadIcs(
+  filename: string,
+  ics: string,
+): Promise<DownloadIcsResult> {
+  const safeName = filename.endsWith(".ics") ? filename : `${filename}.ics`;
+  const rn = (
+    window as Window & {
+      ReactNativeWebView?: { postMessage: (msg: string) => void };
+    }
+  ).ReactNativeWebView;
+
+  if (rn?.postMessage) {
+    rn.postMessage(
+      JSON.stringify({
+        type: "plaza-ics",
+        filename: safeName,
+        ics,
+      }),
+    );
+    return { ok: true, method: "native" };
+  }
+
+  try {
+    const file = new File([ics], safeName, { type: "text/calendar" });
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({ files: [file] }) &&
+      typeof navigator.share === "function"
+    ) {
+      await navigator.share({ files: [file], title: safeName });
+      return { ok: true, method: "share" };
+    }
+  } catch {
+    /* fall through to anchor download */
+  }
+
   const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename.endsWith(".ics") ? filename : `${filename}.ics`;
+  a.download = safeName;
+  a.rel = "noopener";
+  // Keep navigation in place — never open blob as a top-level document.
+  a.target = "_self";
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return { ok: true, method: "download" };
 }
 
 export function calendarItemsFromAgenda(

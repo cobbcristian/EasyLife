@@ -484,11 +484,21 @@ export function MemberMvpBookings({
                                 startTime: b.startTime,
                                 endTime: b.endTime,
                               });
-                              downloadIcs(`${b.amenity}.ics`, ics);
-                              toast({
-                                variant: "success",
-                                title: t("Added to calendar"),
-                              });
+                              void downloadIcs(`${b.amenity}.ics`, ics).then(
+                                (result) => {
+                                  toast({
+                                    variant: result.ok ? "success" : "warning",
+                                    title: result.ok
+                                      ? t("Added to calendar")
+                                      : t("Could not add to calendar"),
+                                    description:
+                                      result.method === "native" ||
+                                      result.method === "share"
+                                        ? t("Choose Calendar to save this booking.")
+                                        : undefined,
+                                  });
+                                },
+                              );
                             }}
                             className="text-[12px] font-medium text-[var(--mvp-blue)]"
                           >
