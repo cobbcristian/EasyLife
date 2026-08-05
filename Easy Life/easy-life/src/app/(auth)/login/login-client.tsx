@@ -36,7 +36,6 @@ type LoginBranding = {
 const SUPER_ADMIN_EMAIL = "superadmin@gmail.com";
 
 function LoginForm({ branding }: { branding: LoginBranding | null }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
   const unlockedDefaultEmail = branding?.locked
