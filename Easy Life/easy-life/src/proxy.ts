@@ -4,6 +4,7 @@ import {
   homeForRole,
   verifySessionToken,
 } from "@/lib/server/auth";
+import { publicAbsoluteUrl, publicRequestOrigin } from "@/lib/server/app-url";
 import { canAccessPath, forbiddenRedirect } from "@/lib/server/permissions";
 import { isSessionBlockedByStaging } from "@/lib/server/staging";
 import {
@@ -242,7 +243,7 @@ export async function proxy(request: NextRequest) {
   const session = await verifySessionToken(token);
 
   if (!session) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = publicAbsoluteUrl(request, "/login");
     loginUrl.searchParams.set("redirect", pathname);
     const redirect = NextResponse.redirect(loginUrl);
     if (tenant) applyDemoTenantCookies(redirect, tenant);
@@ -251,7 +252,10 @@ export async function proxy(request: NextRequest) {
 
   if (session.role !== matched.role) {
     return NextResponse.redirect(
-      new URL(homeForRole(session.role, session.communityId), request.url),
+      publicAbsoluteUrl(
+        request,
+        homeForRole(session.role, session.communityId),
+      ),
     );
   }
 
@@ -263,13 +267,15 @@ export async function proxy(request: NextRequest) {
       (p) => pathname === p || pathname.startsWith(`${p}/`),
     );
     if (!ok) {
-      return NextResponse.redirect(new URL(stagingPath, request.url));
+      return NextResponse.redirect(publicAbsoluteUrl(request, stagingPath));
     }
   }
 
   const allowed = await canAccessPath(session, pathname);
   if (!allowed) {
-    return NextResponse.redirect(forbiddenRedirect(session.role, request.url));
+    return NextResponse.redirect(
+      forbiddenRedirect(session.role, publicRequestOrigin(request)),
+    );
   }
 
   const response = NextResponse.next();
