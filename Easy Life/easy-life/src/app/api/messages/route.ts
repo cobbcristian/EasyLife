@@ -62,6 +62,7 @@ export async function POST(request: Request) {
     communityId: session.communityId,
     channel,
     author: session.name,
+    authorEmail: session.email,
     body: body.body.trim(),
   });
   await logEvent({

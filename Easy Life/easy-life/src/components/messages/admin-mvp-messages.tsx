@@ -327,21 +327,23 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
 
         {active && mobileConversation ? (
           <div className="fixed inset-0 z-40 flex flex-col bg-[#f2f2f7] md:hidden">
-            <div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5ea] bg-white/95 px-3 py-3 backdrop-blur">
+            <div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5ea] bg-white/95 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
               <button
                 type="button"
                 onClick={() => setMobileConversation(false)}
                 className="rounded-lg p-1.5 text-ink"
                 aria-label={t("Back")}
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-6 w-6" />
               </button>
               <p className="min-w-0 flex-1 truncate text-center text-[17px] font-semibold text-black">
                 {active.title}
               </p>
-              <span className="w-8" aria-hidden />
+              <span className="w-9" aria-hidden />
             </div>
-            <ChatThreadScroll scrollKey={`${activeId}-${messages.length}`}>
+            <ChatThreadScroll
+              scrollKey={`${activeId}-${messages.length}-${messages.at(-1)?.id ?? ""}`}
+            >
               {messages.map((m) => {
                 const isMine =
                   !!profile.email &&

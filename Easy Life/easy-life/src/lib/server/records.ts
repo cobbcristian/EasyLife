@@ -3192,16 +3192,53 @@ export async function createPrivateMessage(input: {
   communityId?: string | null;
   channel: string;
   author: string;
+  authorEmail?: string;
   body: string;
 }) {
-  return prisma.privateMessage.create({
+  const communityId = scope(input.communityId);
+  const msg = await prisma.privateMessage.create({
     data: {
-      communityId: scope(input.communityId),
+      communityId,
       channel: input.channel,
       author: input.author,
       body: input.body,
     },
   });
+
+  // Auto-notify other staff on this private channel (push).
+  const roles =
+    input.channel === "pm"
+      ? (["pm", "board", "admin"] as const)
+      : (["board", "admin"] as const);
+  const authorEmail = input.authorEmail?.trim().toLowerCase() ?? "";
+  const peers = await prisma.user.findMany({
+    where: {
+      communityId,
+      status: "active",
+      role: { in: [...roles] },
+    },
+    select: { email: true, name: true },
+  });
+  const preview =
+    input.body.length > 120 ? `${input.body.slice(0, 117)}…` : input.body;
+  const url = input.channel === "pm" ? "/pm/messages" : "/board/messages";
+  await Promise.all(
+    peers
+      .filter((p) => {
+        const email = p.email.toLowerCase();
+        if (authorEmail) return email !== authorEmail;
+        return p.name !== input.author;
+      })
+      .map((p) =>
+        sendPushToUser(p.email, {
+          title: input.author,
+          body: preview,
+          url,
+        }).catch(() => 0),
+      ),
+  );
+
+  return msg;
 }
 
 /* ---------------- Community events & RSVP ---------------- */

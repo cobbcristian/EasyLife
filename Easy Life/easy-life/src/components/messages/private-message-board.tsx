@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ImagePlus, Paperclip } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeft, ImagePlus, Paperclip } from "lucide-react";
 import {
   ChatComposer,
   ChatThreadScroll,
@@ -52,18 +52,40 @@ export function PrivateMessageBoard({
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const backHref = channel === "board" ? "/board" : "/pm";
+
+  const loadMessages = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/messages?channel=${channel}`);
+      if (!res.ok) return;
+      const d = await res.json();
+      setMessages(d.messages ?? []);
+    } catch {
+      /* ignore */
+    }
+  }, [channel]);
 
   useEffect(() => {
-    fetch(`/api/messages?channel=${channel}`)
-      .then((r) => r.json())
-      .then((d) => setMessages(d.messages ?? []))
-      .catch(() => {});
-  }, [channel]);
+    void loadMessages();
+  }, [loadMessages]);
+
+  // Live refresh so new board / PM posts appear without a manual reload.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void loadMessages();
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [loadMessages]);
 
   useEffect(() => {
     setNativeChromeless(true);
     return () => setNativeChromeless(false);
   }, []);
+
+  function goBack() {
+    // Hard navigation — WebView history often has nothing useful behind this screen.
+    window.location.assign(backHref);
+  }
 
   async function sendBody(body: string) {
     const trimmed = body.trim();
@@ -80,7 +102,10 @@ export function PrivateMessageBoard({
       return;
     }
     const data = await res.json();
-    setMessages((prev) => [...prev, data.message]);
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === data.message.id)) return prev;
+      return [...prev, data.message];
+    });
     setDraft("");
   }
 
@@ -94,7 +119,7 @@ export function PrivateMessageBoard({
 
   const thread = (
     <>
-      <ChatThreadScroll scrollKey={`${channel}-${messages.length}`}>
+      <ChatThreadScroll scrollKey={`${channel}-${messages.length}-${messages.at(-1)?.id ?? ""}`}>
         {messages.length === 0 ? (
           <EmptyState
             title={t("No messages yet.")}
@@ -182,9 +207,22 @@ export function PrivateMessageBoard({
     <div className="font-[family-name:var(--font-poppins)]">
       {/* Mobile — full-screen iMessage layout */}
       <div className="fixed inset-0 z-40 flex flex-col bg-[#f2f2f7] lg:hidden">
-        <div className="flex shrink-0 flex-col items-center border-b border-[#e5e5ea] bg-white/95 px-4 py-3 backdrop-blur">
-          <p className="text-[17px] font-semibold text-black">{t(title)}</p>
-          <p className="text-[11px] text-[#8e8e93]">{t(subtitle)}</p>
+        <div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5ea] bg-white/95 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
+          <button
+            type="button"
+            onClick={goBack}
+            className="rounded-lg p-1.5 text-black"
+            aria-label={t("Back")}
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="truncate text-[17px] font-semibold text-black">
+              {t(title)}
+            </p>
+            <p className="truncate text-[11px] text-[#8e8e93]">{t(subtitle)}</p>
+          </div>
+          <span className="w-9" aria-hidden />
         </div>
         {thread}
       </div>

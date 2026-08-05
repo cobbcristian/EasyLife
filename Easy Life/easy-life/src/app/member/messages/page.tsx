@@ -243,14 +243,19 @@ export default function MemberMessagesPage() {
   useEffect(() => {
     if (!activeId) return;
     let on = true;
-    fetch(`/api/messages/threads/${activeId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (on) setMessages(d.messages ?? []);
-      })
-      .catch(() => on && setMessages([]));
+    const load = () => {
+      fetch(`/api/messages/threads/${activeId}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (on) setMessages(d.messages ?? []);
+        })
+        .catch(() => on && setMessages([]));
+    };
+    load();
+    const timer = window.setInterval(load, 4000);
     return () => {
       on = false;
+      window.clearInterval(timer);
     };
   }, [activeId]);
 
@@ -394,21 +399,23 @@ export default function MemberMessagesPage() {
       {/* Mobile conversation — Figma full-screen chat */}
       {active && mobileConversation ? (
         <div className="fixed inset-0 z-40 mx-auto flex max-w-lg flex-col bg-[#f2f2f7] lg:hidden">
-          <div className="flex shrink-0 items-center gap-3 border-b border-[#e5e5ea] bg-white/95 px-4 py-3 backdrop-blur">
+          <div className="flex shrink-0 items-center gap-3 border-b border-[#e5e5ea] bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
             <button
               type="button"
               onClick={closeConversation}
               className="rounded-lg p-1.5 text-black hover:bg-slate-100"
               aria-label={t("Back")}
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-6 w-6" />
             </button>
-            <h1 className="min-w-0 flex-1 truncate text-center text-base font-semibold text-black">
+            <h1 className="min-w-0 flex-1 truncate text-center text-[17px] font-semibold text-black">
               {active.title}
             </h1>
-            <span className="w-8" />
+            <span className="w-9" />
           </div>
-          <ChatThreadScroll scrollKey={`${activeId}-${messages.length}`}>
+          <ChatThreadScroll
+            scrollKey={`${activeId}-${messages.length}-${messages.at(-1)?.id ?? ""}`}
+          >
             {messages.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-[#8e8e93]">
                 {t("Conversation")}

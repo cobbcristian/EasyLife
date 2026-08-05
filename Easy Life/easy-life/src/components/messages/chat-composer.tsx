@@ -9,7 +9,12 @@ import {
 import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Bottom-anchored message column — short threads sit above the composer; long ones scroll. */
+/**
+ * iMessage-style thread column:
+ * - Short threads stick to the bottom (above the composer)
+ * - Overflow scrolls normally (top → older)
+ * - New messages pin the viewport to the latest bubble
+ */
 export function ChatThreadScroll({
   children,
   scrollKey,
@@ -21,10 +26,13 @@ export function ChatThreadScroll({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Prefer scrollIntoView so iOS WKWebView keeps the latest bubble visible.
+    endRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
     el.scrollTop = el.scrollHeight;
   }, [scrollKey]);
 
@@ -36,8 +44,12 @@ export function ChatThreadScroll({
         className,
       )}
     >
-      <div className="flex min-h-full flex-col justify-end gap-3 px-4 py-3">
-        {children}
+      {/* spacer + mt-auto: short threads sit at the bottom without breaking scroll */}
+      <div className="flex min-h-full flex-col">
+        <div className="mt-auto flex flex-col gap-3 px-4 py-3">
+          {children}
+          <div ref={endRef} aria-hidden className="h-px w-full shrink-0" />
+        </div>
       </div>
     </div>
   );
