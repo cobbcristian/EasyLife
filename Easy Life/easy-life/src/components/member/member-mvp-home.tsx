@@ -343,7 +343,7 @@ export function MemberMvpHome({
 
       <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-5 md:pb-10">
         <section className="grid grid-cols-2 gap-3">
-          <Link
+          <a
             href="/member/bookings"
             className="rounded-xl bg-[var(--mvp-blue)] p-4 text-white"
           >
@@ -351,8 +351,8 @@ export function MemberMvpHome({
             <p className="mt-1 text-[12px] text-white/90">
               {t(bookSubtitle)}
             </p>
-          </Link>
-          <Link
+          </a>
+          <a
             href="/member/payments"
             className="rounded-xl border border-[#eceff3] bg-white p-4"
           >
@@ -360,8 +360,8 @@ export function MemberMvpHome({
             <p className="mt-1 text-[12px] text-grey">
               {t("Dues and statements")}
             </p>
-          </Link>
-          <Link
+          </a>
+          <a
             href="/member/messages"
             className="rounded-xl border border-[#eceff3] bg-white p-4"
           >
@@ -369,9 +369,9 @@ export function MemberMvpHome({
             <p className="mt-1 text-[12px] text-grey">
               {t("Neighbors and staff")}
             </p>
-          </Link>
+          </a>
           {hasClubDining ? (
-            <Link
+            <a
               href="/member/dining"
               className="rounded-xl border border-[#eceff3] bg-white p-4"
             >
@@ -379,9 +379,9 @@ export function MemberMvpHome({
               <p className="mt-1 text-[12px] text-grey">
                 {t("Menus and reservations")}
               </p>
-            </Link>
+            </a>
           ) : (
-            <Link
+            <a
               href="/member/amenities"
               className="rounded-xl border border-[#eceff3] bg-white p-4"
             >
@@ -389,7 +389,7 @@ export function MemberMvpHome({
               <p className="mt-1 text-[12px] text-grey">
                 {t("Pool, courts, and more")}
               </p>
-            </Link>
+            </a>
           )}
         </section>
 
