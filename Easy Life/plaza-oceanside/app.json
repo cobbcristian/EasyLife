@@ -92,14 +92,6 @@
       "expo-secure-store",
       "expo-web-browser",
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#002856",
-          "defaultChannel": "default"
-        }
-      ],
-      [
         "expo-splash-screen",
         {
           "backgroundColor": "#002856",
