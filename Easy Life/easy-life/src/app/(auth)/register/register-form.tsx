@@ -10,6 +10,11 @@ import { Logo } from "@/components/ui/logo";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useI18n } from "@/lib/i18n";
 import { brandAssets } from "@/lib/brand-assets";
+import {
+  emailPolicyIssues,
+  emailPolicyMessage,
+  isRealSignupEmail,
+} from "@/lib/email-policy";
 
 type PublicCommunity = { id: string; name: string; location: string };
 type RegisterMode = "setup" | "join";
@@ -57,6 +62,10 @@ export function RegisterForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!isRealSignupEmail(form.email)) {
+      setError(emailPolicyMessage(emailPolicyIssues(form.email)));
+      return;
+    }
     setLoading(true);
     try {
       const payload =

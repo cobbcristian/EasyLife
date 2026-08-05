@@ -3,6 +3,12 @@ import { createSessionToken } from "@/lib/server/auth";
 import { createUser, registerMember } from "@/lib/server/db";
 import { upsertProviderSubscription } from "@/lib/server/provider-subscriptions";
 import { clientIp, rateLimit } from "@/lib/server/rate-limit";
+import {
+  emailPolicyIssues,
+  emailPolicyMessage,
+  isRealSignupEmail,
+  normalizeSignupEmail,
+} from "@/lib/email-policy";
 import type { AuthRole } from "@/lib/types";
 import type { ProviderPlanId } from "@/lib/provider-plans";
 
@@ -31,10 +37,17 @@ export async function POST(request: Request) {
   }
 
   const name = body.name?.trim();
-  const { email, password } = body;
+  const email = body.email ? normalizeSignupEmail(body.email) : "";
+  const { password } = body;
   if (!email || !password || !name) {
     return NextResponse.json(
       { error: "Name, email, and password are required" },
+      { status: 400 },
+    );
+  }
+  if (!isRealSignupEmail(email)) {
+    return NextResponse.json(
+      { error: emailPolicyMessage(emailPolicyIssues(email)) },
       { status: 400 },
     );
   }

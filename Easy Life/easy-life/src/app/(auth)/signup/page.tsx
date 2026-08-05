@@ -7,6 +7,11 @@ import { Check, ChevronDown, Eye, MapPin } from "lucide-react";
 import { LoginHero } from "@/components/auth/login-hero";
 import { Logo } from "@/components/ui/logo";
 import { PROVIDER_PLANS, type ProviderPlanId } from "@/lib/provider-plans";
+import {
+  emailPolicyIssues,
+  emailPolicyMessage,
+  isRealSignupEmail,
+} from "@/lib/email-policy";
 
 const fieldClass =
   "h-[57px] w-full rounded-lg border border-border-2 bg-white px-4 text-[15px] text-ink placeholder:text-grey focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mvp-blue)]";
@@ -45,7 +50,7 @@ export default function SignUpPage() {
 
   const starterPlan = PROVIDER_PLANS.starter;
   const step1Valid =
-    email.includes("@") &&
+    isRealSignupEmail(email) &&
     password.length >= 6 &&
     /[0-9]/.test(password) &&
     /[^A-Za-z0-9]/.test(password) &&
@@ -56,7 +61,7 @@ export default function SignUpPage() {
     bizType &&
     address.trim().length > 0 &&
     phone.trim().length > 0 &&
-    contactEmail.includes("@");
+    isRealSignupEmail(contactEmail);
 
   async function startSubscriptionCheckout() {
     try {
@@ -82,6 +87,10 @@ export default function SignUpPage() {
 
   async function handleProviderSignup() {
     setError(null);
+    if (!isRealSignupEmail(email)) {
+      setError(emailPolicyMessage(emailPolicyIssues(email)));
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/register", {

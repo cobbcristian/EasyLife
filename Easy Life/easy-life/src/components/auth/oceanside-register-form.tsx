@@ -9,6 +9,11 @@ import {
   passwordPolicyIssues,
   passwordPolicyMessages,
 } from "@/lib/password-policy";
+import {
+  emailPolicyIssues,
+  emailPolicyMessage,
+  isRealSignupEmail,
+} from "@/lib/email-policy";
 
 const fieldClass =
   "h-[48px] w-full rounded-md border border-[#c8c8c8] bg-white px-4 text-[15px] text-[#222] placeholder:text-[#9a9a9a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c3a4a]/30";
@@ -61,6 +66,10 @@ export function OceansideRegisterForm({
     setSubmitted(true);
     setError(null);
 
+    if (!isRealSignupEmail(email)) {
+      setError(emailPolicyMessage(emailPolicyIssues(email)));
+      return;
+    }
     if (!isPasswordStrongEnough(password) || password !== confirm) {
       return;
     }

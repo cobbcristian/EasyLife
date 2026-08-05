@@ -14,6 +14,12 @@ import {
   passwordPolicyMessages,
   passwordPolicyIssues,
 } from "@/lib/password-policy";
+import {
+  emailPolicyIssues,
+  emailPolicyMessage,
+  isRealSignupEmail,
+  normalizeSignupEmail,
+} from "@/lib/email-policy";
 import type { AuthRole } from "@/lib/types";
 import type { ProviderPlanId } from "@/lib/provider-plans";
 
@@ -51,13 +57,21 @@ export async function POST(request: Request) {
   const name =
     body.name?.trim() ||
     `${body.firstName ?? ""} ${body.lastName ?? ""}`.trim();
-  const { email, password } = body;
+  const email = body.email ? normalizeSignupEmail(body.email) : "";
+  const { password } = body;
   const mode =
     body.mode ?? (body.role === "provider" ? "provider" : "setup");
 
   if (!email || !password || !name) {
     return NextResponse.json(
       { error: "Name, email, and password are required" },
+      { status: 400 },
+    );
+  }
+
+  if (!isRealSignupEmail(email)) {
+    return NextResponse.json(
+      { error: emailPolicyMessage(emailPolicyIssues(email)) },
       { status: 400 },
     );
   }
