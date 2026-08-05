@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -32,6 +32,14 @@ interface PortalShellProps {
   children: React.ReactNode;
 }
 
+function useNativeAppShell(): boolean {
+  const [native, setNative] = useState(false);
+  useEffect(() => {
+    setNative(/PlazaOceansideApp/i.test(navigator.userAgent));
+  }, []);
+  return native;
+}
+
 export function PortalShell({
   navItems,
   homeHref,
@@ -44,6 +52,7 @@ export function PortalShell({
   const pathname = usePathname();
   const { t } = useI18n();
   const profile = useSessionProfile();
+  const nativeApp = useNativeAppShell();
   const avatarName = profile.name && profile.name !== "Member" ? profile.name : avatarNameProp;
   const productName =
     profile.appDisplayName?.trim() ||
@@ -62,6 +71,14 @@ export function PortalShell({
     );
     return match?.label ?? portalLabel;
   }, [navItems, homeHref, pathname, portalLabel]);
+
+  const navClass = (isActive: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-full px-3 py-2.5 text-[15px] font-medium transition-colors",
+      isActive
+        ? "bg-[var(--mvp-blue)] text-white shadow-sm"
+        : "text-ink hover:bg-white/70",
+    );
 
   return (
     <div className="flex min-h-screen bg-white font-[family-name:var(--font-poppins)]">
@@ -126,20 +143,27 @@ export function PortalShell({
                   : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-3 rounded-full px-3 py-2.5 text-[15px] font-medium transition-colors",
-                      isActive
-                        ? "bg-[var(--mvp-blue)] text-white shadow-sm"
-                        : "text-ink hover:bg-white/70",
-                    )}
-                  >
-                    <NavIcon name={item.icon} active={isActive} />
-                    {t(item.label)}
-                  </Link>
+                  {nativeApp ? (
+                    <a
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={navClass(isActive)}
+                    >
+                      <NavIcon name={item.icon} active={isActive} />
+                      {t(item.label)}
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={navClass(isActive)}
+                    >
+                      <NavIcon name={item.icon} active={isActive} />
+                      {t(item.label)}
+                    </Link>
+                  )}
                 </li>
               );
             })}
