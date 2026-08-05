@@ -33,7 +33,8 @@ export async function createPendingResident(input: {
     return { error: "An account with this email already exists" };
   }
 
-  const directoryVisible = Boolean(input.directoryVisible);
+  // Default on when omitted; only an explicit false opts out of the peer directory.
+  const directoryVisible = input.directoryVisible !== false;
 
   const user = await prisma.user.create({
     data: {
@@ -125,30 +126,25 @@ export async function approvePendingMember(opts: {
     data: { status: "active" },
   });
 
-  const existingProfile = await prisma.memberProfileExt.findUnique({
-    where: { userEmail: user.email },
-  });
-  const directoryVisible = existingProfile?.directoryVisible ?? true;
-
   const hoaTier = communityIsResidentialHoa(user.communityId)
     ? "hoa"
     : "social";
 
+  // Approval makes them reachable: staff messaging + peer directory.
   const profile = await prisma.memberProfileExt.upsert({
     where: { userEmail: user.email },
     create: {
       userEmail: user.email,
       residencyStatus: "resident",
       paysHoa: true,
-      directoryVisible,
+      directoryVisible: true,
       membershipTier: hoaTier,
     },
     update: {
       residencyStatus: "resident",
       paysHoa: true,
       membershipTier: hoaTier,
-      // Keep the preference they chose at signup.
-      directoryVisible,
+      directoryVisible: true,
     },
   });
 

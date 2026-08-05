@@ -3496,10 +3496,8 @@ export async function listResidentDirectory(communityId?: string | null) {
     if (!user && linkedUser?.role === "member") {
       return null;
     }
-    const visible =
-      user?.role === "member"
-        ? Boolean(profile?.directoryVisible)
-        : (profile?.directoryVisible ?? true);
+    // Missing profile defaults to visible; only an explicit false hides from peers.
+    const visible = profile?.directoryVisible ?? true;
     return {
       id: member.id,
       name: member.name,
@@ -3512,7 +3510,7 @@ export async function listResidentDirectory(communityId?: string | null) {
   }).filter((row): row is NonNullable<typeof row> => row != null);
   for (const u of activeUsers) {
     if (u.role === "member" && u.status === "pending") continue;
-    if (!rows.some((r) => r.name === u.name)) {
+    if (!rows.some((r) => r.email && r.email === u.email) && !rows.some((r) => r.name === u.name)) {
       const profile = profilesByEmail.get(u.email);
       const isStaff =
         u.role === "admin" || u.role === "pm" || u.role === "board";
@@ -3521,35 +3519,83 @@ export async function listResidentDirectory(communityId?: string | null) {
         name: u.name,
         role: u.role === "member" ? "Member" : u.role,
         unit: profile?.unit ?? "—",
-        visible:
-          u.role === "member"
-            ? Boolean(profile?.directoryVisible)
-            : (profile?.directoryVisible ?? true),
+        visible: profile?.directoryVisible ?? true,
         email: u.email,
         isManagement: isStaff,
       });
     }
   }
-  // Pin HOA message hubs in a fixed order for Oceanside compose.
-  if (cid === "oceanside-residents") {
-    const hubOrder = [
-      "admin.demo@oceansideresidents.com",
-      "pm.demo@oceansideresidents.com",
-      "social.committee@oceansideresidents.com",
-      "board.demo@oceansideresidents.com",
-    ];
-    const rank = new Map<string, number>(hubOrder.map((email, i) => [email, i]));
-    rows.sort((a, b) => {
-      const ar = rank.get(a.email.toLowerCase());
-      const br = rank.get(b.email.toLowerCase());
-      if (ar != null && br != null) return ar - br;
-      if (ar != null) return -1;
-      if (br != null) return 1;
-      if (a.isManagement !== b.isManagement) return a.isManagement ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-  }
+  sortOceansideMessageHubs(cid, rows);
   return rows;
+}
+
+const OCEANSIDE_MESSAGE_HUB_ORDER = [
+  "admin.demo@oceansideresidents.com",
+  "pm.demo@oceansideresidents.com",
+  "social.committee@oceansideresidents.com",
+  "board.demo@oceansideresidents.com",
+] as const;
+
+function sortOceansideMessageHubs<
+  T extends { email: string; name: string; isManagement?: boolean },
+>(communityId: string, rows: T[]) {
+  if (communityId !== "oceanside-residents") return rows;
+  const rank = new Map<string, number>(
+    OCEANSIDE_MESSAGE_HUB_ORDER.map((email, i) => [email, i]),
+  );
+  rows.sort((a, b) => {
+    const ar = rank.get(a.email.toLowerCase());
+    const br = rank.get(b.email.toLowerCase());
+    if (ar != null && br != null) return ar - br;
+    if (ar != null) return -1;
+    if (br != null) return 1;
+    if (Boolean(a.isManagement) !== Boolean(b.isManagement)) {
+      return a.isManagement ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
+  return rows;
+}
+
+/**
+ * Staff Help Desk compose — every active account with an email (ignores
+ * member directory opt-out; PM/board/admin must be able to message residents).
+ */
+export async function listStaffMessageRecipients(communityId?: string | null) {
+  const cid = scope(communityId);
+  const users = await prisma.user.findMany({
+    where: { communityId: cid },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+    },
+  });
+
+  const rows = users
+    .filter((u) => {
+      const status = u.status ?? "active";
+      if (status === "frozen") return false;
+      if (u.role === "member" && status !== "active") return false;
+      return Boolean(u.email);
+    })
+    .map((u) => {
+      const isStaff =
+        u.role === "admin" || u.role === "pm" || u.role === "board";
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role === "member" ? "Member" : u.role,
+        visible: true,
+        isManagement: isStaff,
+      };
+    });
+
+  return sortOceansideMessageHubs(cid, rows);
 }
 
 /** Member Vendors directory: club services + lesson pros — not Local Pros or club dining. */

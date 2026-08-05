@@ -122,12 +122,13 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
 
   useEffect(() => {
     void loadThreads();
-    fetch("/api/directory")
+    // Staff compose uses full recipient list (not public directory opt-out).
+    fetch("/api/messages/recipients")
       .then((r) => r.json())
       .then((d) => {
         setDirectory(
-          ((d.directory ?? []) as DirectoryEntry[]).filter(
-            (entry) => entry.visible !== false && Boolean(entry.email),
+          ((d.directory ?? []) as DirectoryEntry[]).filter((entry) =>
+            Boolean(entry.email),
           ),
         );
       })
@@ -169,13 +170,13 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
     const q = memberQuery.trim().toLowerCase();
     const self = (profile.email ?? "").toLowerCase();
     const base = directory.filter((d) => d.email.toLowerCase() !== self);
-    if (!q) return base.slice(0, 8);
+    if (!q) return base.slice(0, 20);
     return base
       .filter(
         (d) =>
           d.name.toLowerCase().includes(q) || d.email.toLowerCase().includes(q),
       )
-      .slice(0, 12);
+      .slice(0, 30);
   }, [directory, memberQuery, profile.email]);
 
   const dayLabel = messages[0]?.createdAt ? formatDayLabel(messages[0].createdAt) : "";
