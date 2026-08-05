@@ -247,15 +247,25 @@ export function MemberMvpHome({
     .filter((tile) => {
       if (!showHoa && tile.key === "hoa") return false;
       if (!hasClubDining && tile.key === "food") return false;
+      // Club vendors / Local Pros: hide Services when neither marketplace is on.
+      // Condo HOAs still get Services → maintenance / service requests.
       if (
-        (!hasLocalPros || !hasVendors) &&
-        tile.key === "services"
+        tile.key === "services" &&
+        !isResidentialHoa &&
+        !hasLocalPros &&
+        !hasVendors
       ) {
         return false;
       }
       return true;
     })
     .map((tile) => {
+      if (tile.key === "services" && isResidentialHoa) {
+        return {
+          ...tile,
+          href: "/member/service-requests",
+        };
+      }
       if (tile.key === "hoa" && isResidentialHoa) {
         return {
           ...tile,
