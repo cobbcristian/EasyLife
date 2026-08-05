@@ -396,8 +396,43 @@ export function MemberMvpHome({
 
         {/* Categories — size so ~3 tiles + HOA peek (scroll cue) */}
         <section>
-          <h2 className="mb-3 text-[21px] font-medium text-black">{t("Categories")}</h2>
-          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-none">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-[21px] font-medium text-black">{t("Categories")}</h2>
+            {categoryTiles.length >= 3 ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-ink shadow-sm active:bg-[#f3f4f6]"
+                  aria-label={t("Previous")}
+                  onClick={() => {
+                    categoryScrollerRef.current?.scrollBy({
+                      left: -150,
+                      behavior: "smooth",
+                    });
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-ink shadow-sm active:bg-[#f3f4f6]"
+                  aria-label={t("Next")}
+                  onClick={() => {
+                    categoryScrollerRef.current?.scrollBy({
+                      left: 150,
+                      behavior: "smooth",
+                    });
+                  }}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div
+            ref={categoryScrollerRef}
+            className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-none"
+          >
             {categoryTiles.map((tile) => (
               <Link
                 key={tile.key}
