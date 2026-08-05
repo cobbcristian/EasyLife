@@ -96,6 +96,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const dynamic = "force-dynamic";
 
+/** Prefer resizing layout when the soft keyboard opens (mobile WebView signup). */
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+  interactiveWidget: "resizes-content" as const,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

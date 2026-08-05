@@ -14,12 +14,13 @@ import {
   emailPolicyMessage,
   isRealSignupEmail,
 } from "@/lib/email-policy";
+import { scrollFieldIntoView } from "@/lib/scroll-field-into-view";
 
 const fieldClass =
-  "h-[48px] w-full rounded-md border border-[#c8c8c8] bg-white px-4 text-[15px] text-[#222] placeholder:text-[#9a9a9a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c3a4a]/30";
+  "h-10 w-full rounded-md border border-[#c8c8c8] bg-white px-3 text-[16px] text-[#222] placeholder:text-[#9a9a9a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1c3a4a]/30";
 
 const btnClass =
-  "mt-2 flex h-[48px] w-full items-center justify-center rounded-md bg-[#1c3a4a] text-[15px] font-semibold text-white transition hover:bg-[#152c38] disabled:opacity-60";
+  "flex h-10 w-full items-center justify-center rounded-md bg-[#1c3a4a] text-[15px] font-semibold text-white transition hover:bg-[#152c38] disabled:opacity-60";
 
 export type OceansideRegisterBranding = {
   productName: string;
@@ -109,44 +110,53 @@ export function OceansideRegisterForm({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f2f2f2] font-[family-name:var(--font-poppins)]">
-      <header className="flex h-[72px] items-center bg-white px-6 shadow-sm sm:px-10">
+    <div className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#f2f2f2] font-[family-name:var(--font-poppins)]">
+      <header className="flex h-11 shrink-0 items-center bg-white px-4 shadow-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={branding.logoSrc}
           alt={branding.productName}
-          className="h-11 w-auto max-w-[220px] object-contain"
+          className="h-7 w-auto max-w-[160px] object-contain"
         />
       </header>
 
-      <main className="flex flex-1 justify-center px-4 py-10 sm:py-14">
-        <div className="w-full max-w-[520px] rounded-lg bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-10">
-          <h1 className="text-[28px] font-bold tracking-tight text-[#1a1a1a]">
+      {/* All data entry stays in the top ~60% so the soft keyboard never covers fields. */}
+      <main className="mx-auto flex w-full max-w-[520px] flex-1 flex-col px-3 pt-2 pb-2">
+        <div className="flex max-h-[60dvh] flex-col overflow-hidden rounded-lg bg-white px-3 py-2.5 shadow-sm">
+          <h1 className="shrink-0 text-[18px] font-bold tracking-tight text-[#1a1a1a]">
             Register
           </h1>
 
-          <form className="mt-7 space-y-4" onSubmit={handleSubmit} noValidate>
+          <form
+            className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+            onSubmit={handleSubmit}
+            noValidate
+          >
             {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-[12px] text-red-700">
                 {error}
               </div>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               <input
                 className={fieldClass}
-                placeholder="First Name..."
+                placeholder="First name"
                 autoComplete="given-name"
+                enterKeyHint="next"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
+                onFocus={scrollFieldIntoView}
                 required
               />
               <input
                 className={fieldClass}
-                placeholder="Last Name..."
+                placeholder="Last name"
                 autoComplete="family-name"
+                enterKeyHint="next"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                onFocus={scrollFieldIntoView}
                 required
               />
             </div>
@@ -154,42 +164,49 @@ export function OceansideRegisterForm({
             <input
               className={fieldClass}
               type="email"
-              placeholder="Email..."
+              placeholder="Email"
               autoComplete="email"
+              inputMode="email"
+              enterKeyHint="next"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={scrollFieldIntoView}
               required
             />
 
             {showComplexity ? (
-              <p className="text-[13px] leading-snug text-[#c62828]">
+              <p className="text-[12px] leading-snug text-[#c62828]">
                 {complexityMessages.join(" ")}
               </p>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               <input
                 className={fieldClass}
                 type="password"
-                placeholder="Your password.."
+                placeholder="Password"
                 autoComplete="new-password"
+                enterKeyHint="next"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onFocus={scrollFieldIntoView}
                 required
               />
               <div>
                 <input
                   className={fieldClass}
                   type="password"
-                  placeholder="Confirm password.."
+                  placeholder="Confirm"
                   autoComplete="new-password"
+                  enterKeyHint="next"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
+                  onFocus={scrollFieldIntoView}
                   required
                 />
                 {showMismatch ? (
-                  <p className="mt-1.5 text-[13px] text-[#c62828]">
-                    The password and confirmation password do not match.
+                  <p className="mt-1 text-[11px] text-[#c62828]">
+                    Passwords do not match.
                   </p>
                 ) : null}
               </div>
@@ -197,31 +214,34 @@ export function OceansideRegisterForm({
 
             <input
               className={fieldClass}
-              placeholder="Unit number..."
+              placeholder="Unit number"
               autoComplete="off"
+              enterKeyHint="done"
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
+              onFocus={scrollFieldIntoView}
               required
             />
 
-            <label className="flex items-center gap-2.5 pt-1 text-[14px] text-[#333]">
+            <label className="flex items-center gap-2 py-0.5 text-[13px] text-[#333]">
               <input
                 type="checkbox"
                 checked={showInDirectory}
                 onChange={(e) => setShowInDirectory(e.target.checked)}
                 className="h-4 w-4 rounded border-[#999] accent-[#1c3a4a]"
               />
-              Show Profile in residents Directory.
+              Show in residents directory
             </label>
 
             <button type="submit" className={btnClass} disabled={loading}>
               {loading ? "Signing up…" : "Sign Up"}
             </button>
           </form>
+        </div>
 
-          <SsoButtons className="mt-2" />
-
-          <p className="mt-6 text-center text-sm text-[#666]">
+        <div className="mt-2 shrink-0 space-y-2 px-1">
+          <SsoButtons className="mt-0" />
+          <p className="text-center text-[13px] text-[#666]">
             Already have an account?{" "}
             <Link
               href="/login"
