@@ -183,12 +183,14 @@ export default function MemberMessagesPage() {
         if (!on) return;
         setThreads(list);
 
-        const dirRes = await fetch("/api/directory");
-        const dirData = dirRes.ok ? await dirRes.json() : { directory: [] };
+        const dirRes = await fetch("/api/messages/recipients");
+        const dirData = dirRes.ok
+          ? await dirRes.json()
+          : await fetch("/api/directory").then((r) => (r.ok ? r.json() : { directory: [] }));
         if (!on) return;
         setDirectory(
           (dirData.directory ?? []).filter(
-            (d: DirectoryEntry) => d.visible && d.email && d.email !== profile.email,
+            (d: DirectoryEntry) => Boolean(d.email) && d.email !== profile.email,
           ),
         );
 

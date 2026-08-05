@@ -9,7 +9,7 @@ import {
 } from "@/components/layout/user-avatar-menu";
 import { Logo } from "@/components/ui/logo";
 import { MemberSidebar } from "@/components/layout/member-sidebar";
-import { avatarForReviewer } from "@/lib/brand-assets";
+import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 
 export interface CommunityBranding {
@@ -67,7 +67,9 @@ export function MemberShell({
           typeof d.name === "string" && d.name.trim() ? d.name : "Member";
         setAccountName(name);
         setAccountEmail(typeof d.email === "string" ? d.email : "");
-        if (typeof d.avatarUrl === "string" && d.avatarUrl) {
+        if (preferInitialsAvatar(name, typeof d.email === "string" ? d.email : "")) {
+          setAvatarSrc(undefined);
+        } else if (typeof d.avatarUrl === "string" && d.avatarUrl) {
           setAvatarSrc(d.avatarUrl);
         } else {
           setAvatarSrc(avatarForReviewer(name));

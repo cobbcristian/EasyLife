@@ -270,10 +270,21 @@ export async function ensureOceansideResidentsDemoSeeded(): Promise<void> {
         communityId: OCEANSIDE_COMMUNITY_ID,
         status: "active",
         password: hashPassword(DEMO_PASSWORD),
+        // Role hubs use initials — never keep a leftover headshot.
+        avatarUrl: null,
       },
     });
   }
 
+  // Clear any uploaded/seeded photos on management hubs.
+  await prisma.user.updateMany({
+    where: {
+      email: {
+        in: OCEANSIDE_MESSAGE_CONTACTS.map((c) => c.email),
+      },
+    },
+    data: { avatarUrl: null },
+  });
   // Remove previously seeded partner login (self-enroll at go-live instead).
   const legacyPartner = LEGACY_PARTNER_MEMBER_EMAIL.toLowerCase();
   await prisma.memberProfileExt.deleteMany({

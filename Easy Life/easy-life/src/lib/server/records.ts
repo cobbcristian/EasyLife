@@ -3577,10 +3577,11 @@ export async function listStaffMessageRecipients(communityId?: string | null) {
 
   const rows = users
     .filter((u) => {
-      const status = u.status ?? "active";
+      const status = (u.status ?? "active").toLowerCase();
       if (status === "frozen") return false;
+      // Approved residents + staff. Pending never appear in compose.
       if (u.role === "member" && status !== "active") return false;
-      return Boolean(u.email);
+      return Boolean(u.email?.includes("@"));
     })
     .map((u) => {
       const isStaff =

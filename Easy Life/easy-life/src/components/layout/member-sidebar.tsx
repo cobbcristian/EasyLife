@@ -22,7 +22,7 @@ import {
   communityIsResidentialHoa,
 } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
-import { avatarForReviewer } from "@/lib/brand-assets";
+import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
 
 const clubDiningHrefs = new Set(["/member/dining"]);
 const grabGoHrefs = new Set(["/member/grab-go"]);
@@ -147,7 +147,9 @@ export function MemberSidebar({
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
-  const resolvedAvatar = avatarSrc ?? avatarForReviewer(userName || "Member");
+  const displayAvatar = preferInitialsAvatar(userName)
+    ? undefined
+    : (avatarSrc ?? avatarForReviewer(userName || "Member"));
   const [paysHoa, setPaysHoa] = useState(true);
   const [communityId, setCommunityId] = useState<string | null | undefined>(
     communityIdProp,
@@ -240,7 +242,7 @@ export function MemberSidebar({
           <div className="min-w-0">
             <UserAvatarMenu
               name={userName}
-              avatarSrc={resolvedAvatar}
+              avatarSrc={displayAvatar}
               align="left"
               homeHref="/member"
               trigger={

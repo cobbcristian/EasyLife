@@ -15,7 +15,7 @@ import { PaymentMethodsSettings } from "@/components/payments/payment-methods-se
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
-import { avatarForReviewer } from "@/lib/brand-assets";
+import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 import { formatDate, cn } from "@/lib/utils";
@@ -86,7 +86,11 @@ export function MemberMvpProfile({
       .then((d) => {
         if (!on || d.error) return;
         setProfile(d);
-        setAvatarUrl(d.avatarUrl ?? avatarForReviewer(d.name ?? "Member"));
+        setAvatarUrl(
+          preferInitialsAvatar(d.name, d.email)
+            ? undefined
+            : d.avatarUrl || avatarForReviewer(d.name ?? "Member"),
+        );
         setForm({
           name: d.name ?? "",
           email: d.email ?? "",

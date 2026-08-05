@@ -1330,6 +1330,29 @@ export function imageForEvent(category: string, title?: string): string {
   return brandAssets.amenityClubhouse;
 }
 
+/** Oceanside / HOA role accounts — initials only, never a stock portrait. */
+export function preferInitialsAvatar(
+  name?: string | null,
+  email?: string | null,
+): boolean {
+  const n = (name ?? "").trim().toLowerCase();
+  const e = (email ?? "").trim().toLowerCase();
+  if (
+    e.startsWith("social.committee@") ||
+    e.startsWith("board.demo@") ||
+    e.startsWith("pm.demo@") ||
+    e.startsWith("admin.demo@")
+  ) {
+    return true;
+  }
+  return (
+    n === "social committee" ||
+    n === "board member" ||
+    n === "property manager" ||
+    n === "super admin"
+  );
+}
+
 /** Header avatar — Figma provider portrait when no user photo uploaded. */
 export function defaultAvatarForRole(
   role: string,
@@ -1337,6 +1360,8 @@ export function defaultAvatarForRole(
   name?: string | null,
   email?: string | null,
 ): string | undefined {
+  // Role hubs (Social Committee, etc.) always show initials — never a portrait.
+  if (preferInitialsAvatar(name, email)) return undefined;
   if (avatarUrl) return avatarUrl;
   if (role === "provider") {
     const key = `${name ?? ""} ${email ?? ""}`.trim().toLowerCase();

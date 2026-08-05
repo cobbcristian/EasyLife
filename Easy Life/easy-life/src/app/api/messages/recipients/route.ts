@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { listStaffMessageRecipients } from "@/lib/server/records";
 
-function canStaffMessage(role: string): boolean {
-  return role === "admin" || role === "pm" || role === "board";
-}
-
-/** Active community accounts staff can DM (directory opt-out ignored). */
+/**
+ * Active community accounts anyone in the community can DM.
+ * Directory opt-out does not apply — messaging is separate from the public directory.
+ */
 export async function GET() {
   const session = await getSession();
-  if (!session || !canStaffMessage(session.role)) {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!session.communityId) {

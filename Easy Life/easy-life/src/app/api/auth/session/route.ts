@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { preferInitialsAvatar, logoForCommunity } from "@/lib/brand-assets";
 import { getSession } from "@/lib/server/auth";
 import { getCommunityById, getAccountProfile } from "@/lib/server/db";
 import { prisma } from "@/lib/server/prisma";
-import { logoForCommunity } from "@/lib/brand-assets";
 
 export async function GET() {
   const session = await getSession();
@@ -42,6 +42,14 @@ export async function GET() {
     providerPromise,
   ]);
 
+  const initialsOnly = preferInitialsAvatar(session.name, session.email);
+  if (initialsOnly && account?.avatarUrl) {
+    void prisma.user.update({
+      where: { email: session.email.toLowerCase() },
+      data: { avatarUrl: null },
+    });
+  }
+
   return NextResponse.json({
     name: session.name,
     email: session.email,
@@ -57,6 +65,6 @@ export async function GET() {
     providerCategory: provider?.category ?? null,
     providerType: provider?.type ?? null,
     unit: profileExt?.unit ?? "—",
-    avatarUrl: account?.avatarUrl ?? null,
+    avatarUrl: initialsOnly ? null : (account?.avatarUrl ?? null),
   });
 }

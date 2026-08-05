@@ -117,11 +117,11 @@ export function ChatComposer({
             disabled={!canSend}
             aria-label="Send"
             className={cn(
-              "mb-0.5 flex h-[29px] w-[29px] shrink-0 items-center justify-center rounded-full transition-colors",
+              "mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
               canSend ? "bg-[#007aff]" : "bg-[#c7c7cc]",
             )}
           >
-            <ArrowUp className="h-[18px] w-[18px] text-white" strokeWidth={2.75} />
+            <ArrowUp className="h-5 w-5 text-white" strokeWidth={3} />
           </button>
         </div>
       </div>
