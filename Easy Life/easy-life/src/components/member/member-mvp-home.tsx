@@ -1,7 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
-import { Bell, Menu } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import {
   brandAssets,
   homeCategoryTiles,
@@ -207,6 +208,7 @@ export function MemberMvpHome({
   notificationCount = 0,
 }: MemberMvpHomeProps) {
   const { t } = useI18n();
+  const categoryScrollerRef = useRef<HTMLDivElement>(null);
   const firstName = profileName.split(" ")[0] ?? profileName;
   const accountLinks = communityIsResidentialHoa(communityId)
     ? RESIDENTIAL_HOA_ACCOUNT_LINKS
