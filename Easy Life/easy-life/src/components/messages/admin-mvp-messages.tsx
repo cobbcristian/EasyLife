@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   CheckCheck,
   ChevronLeft,
@@ -8,11 +8,14 @@ import {
   ImagePlus,
   Plus,
   Search,
-  Send,
   SlidersHorizontal,
   Archive,
   X,
 } from "lucide-react";
+import {
+  ChatComposer,
+  ChatThreadScroll,
+} from "@/components/messages/chat-composer";
 import { ContentHeader, PageBody } from "@/components/layout/content-header";
 import { Avatar } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/toast";
@@ -100,8 +103,6 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
   const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
   const [memberQuery, setMemberQuery] = useState("");
   const [composeBusy, setComposeBusy] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const mobileScrollRef = useRef<HTMLDivElement>(null);
 
   if (activeId !== messagesThreadId) {
     setMessagesThreadId(activeId);
@@ -142,11 +143,6 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
       .then((d) => setMessages(d.messages ?? []))
       .catch(() => setMessages([]));
   }, [activeId]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-    mobileScrollRef.current?.scrollTo({ top: mobileScrollRef.current.scrollHeight });
-  }, [messages.length, activeId, mobileConversation]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -318,8 +314,8 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
         ) : null}
 
         {active && mobileConversation ? (
-          <div className="flex min-h-[calc(100dvh-8rem)] flex-col bg-white md:hidden">
-            <div className="flex items-center gap-2 border-b border-border-2 px-3 py-3">
+          <div className="fixed inset-0 z-40 flex flex-col bg-[#f2f2f7] md:hidden">
+            <div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5ea] bg-white/95 px-3 py-3 backdrop-blur">
               <button
                 type="button"
                 onClick={() => setMobileConversation(false)}
@@ -328,12 +324,12 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <p className="min-w-0 flex-1 truncate text-center text-[17px] font-medium text-black">
+              <p className="min-w-0 flex-1 truncate text-center text-[17px] font-semibold text-black">
                 {active.title}
               </p>
               <span className="w-8" aria-hidden />
             </div>
-            <div ref={mobileScrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            <ChatThreadScroll scrollKey={`${activeId}-${messages.length}`}>
               {messages.map((m) => {
                 const isMine =
                   !!profile.email &&
@@ -344,7 +340,6 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
                     key={m.id}
                     className={cn("flex flex-col", isMine ? "items-end" : "items-start")}
                   >
-                    <span className="mb-1 text-[11px] text-grey">{relativeTime(m.createdAt)}</span>
                     {attachment?.kind === "file" ? (
                       <div className="rounded-xl border border-border-2 bg-white px-3 py-2 text-xs">
                         PDF · {attachment.label}
@@ -363,10 +358,10 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
                     ) : (
                       <div
                         className={cn(
-                          "max-w-[80%] rounded-2xl px-4 py-3 text-sm",
+                          "max-w-[80%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug",
                           isMine
-                            ? "rounded-br-md bg-[var(--mvp-blue)] text-white"
-                            : "rounded-bl-md bg-[#f2f2f7] text-black",
+                            ? "rounded-br-[4px] bg-[#007aff] text-white"
+                            : "rounded-bl-[4px] bg-[#e9e9eb] text-black",
                         )}
                       >
                         {m.body}
@@ -375,31 +370,16 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
                   </div>
                 );
               })}
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void send(e);
+            </ChatThreadScroll>
+            <ChatComposer
+              value={draft}
+              onChange={setDraft}
+              onSend={async () => {
+                await send();
               }}
-              className="border-t border-border-2 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder={t("Message")}
-                  className="h-11 flex-1 rounded-full border border-border-2 px-4 text-sm"
-                />
-                <button
-                  type="submit"
-                  disabled={busy || !draft.trim()}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--mvp-blue)] text-white disabled:opacity-40"
-                  aria-label={t("Send")}
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
-            </form>
+              disabled={busy}
+              placeholder={t("Message")}
+            />
           </div>
         ) : null}
 
@@ -519,7 +499,7 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
             </div>
           </div>
 
-          <div className="hidden min-w-0 flex-1 flex-col md:flex">
+          <div className="hidden min-h-0 min-w-0 flex-1 flex-col md:flex">
             {active ? (
               <>
                 <div className="flex items-center justify-end border-b border-border-2 px-6 py-2">
@@ -540,7 +520,7 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
                     {archivedIds.includes(active.id) ? t("Unarchive") : t("Archive")}
                   </button>
                 </div>
-                <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-8 py-6">
+                <ChatThreadScroll scrollKey={`${activeId}-${messages.length}`} className="bg-[#f2f2f7]">
                   {dayLabel ? (
                     <p className="text-center text-[13px] text-grey">{dayLabel}</p>
                   ) : null}
@@ -557,7 +537,7 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
                         <div className="mb-1 flex items-center gap-1.5 text-[12px] text-grey">
                           <span>{relativeTime(m.createdAt)}</span>
                           {isMine ? (
-                            <CheckCheck className="h-3.5 w-3.5 text-[var(--mvp-blue)]" />
+                            <CheckCheck className="h-3.5 w-3.5 text-[#007aff]" />
                           ) : null}
                         </div>
                         {attachment?.kind === "file" ? (
@@ -588,10 +568,10 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
                         ) : (
                           <div
                             className={cn(
-                              "max-w-[420px] rounded-2xl px-4 py-3 text-[14px] leading-relaxed",
+                              "max-w-[420px] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug",
                               isMine
-                                ? "rounded-br-md bg-[var(--mvp-blue)] text-white"
-                                : "rounded-bl-md bg-[#f2f2f7] text-black",
+                                ? "rounded-br-[4px] bg-[#007aff] text-white"
+                                : "rounded-bl-[4px] bg-[#e9e9eb] text-black",
                             )}
                           >
                             {m.body}
@@ -600,43 +580,36 @@ export function AdminMvpMessages({ avatarName }: { avatarName?: string }) {
                       </div>
                     );
                   })}
-                </div>
-                <form
-                  onSubmit={send}
-                  className="flex items-center gap-3 border-t border-border-2 px-6 py-5"
-                >
-                  <button
-                    type="button"
-                    onClick={() => attach("file")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center text-grey"
-                    aria-label={t("Attach")}
-                  >
-                    <FolderPlus className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => attach("image")}
-                    className="text-grey"
-                    aria-label={t("Add photo")}
-                  >
-                    <ImagePlus className="h-5 w-5" />
-                  </button>
-                  <input
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder={t("Message")}
-                    disabled={busy}
-                    className="h-11 flex-1 rounded-full border border-border-2 bg-white px-4 text-sm placeholder:text-grey focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mvp-blue)]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={busy || !draft.trim()}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--mvp-blue)] text-white disabled:opacity-40"
-                    aria-label={t("Send")}
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                </form>
+                </ChatThreadScroll>
+                <ChatComposer
+                  value={draft}
+                  onChange={setDraft}
+                  onSend={async () => {
+                    await send();
+                  }}
+                  disabled={busy}
+                  placeholder={t("Message")}
+                  leading={
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => attach("file")}
+                        className="rounded-full p-2"
+                        aria-label={t("Attach")}
+                      >
+                        <FolderPlus className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => attach("image")}
+                        className="rounded-full p-2"
+                        aria-label={t("Add photo")}
+                      >
+                        <ImagePlus className="h-5 w-5" />
+                      </button>
+                    </>
+                  }
+                />
               </>
             ) : (
               <div className="flex flex-1 items-center justify-center text-sm text-grey">

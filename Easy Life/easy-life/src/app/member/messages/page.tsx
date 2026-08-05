@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ImagePlus, Paperclip, Plus, Send } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ImagePlus, Paperclip, Plus } from "lucide-react";
+import {
+  ChatComposer,
+  ChatThreadScroll,
+} from "@/components/messages/chat-composer";
 import { BrandIcon } from "@/components/ui/brand-icon";
 import { Avatar } from "@/components/ui/avatar";
 import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
@@ -116,10 +120,10 @@ function MessageBody({ body, mine }: { body: string; mine: boolean }) {
   return (
     <div
       className={cn(
-        "max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+        "max-w-[75%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug",
         mine
-          ? "rounded-br-md bg-[var(--mvp-blue)] text-white"
-          : "rounded-bl-md bg-[#f2f2f7] text-black",
+          ? "rounded-br-[4px] bg-[#007aff] text-white"
+          : "rounded-bl-[4px] bg-[#e9e9eb] text-black",
       )}
     >
       {body}
@@ -145,8 +149,6 @@ export default function MemberMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [mobileConversation, setMobileConversation] = useState(false);
   const [messagesThreadId, setMessagesThreadId] = useState<string | null>(null);
-  const historyRef = useRef<HTMLDivElement>(null);
-
   if (activeId !== messagesThreadId) {
     setMessagesThreadId(activeId);
     if (!activeId) setMessages([]);
@@ -249,10 +251,6 @@ export default function MemberMessagesPage() {
       on = false;
     };
   }, [activeId]);
-
-  useEffect(() => {
-    historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight });
-  }, [messages.length, activeId]);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -381,8 +379,8 @@ export default function MemberMessagesPage() {
     <div className="font-[family-name:var(--font-poppins)]">
       {/* Mobile conversation — Figma full-screen chat */}
       {active && mobileConversation ? (
-        <div className="mx-auto flex min-h-[calc(100vh-0px)] max-w-lg flex-col bg-white lg:hidden">
-          <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border-2 bg-white px-4 py-3">
+        <div className="fixed inset-0 z-40 mx-auto flex max-w-lg flex-col bg-[#f2f2f7] lg:hidden">
+          <div className="flex shrink-0 items-center gap-3 border-b border-[#e5e5ea] bg-white/95 px-4 py-3 backdrop-blur">
             <button
               type="button"
               onClick={closeConversation}
@@ -391,86 +389,77 @@ export default function MemberMessagesPage() {
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <h1 className="min-w-0 flex-1 truncate text-center text-base font-medium text-black">
+            <h1 className="min-w-0 flex-1 truncate text-center text-base font-semibold text-black">
               {active.title}
             </h1>
             <span className="w-8" />
           </div>
-          <div ref={historyRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-            <p className="text-center text-xs text-grey">
-              {messages[0] ? relativeTime(messages[0].createdAt) : t("Conversation")}
-            </p>
-            {messages.map((m) => {
-              const mine = m.authorEmail === profile.email;
-              return (
-                <div key={m.id} className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
-                  <span className="mb-1 text-[11px] text-grey">{relativeTime(m.createdAt)}</span>
-                  <MessageBody body={m.body} mine={mine} />
-                </div>
-              );
-            })}
-          </div>
-          <div className="border-t border-border-2 bg-white px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
-            {bookingIntent && draft.trim() ? (
-              <div className="mb-2 rounded-2xl border border-[var(--mvp-blue)]/20 bg-[var(--mvp-blue)]/5 px-3 py-2.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--mvp-blue)]">
-                  {t("Booking request")}
+          <ChatThreadScroll scrollKey={`${activeId}-${messages.length}`}>
+            {messages.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-[#8e8e93]">
+                {t("Conversation")}
+              </p>
+            ) : (
+              <>
+                <p className="pb-1 text-center text-[11px] font-medium text-[#8e8e93]">
+                  {messages[0] ? relativeTime(messages[0].createdAt) : null}
                 </p>
-                <p className="mt-1 text-[13px] leading-snug text-ink">{draft}</p>
+                {messages.map((m) => {
+                  const mine = m.authorEmail === profile.email;
+                  return (
+                    <div
+                      key={m.id}
+                      className={cn("flex flex-col", mine ? "items-end" : "items-start")}
+                    >
+                      <MessageBody body={m.body} mine={mine} />
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </ChatThreadScroll>
+          <ChatComposer
+            value={draft}
+            onChange={(v) => {
+              setDraft(v);
+              if (!v.trim()) setBookingIntent(false);
+            }}
+            onSend={async () => {
+              await sendMessage();
+              setBookingIntent(false);
+            }}
+            placeholder={t("Message")}
+            banner={
+              bookingIntent && draft.trim() ? (
+                <div className="mb-2 rounded-2xl border border-[var(--mvp-blue)]/20 bg-[var(--mvp-blue)]/5 px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--mvp-blue)]">
+                    {t("Booking request")}
+                  </p>
+                  <p className="mt-1 text-[13px] leading-snug text-ink">{draft}</p>
+                </div>
+              ) : null
+            }
+            leading={
+              <>
                 <button
                   type="button"
-                  onClick={() => {
-                    void sendMessage().then(() => setBookingIntent(false));
-                  }}
-                  className="mt-2 h-9 w-full rounded-xl bg-[var(--mvp-blue)] text-[13px] font-semibold text-white"
+                  onClick={() => attachMessage("file")}
+                  className="rounded-full p-2"
+                  aria-label={t("Attach file")}
                 >
-                  {t("Send request")}
+                  <Paperclip className="h-5 w-5" />
                 </button>
-              </div>
-            ) : null}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => attachMessage("file")}
-                className="rounded-lg p-2 text-grey"
-                aria-label={t("Attach file")}
-              >
-                <Paperclip className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => attachMessage("image")}
-                className="rounded-lg p-2 text-grey"
-                aria-label={t("Add photo")}
-              >
-                <ImagePlus className="h-5 w-5" />
-              </button>
-              <input
-                value={draft}
-                onChange={(e) => {
-                  setDraft(e.target.value);
-                  if (!e.target.value.trim()) setBookingIntent(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void sendMessage().then(() => setBookingIntent(false));
-                  }
-                }}
-                placeholder={t("Message")}
-                className="h-11 flex-1 rounded-full border border-border-2 px-4 text-sm placeholder:text-grey focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mvp-blue)]"
-              />
-              <button
-                type="button"
-                onClick={() => void sendMessage().then(() => setBookingIntent(false))}
-                disabled={!draft.trim()}
-                className="rounded-lg bg-[var(--mvp-blue)] p-2 text-white disabled:opacity-40"
-                aria-label={t("Send")}
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+                <button
+                  type="button"
+                  onClick={() => attachMessage("image")}
+                  className="rounded-full p-2"
+                  aria-label={t("Add photo")}
+                >
+                  <ImagePlus className="h-5 w-5" />
+                </button>
+              </>
+            }
+          />
         </div>
       ) : null}
 
@@ -630,14 +619,14 @@ export default function MemberMessagesPage() {
           </div>
 
           {/* Desktop conversation pane */}
-          <div className="hidden min-h-[520px] flex-col overflow-hidden rounded-xl border border-border-2 bg-white lg:flex">
+          <div className="hidden min-h-[520px] flex-col overflow-hidden rounded-xl border border-border-2 bg-[#f2f2f7] lg:flex">
             {showConversationPane && active ? (
               <>
-                <div className="border-b border-border-2 px-5 py-4">
+                <div className="shrink-0 border-b border-[#e5e5ea] bg-white px-5 py-4">
                   <h2 className="font-medium text-black">{active.title}</h2>
                   <p className="text-xs text-grey">{active.participantNames.join(", ")}</p>
                 </div>
-                <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                <ChatThreadScroll scrollKey={`${activeId}-${messages.length}`}>
                   {messages.map((m) => {
                     const mine = m.authorEmail === profile.email;
                     return (
@@ -645,64 +634,53 @@ export default function MemberMessagesPage() {
                         key={m.id}
                         className={cn("flex flex-col", mine ? "items-end" : "items-start")}
                       >
-                        <span className="mb-1 text-[11px] text-grey">
-                          {relativeTime(m.createdAt)}
-                        </span>
                         <MessageBody body={m.body} mine={mine} />
                       </div>
                     );
                   })}
-                </div>
-                <div className="border-t border-border-2 px-4 py-3">
-                  {bookingIntent && draft.trim() ? (
-                    <div className="mb-2 rounded-2xl border border-[var(--mvp-blue)]/20 bg-[var(--mvp-blue)]/5 px-3 py-2.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--mvp-blue)]">
-                        {t("Booking request")}
-                      </p>
-                      <p className="mt-1 text-[13px] leading-snug text-ink">{draft}</p>
-                    </div>
-                  ) : null}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => attachMessage("file")}
-                      className="rounded-lg p-2 text-grey"
-                      aria-label={t("Attach file")}
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => attachMessage("image")}
-                      className="rounded-lg p-2 text-grey"
-                      aria-label={t("Add photo")}
-                    >
-                      <ImagePlus className="h-5 w-5" />
-                    </button>
-                    <input
-                      value={draft}
-                      onChange={(e) => {
-                        setDraft(e.target.value);
-                        if (!e.target.value.trim()) setBookingIntent(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          void sendMessage().then(() => setBookingIntent(false));
-                        }
-                      }}
-                      placeholder={t("Message")}
-                      className="h-11 flex-1 rounded-full border border-border-2 px-4 text-sm placeholder:text-grey focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mvp-blue)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void sendMessage().then(() => setBookingIntent(false))}
-                      className="rounded-lg bg-[var(--mvp-blue)] px-4 py-2 text-sm font-medium text-white"
-                    >
-                      {bookingIntent ? t("Send request") : t("Send")}
-                    </button>
-                  </div>
-                </div>
+                </ChatThreadScroll>
+                <ChatComposer
+                  value={draft}
+                  onChange={(v) => {
+                    setDraft(v);
+                    if (!v.trim()) setBookingIntent(false);
+                  }}
+                  onSend={async () => {
+                    await sendMessage();
+                    setBookingIntent(false);
+                  }}
+                  placeholder={t("Message")}
+                  banner={
+                    bookingIntent && draft.trim() ? (
+                      <div className="mb-2 rounded-2xl border border-[var(--mvp-blue)]/20 bg-[var(--mvp-blue)]/5 px-3 py-2.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--mvp-blue)]">
+                          {t("Booking request")}
+                        </p>
+                        <p className="mt-1 text-[13px] leading-snug text-ink">{draft}</p>
+                      </div>
+                    ) : null
+                  }
+                  leading={
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => attachMessage("file")}
+                        className="rounded-full p-2"
+                        aria-label={t("Attach file")}
+                      >
+                        <Paperclip className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => attachMessage("image")}
+                        className="rounded-full p-2"
+                        aria-label={t("Add photo")}
+                      >
+                        <ImagePlus className="h-5 w-5" />
+                      </button>
+                    </>
+                  }
+                />
               </>
             ) : (
               <p className="flex flex-1 items-center justify-center text-sm text-grey">
