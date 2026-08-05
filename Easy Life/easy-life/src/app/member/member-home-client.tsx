@@ -96,19 +96,15 @@ export function MemberHomeClient() {
 
   useEffect(() => {
     let on = true;
-    Promise.all([
-      fetch("/api/member/home").then((r) => r.json()),
-      fetch("/api/member/profile").then((r) => r.json()).catch(() => null),
-    ])
-      .then(([home, profile]) => {
-        if (!on) return;
-        if (!home.error) setData(home);
-        const name = profile?.name ?? home?.profile?.name;
-        if (typeof profile?.email === "string" && profile.email) {
-          setProfileEmail(profile.email);
-        }
-        if (profile?.avatarUrl) {
-          setAvatarSrc(profile.avatarUrl);
+    fetch("/api/member/home")
+      .then((r) => r.json())
+      .then((home) => {
+        if (!on || home.error) return;
+        setData(home);
+        const name = home?.profile?.name;
+        if (home?.profile?.email) setProfileEmail(home.profile.email);
+        if (home?.profile?.avatarUrl) {
+          setAvatarSrc(home.profile.avatarUrl);
         } else if (name) {
           setAvatarSrc(avatarForReviewer(name));
         } else {

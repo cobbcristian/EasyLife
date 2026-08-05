@@ -3,6 +3,7 @@ import {
   SESSION_COOKIE,
   verifySessionToken,
 } from "@/lib/server/auth";
+import { publicAbsoluteUrl } from "@/lib/server/app-url";
 import {
   ACTIVE_COMMUNITY_COOKIE,
   DEMO_TENANT_COOKIE,
@@ -80,7 +81,7 @@ async function logoutResponse(request: Request) {
 
   const response = wantsJson
     ? NextResponse.json({ ok: true, redirectTo })
-    : NextResponse.redirect(new URL(redirectTo, request.url));
+    : NextResponse.redirect(publicAbsoluteUrl(request, redirectTo));
 
   clearSession(response);
   if (tenant) lockDemoTenant(response, tenant);

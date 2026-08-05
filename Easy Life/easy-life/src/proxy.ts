@@ -150,6 +150,7 @@ function demoGoPath(pathname: string): DemoTenant | null {
 async function stagingApiBlock(request: NextRequest) {
   const token =
     request.cookies.get(SESSION_COOKIE)?.value ?? bearerToken(request);
+  if (!token) return null;
   const session = await verifySessionToken(token);
   if (session && (await isSessionBlockedByStaging(session))) {
     return NextResponse.json(
@@ -211,8 +212,16 @@ export async function proxy(request: NextRequest) {
   );
 
   if (pathname.startsWith("/api/") && !isStagingExemptApi(pathname)) {
-    const blocked = await stagingApiBlock(request);
-    if (blocked) return blocked;
+    // Member/mobile auth routes verify JWT below — fold staging into that pass.
+    if (
+      !(
+        pathname.startsWith("/api/member/") ||
+        pathname.startsWith("/api/mobile/")
+      )
+    ) {
+      const blocked = await stagingApiBlock(request);
+      if (blocked) return blocked;
+    }
   }
 
   if (pathname.startsWith("/api/member/") || pathname.startsWith("/api/mobile/")) {
@@ -224,6 +233,12 @@ export async function proxy(request: NextRequest) {
     const session = await verifySessionToken(token);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (await isSessionBlockedByStaging(session)) {
+      return NextResponse.json(
+        { error: "This club is in staging mode. Member access is not open yet." },
+        { status: 403 },
+      );
     }
     return NextResponse.next();
   }

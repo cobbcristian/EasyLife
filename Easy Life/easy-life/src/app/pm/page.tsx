@@ -122,14 +122,14 @@ export default function PmHomePage() {
 
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           {statCards.map((card) => (
-            <Link
+            <a
               key={card.title}
               href={card.href}
               className="rounded-xl bg-[var(--mvp-blue)] p-5 text-white shadow-[0_5px_20px_rgba(0,0,0,0.08)] transition-transform hover:-translate-y-0.5"
             >
               <p className="text-sm font-medium text-white/90">{card.title}</p>
               <p className="mt-6 text-3xl font-semibold">{card.value}</p>
-            </Link>
+            </a>
           ))}
         </div>
 

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
@@ -109,7 +108,7 @@ function NavList({
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <li key={item.href}>
-            <Link
+            <a
               href={item.href}
               onClick={onClose}
               className={cn(
@@ -121,7 +120,7 @@ function NavList({
             >
               <NavIcon name={item.icon} active={isActive} />
               {t(item.label)}
-            </Link>
+            </a>
           </li>
         );
       })}

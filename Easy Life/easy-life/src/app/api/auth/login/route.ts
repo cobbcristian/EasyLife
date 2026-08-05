@@ -127,12 +127,12 @@ export async function POST(request: Request) {
     communityId: user.communityId,
   });
 
-  await logEvent({
+  void logEvent({
     communityId: user.communityId,
     userName: user.name,
     action: "Login",
     detail: `${user.role} portal`,
-  });
+  }).catch(() => {});
 
   const redirectTo = homeForRole(user.role, user.communityId);
   const response = NextResponse.json({ ok: true, role: user.role, redirectTo });

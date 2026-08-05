@@ -10,36 +10,36 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const community = session.communityId
-    ? await getCommunityById(session.communityId)
-    : undefined;
+  const communityPromise = session.communityId
+    ? getCommunityById(session.communityId)
+    : Promise.resolve(undefined);
 
-  let providerId: string | null = null;
-  let providerListingKind: string | null = null;
-  let providerCategory: string | null = null;
-  let providerType: string | null = null;
-  if (session.role === "provider" && session.communityId) {
-    const email = session.email.toLowerCase();
-    const provider =
-      (await prisma.provider.findFirst({
-        where: {
-          communityId: session.communityId,
-          OR: [{ email }, { name: session.name }],
-        },
-        select: { id: true, listingKind: true, category: true, type: true },
-      })) ?? null;
-    providerId = provider?.id ?? null;
-    providerListingKind = provider?.listingKind ?? null;
-    providerCategory = provider?.category ?? null;
-    providerType = provider?.type ?? null;
-  }
+  const accountPromise = getAccountProfile(session.email);
+  const unitPromise = prisma.memberProfileExt.findUnique({
+    where: { userEmail: session.email.toLowerCase() },
+    select: { unit: true },
+  });
 
-  const [account, profileExt] = await Promise.all([
-    getAccountProfile(session.email),
-    prisma.memberProfileExt.findUnique({
-      where: { userEmail: session.email.toLowerCase() },
-      select: { unit: true },
-    }),
+  // Providers need listing lookup; everyone else skips that DB hit.
+  const providerPromise =
+    session.role === "provider" && session.communityId
+      ? prisma.provider.findFirst({
+          where: {
+            communityId: session.communityId,
+            OR: [
+              { email: session.email.toLowerCase() },
+              { name: session.name },
+            ],
+          },
+          select: { id: true, listingKind: true, category: true, type: true },
+        })
+      : Promise.resolve(null);
+
+  const [community, account, profileExt, provider] = await Promise.all([
+    communityPromise,
+    accountPromise,
+    unitPromise,
+    providerPromise,
   ]);
 
   return NextResponse.json({
@@ -52,10 +52,10 @@ export async function GET() {
     logoUrl: session.communityId
       ? logoForCommunity(session.communityId, community?.logoUrl)
       : null,
-    providerId,
-    providerListingKind,
-    providerCategory,
-    providerType,
+    providerId: provider?.id ?? null,
+    providerListingKind: provider?.listingKind ?? null,
+    providerCategory: provider?.category ?? null,
+    providerType: provider?.type ?? null,
     unit: profileExt?.unit ?? "—",
     avatarUrl: account?.avatarUrl ?? null,
   });

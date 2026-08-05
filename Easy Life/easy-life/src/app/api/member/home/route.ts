@@ -14,13 +14,21 @@ import {
 } from "@/lib/server/records";
 import { getCommunityBookings } from "@/lib/communities-data";
 import { getMemberProfile } from "@/lib/server/member-api-store";
+import { getAccountProfile } from "@/lib/server/db";
 import { isActiveServiceBooking } from "@/lib/types";
 import { prisma } from "@/lib/server/prisma";
 import { bracketWinnersForTournament, buildRounds, validWinner } from "@/lib/tournament-bracket";
 import { findNextMatchForPlayer, type MatchSlot } from "@/lib/tournament-display";
 import { parseScoresJson } from "@/lib/tournament-scores";
-import { ensureFourClubDemoContent } from "@/lib/server/four-club-demo-content";
+import {
+  ensureFourClubDemoContent,
+  isFourClubDemoId,
+} from "@/lib/server/four-club-demo-content";
 import { countUnreadMemberInbox } from "@/lib/server/project-management";
+import {
+  communityHasTournaments,
+  communityIsResidentialHoa,
+} from "@/lib/community-features";
 
 export async function GET() {
   const session = await getSession();
@@ -29,17 +37,40 @@ export async function GET() {
     return NextResponse.json({ error: "Community required" }, { status: 400 });
   }
 
-  await ensureRecordsSeeded();
-  await ensureFourClubDemoContent("full", session.communityId, session.email);
+  const communityId = session.communityId;
+  const wantsTournaments = communityHasTournaments(communityId);
+  const residential = communityIsResidentialHoa(communityId);
 
-  const [charges, bookings, events, requests, ads, tournamentRows] = await Promise.all([
-    listMemberCharges({ communityId: session.communityId, memberEmail: session.email }),
+  await ensureRecordsSeeded();
+  if (isFourClubDemoId(communityId)) {
+    await ensureFourClubDemoContent("full", communityId, session.email);
+  }
+
+  const [
+    charges,
+    bookings,
+    events,
+    requests,
+    ads,
+    tournamentRows,
+    profile,
+    community,
+    account,
+  ] = await Promise.all([
+    listMemberCharges({ communityId, memberEmail: session.email }),
     listBookingsForMember(session.email),
-    listCommunityEvents(session.communityId),
-    listServiceRequests({ communityId: session.communityId, email: session.email }),
-    listCalendarAds(session.communityId),
-    listTournaments(session.communityId),
+    listCommunityEvents(communityId),
+    listServiceRequests({ communityId, email: session.email }),
+    listCalendarAds(communityId),
+    wantsTournaments ? listTournaments(communityId) : Promise.resolve([]),
+    getMemberProfile(session.email),
+    prisma.community.findUnique({
+      where: { id: communityId },
+      select: { name: true, logoUrl: true, appDisplayName: true },
+    }),
+    getAccountProfile(session.email),
   ]);
+
   const tournaments = tournamentRows
     .filter((t) => t.seedsJson != null)
     .slice(0, 10);
@@ -47,23 +78,14 @@ export async function GET() {
     .filter((c) => c.status !== "paid")
     .reduce((sum, c) => sum + c.amount, 0);
 
-  const [profile, community] = await Promise.all([
-    getMemberProfile(session.email),
-    session.communityId
-      ? prisma.community.findUnique({
-          where: { id: session.communityId },
-          select: { name: true, logoUrl: true, appDisplayName: true },
-        })
-      : Promise.resolve(null),
-  ]);
   const memberName = session.name ?? profile.name;
+  const email = session.email.toLowerCase();
 
-  const serviceBookings = getCommunityBookings(session.communityId)
+  const serviceBookings = getCommunityBookings(communityId)
     .filter((b) => {
       if (!isActiveServiceBooking(b.status)) return false;
       const resident = b.resident.toLowerCase();
       const name = memberName.toLowerCase();
-      // Remapped GO demo rows replace Sarah Mitchell with "Member"
       return resident === name || resident === "member";
     })
     .map((b) => ({
@@ -74,57 +96,71 @@ export async function GET() {
       status: b.status === "accepted" ? "accepted" : "pending",
     }));
 
-  const email = session.email.toLowerCase();
-  const myTournaments = tournaments
-    .map((t) => {
-      const playerRecord = t.players.find(
-        (p) => p.memberEmail?.toLowerCase() === email,
-      );
-      if (!playerRecord) return null;
+  const myTournaments = wantsTournaments
+    ? tournaments
+        .map((t) => {
+          const playerRecord = t.players.find(
+            (p) => p.memberEmail?.toLowerCase() === email,
+          );
+          if (!playerRecord) return null;
 
-      const seeds = JSON.parse(t.seedsJson!) as string[];
-      const winners = JSON.parse(t.winnersJson) as Record<string, string>;
-      const tournament = {
-        id: t.id,
-        title: t.title,
-        sport: t.sport,
-        scoringFormat: t.scoringFormat,
-        seeds,
-        winners,
-        scores: parseScoresJson(t.scoresJson),
-      };
-      const derived = bracketWinnersForTournament(tournament);
-      const rounds = buildRounds(t.id, seeds, derived);
-      const champion = rounds.length
-        ? validWinner(rounds[rounds.length - 1][0], derived)
-        : null;
-      const playerName =
-        playerRecord.partnerName && t.eventType !== "Singles"
-          ? `${playerRecord.name} / ${playerRecord.partnerName}`
-          : playerRecord.name;
-      const schedule = JSON.parse(t.scheduleJson) as Record<string, MatchSlot | string>;
-      const nextMatch = findNextMatchForPlayer(rounds, derived, playerName, schedule, t.sport);
-      return {
-        id: t.id,
-        title: t.title,
-        sport: t.sport,
-        date: t.date,
-        status: champion ? "completed" : "in_progress",
-        nextMatch: nextMatch
-          ? {
-              opponent: nextMatch.opponent,
-              courtNumber: nextMatch.courtNumber,
-              courtLabel: nextMatch.courtLabel,
-              time: nextMatch.time,
-              date: nextMatch.date || t.date,
-            }
-          : null,
-      };
-    })
-    .filter((t): t is NonNullable<typeof t> => t != null);
+          const seeds = JSON.parse(t.seedsJson!) as string[];
+          const winners = JSON.parse(t.winnersJson) as Record<string, string>;
+          const tournament = {
+            id: t.id,
+            title: t.title,
+            sport: t.sport,
+            scoringFormat: t.scoringFormat,
+            seeds,
+            winners,
+            scores: parseScoresJson(t.scoresJson),
+          };
+          const derived = bracketWinnersForTournament(tournament);
+          const rounds = buildRounds(t.id, seeds, derived);
+          const champion = rounds.length
+            ? validWinner(rounds[rounds.length - 1][0], derived)
+            : null;
+          const playerName =
+            playerRecord.partnerName && t.eventType !== "Singles"
+              ? `${playerRecord.name} / ${playerRecord.partnerName}`
+              : playerRecord.name;
+          const schedule = JSON.parse(t.scheduleJson) as Record<
+            string,
+            MatchSlot | string
+          >;
+          const nextMatch = findNextMatchForPlayer(
+            rounds,
+            derived,
+            playerName,
+            schedule,
+            t.sport,
+          );
+          return {
+            id: t.id,
+            title: t.title,
+            sport: t.sport,
+            date: t.date,
+            status: champion ? "completed" : "in_progress",
+            nextMatch: nextMatch
+              ? {
+                  opponent: nextMatch.opponent,
+                  courtNumber: nextMatch.courtNumber,
+                  courtLabel: nextMatch.courtLabel,
+                  time: nextMatch.time,
+                  date: nextMatch.date || t.date,
+                }
+              : null,
+          };
+        })
+        .filter((t): t is NonNullable<typeof t> => t != null)
+    : [];
 
-  await ensureDemoPaidFeatured(session.communityId);
-  const featuredTiles = await listPaidFeaturedTiles(session.communityId);
+  if (!residential) {
+    await ensureDemoPaidFeatured(communityId);
+  }
+  const featuredTiles = residential
+    ? []
+    : await listPaidFeaturedTiles(communityId);
 
   const [unreadInbox, pendingEventInvites, bookingInvites] = await Promise.all([
     countUnreadMemberInbox(session.email),
@@ -140,13 +176,15 @@ export async function GET() {
     balance,
     profile: {
       name: memberName,
+      email: session.email,
+      avatarUrl: account?.avatarUrl ?? null,
       residencyStatus: profile.residencyStatus,
       paysHoa: profile.paysHoa,
       membershipTier: profile.membershipTier,
     },
     branding: community
       ? {
-          id: session.communityId,
+          id: communityId,
           name: community.appDisplayName || community.name,
           logoUrl: community.logoUrl,
         }
