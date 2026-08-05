@@ -228,13 +228,6 @@ export function MemberMvpHome({
   const hasClubDining = communityHasClubDining(communityId);
   const hasLocalPros = communityHasLocalPros(communityId);
   const hasVendors = communityHasVendors(communityId);
-  const bookSubtitle = isResidentialHoa
-    ? "Amenities · Fitness · Pool"
-    : isGolfClub
-      ? "Tee times · Courts · Spa"
-      : hasClubDining
-        ? "Courts · Spa · Clubhouse"
-        : "Tennis · Pool · Fitness";
   const emptyScheduleCta = isResidentialHoa
     ? "Book an amenity or service"
     : "Book a court or service";
@@ -343,57 +336,6 @@ export function MemberMvpHome({
       </div>
 
       <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-5 md:pb-10">
-        <section className="grid grid-cols-2 gap-3">
-          <a
-            href="/member/bookings"
-            className="rounded-xl bg-[var(--mvp-blue)] p-4 text-white"
-          >
-            <p className="text-[16px] font-semibold">{t("Book")}</p>
-            <p className="mt-1 text-[12px] text-white/90">
-              {t(bookSubtitle)}
-            </p>
-          </a>
-          <a
-            href="/member/payments"
-            className="rounded-xl border border-[#eceff3] bg-white p-4"
-          >
-            <p className="text-[16px] font-semibold text-ink">{t("Pay")}</p>
-            <p className="mt-1 text-[12px] text-grey">
-              {t("Dues and statements")}
-            </p>
-          </a>
-          <a
-            href="/member/messages"
-            className="rounded-xl border border-[#eceff3] bg-white p-4"
-          >
-            <p className="text-[16px] font-semibold text-ink">{t("Messages")}</p>
-            <p className="mt-1 text-[12px] text-grey">
-              {t("Neighbors and staff")}
-            </p>
-          </a>
-          {hasClubDining ? (
-            <a
-              href="/member/dining"
-              className="rounded-xl border border-[#eceff3] bg-white p-4"
-            >
-              <p className="text-[16px] font-semibold text-ink">{t("Dining")}</p>
-              <p className="mt-1 text-[12px] text-grey">
-                {t("Menus and reservations")}
-              </p>
-            </a>
-          ) : (
-            <a
-              href="/member/amenities"
-              className="rounded-xl border border-[#eceff3] bg-white p-4"
-            >
-              <p className="text-[16px] font-semibold text-ink">{t("Amenities")}</p>
-              <p className="mt-1 text-[12px] text-grey">
-                {t("Pool, courts, and more")}
-              </p>
-            </a>
-          )}
-        </section>
-
         {/* Categories — size so ~3 tiles + HOA peek (scroll cue) */}
         <section>
           <div className="mb-3 flex items-center justify-between gap-2">
