@@ -106,6 +106,7 @@ export async function assertCanBookAmenity(input: {
       membershipStatus: true,
       resignedAt: true,
       rejoinEligibleOn: true,
+      membershipTier: true,
     },
   });
   if (profile?.membershipStatus === "resigned") {
@@ -130,10 +131,28 @@ export async function assertCanBookAmenity(input: {
     );
   }
 
+  // Condo HOA: active residents book any amenity — no golf/social club tiers.
+  if (input.communityId === "oceanside-residents") {
+    // Keep profile on the HOA slug so UI never shows "Social" gating.
+    if (profile && profile.membershipTier !== "hoa") {
+      void prisma.memberProfileExt.update({
+        where: { userEmail: email },
+        data: { membershipTier: "hoa" },
+      });
+    }
+    return;
+  }
+
   const tier = await getMemberTierSlug(input.memberEmail);
   const config = await getTierConfig(input.communityId, tier);
   if (
-    !tierAllowsAmenity(tier, input.amenityKind, input.amenityName, config.accessKinds)
+    !tierAllowsAmenity(
+      tier,
+      input.amenityKind,
+      input.amenityName,
+      config.accessKinds,
+      input.communityId,
+    )
   ) {
     throw new MembershipAccessError(
       `Your ${config.name} membership cannot book ${input.amenityName}. Upgrade your membership for access.`,

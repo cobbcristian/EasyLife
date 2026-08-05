@@ -11,7 +11,8 @@ export type DefaultMembershipTierSlug =
   | "tennis"
   | "social"
   | "social_tennis"
-  | "social_gym";
+  | "social_gym"
+  | "hoa";
 
 export type MembershipTierSlug = DefaultMembershipTierSlug | IronLakeTierSlug;
 
@@ -33,6 +34,18 @@ export type MembershipTierDefinition = {
   fbMinimumAmount: number;
   fbMinimumPeriod: FbPeriodKind;
 };
+
+/** Full amenity set — condo HOA residents book everything on property. */
+export const HOA_RESIDENT_ACCESS_KINDS: AmenityAccessKind[] = [
+  "court",
+  "golf_course",
+  "driving_range",
+  "gym",
+  "facility",
+  "dining",
+  "spa",
+  "store",
+];
 
 export const MEMBERSHIP_TIER_DEFINITIONS: Record<
   DefaultMembershipTierSlug,
@@ -83,6 +96,12 @@ export const MEMBERSHIP_TIER_DEFINITIONS: Record<
     fbMinimumAmount: 50,
     fbMinimumPeriod: "monthly",
   },
+  hoa: {
+    name: "HOA Resident",
+    accessKinds: HOA_RESIDENT_ACCESS_KINDS,
+    fbMinimumAmount: 0,
+    fbMinimumPeriod: "monthly",
+  },
 };
 
 export function tierDefinitionsForCommunity(
@@ -104,17 +123,24 @@ export function tierDefinitionsForCommunity(
       }),
     );
   }
-  // HOA demos / residential communities with no F&B minimum.
-  const hoaNoFbMin = new Set([
-    "harbor-pointe",
-    "willow-creek",
-    "alliant",
-    "oceanside-residents",
-  ]);
+  // Plaza at Oceanside condo — one resident tier, all on-site amenities.
+  if (communityId === "oceanside-residents") {
+    return {
+      hoa: {
+        name: "HOA Resident",
+        accessKinds: HOA_RESIDENT_ACCESS_KINDS,
+        fbMinimumAmount: 0,
+        fbMinimumPeriod: "monthly",
+      },
+    };
+  }
+  // Other HOA demos: club-style tiers but no F&B minimum.
+  const hoaNoFbMin = new Set(["harbor-pointe", "willow-creek", "alliant"]);
   if (hoaNoFbMin.has(communityId)) {
     return Object.fromEntries(
-      (Object.keys(MEMBERSHIP_TIER_DEFINITIONS) as DefaultMembershipTierSlug[]).map(
-        (slug) => {
+      (Object.keys(MEMBERSHIP_TIER_DEFINITIONS) as DefaultMembershipTierSlug[])
+        .filter((slug) => slug !== "hoa")
+        .map((slug) => {
           const def = MEMBERSHIP_TIER_DEFINITIONS[slug];
           return [
             slug,
@@ -123,8 +149,7 @@ export function tierDefinitionsForCommunity(
               fbMinimumAmount: 0,
             } satisfies MembershipTierDefinition,
           ];
-        },
-      ),
+        }),
     );
   }
   return MEMBERSHIP_TIER_DEFINITIONS;
@@ -136,8 +161,9 @@ export function isMembershipTierSlug(value: string): value is MembershipTierSlug
 
 export function normalizeMembershipTier(value: string | null | undefined): MembershipTierSlug {
   if (value && isMembershipTierSlug(value)) return value;
-  // Legacy HOA seed slug — treat as Tennis so court bookings work in demos.
-  if (value?.toLowerCase() === "resident") return "tennis";
+  const lower = value?.toLowerCase();
+  // Condo / HOA seed slugs — full amenity access, not club "social".
+  if (lower === "hoa" || lower === "resident") return "hoa";
   return "social";
 }
 
@@ -190,6 +216,8 @@ export function tierAllowsAmenity(
   accessKindsOverride?: string[],
   communityId?: string,
 ): boolean {
+  // Condo: every active resident books any on-site amenity.
+  if (communityId === "oceanside-residents") return true;
   const kinds =
     accessKindsOverride ??
     resolveTierDefinition(tierSlug, communityId).accessKinds;

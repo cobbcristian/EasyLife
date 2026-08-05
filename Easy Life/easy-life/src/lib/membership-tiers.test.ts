@@ -17,6 +17,10 @@ describe("membership tiers", () => {
     expect(tierAllowsAmenity("social_tennis", "court")).toBe(true);
     expect(tierAllowsAmenity("social", "golf_course")).toBe(false);
     expect(tierAllowsAmenity("national", "court")).toBe(true);
+    expect(tierAllowsAmenity("hoa", "court")).toBe(true);
+    expect(tierAllowsAmenity("social", "court", undefined, undefined, "oceanside-residents")).toBe(
+      true,
+    );
   });
 
   it("computes monthly F&B period bounds", () => {
