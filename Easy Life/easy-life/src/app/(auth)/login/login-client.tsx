@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { LoginHero } from "@/components/auth/login-hero";
 import { DemoLoginCheatSheet } from "@/components/auth/demo-login-cheat-sheet";
@@ -88,8 +88,9 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
       redirect && redirect.startsWith("/")
         ? redirect
         : (data.redirectTo ?? "/dashboard");
-    router.push(destination);
-    router.refresh();
+    // Hard navigation — Next soft routing hangs on Azure (stuck "Signing in…",
+    // menu clicks needing a refresh). Location.assign always completes.
+    window.location.assign(destination);
   }
 
   async function handleSubmit(e: React.FormEvent) {

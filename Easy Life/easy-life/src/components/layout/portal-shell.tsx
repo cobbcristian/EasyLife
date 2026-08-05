@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -33,11 +33,9 @@ interface PortalShellProps {
 }
 
 function useNativeAppShell(): boolean {
-  const [native, setNative] = useState(false);
-  useEffect(() => {
-    setNative(/PlazaOceansideApp/i.test(navigator.userAgent));
-  }, []);
-  return native;
+  // Prefer hard navigations in every shell for now — Next soft routing on Azure
+  // frequently hangs (clicks do nothing until a full refresh).
+  return true;
 }
 
 export function PortalShell({
