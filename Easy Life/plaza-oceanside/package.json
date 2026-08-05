@@ -1,0 +1,40 @@
+{
+  "name": "plaza-oceanside",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^3.1.1",
+    "expo": "~57.0.9",
+    "expo-constants": "^57.0.8",
+    "expo-device": "~57.0.1",
+    "expo-linking": "^57.0.4",
+    "expo-notifications": "~57.0.8",
+    "expo-secure-store": "^57.0.1",
+    "expo-splash-screen": "~57.0.5",
+    "expo-status-bar": "~57.0.1",
+    "expo-web-browser": "^57.0.2",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-webview": "^14.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "eas-cli": "^21.4.0",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:android": "eas-cli build --platform android --profile production",
+    "build:ios": "eas-cli build --platform ios --profile production",
+    "build:all": "eas-cli build --platform all --profile production",
+    "submit:android": "eas-cli submit --platform android --profile production",
+    "submit:ios": "eas-cli submit --platform ios --profile production",
+    "typecheck": "tsc --noEmit",
+    "icons": "python scripts/make-icons.py"
+  },
+  "private": true
+}

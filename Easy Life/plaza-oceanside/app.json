@@ -1,0 +1,113 @@
+{
+  "expo": {
+    "name": "The Plaza at Oceanside",
+    "slug": "plaza-oceanside",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "plaza-oceanside",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "primaryColor": "#002856",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#002856"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.easylife.oceanside",
+      "buildNumber": "14",
+      "infoPlist": {
+        "CFBundleDisplayName": "The Plaza at Oceanside",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Allow camera access to upload photos for your resident profile and service requests.",
+        "NSPhotoLibraryUsageDescription": "Allow photo library access to upload images for your resident profile and service requests.",
+        "NSLocationWhenInUseUsageDescription": "Location may be used for community visitor and amenity features when you opt in."
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          }
+        ]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.easylife.oceanside",
+      "adaptiveIcon": {
+        "backgroundColor": "#002856",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "easylife-plaza-app.azurewebsites.net",
+              "pathPrefix": "/go/oceansideresidents"
+            },
+            {
+              "scheme": "https",
+              "host": "oceansideresidents.com",
+              "pathPrefix": "/go/oceansideresidents"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "45f38a79-f4cb-483f-93db-fcd97441fcdf"
+      },
+      "apiBaseUrl": "https://easylife-plaza-app.azurewebsites.net",
+      "communityId": "oceanside-residents",
+      "tenantGoPath": "/go/oceansideresidents",
+      "supportEmail": "cobbcristian17@gmail.com",
+      "privacyPolicyUrl": "https://easylife-plaza-app.azurewebsites.net/privacy"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#002856",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#002856",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220
+        }
+      ]
+    ],
+    "owner": "cristian.cobb"
+  }
+}
