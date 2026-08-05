@@ -1,4 +1,5 @@
 import { brandAssets } from "@/lib/brand-assets";
+import { amenityRequiresManagementApproval } from "@/lib/amenity-booking-policy";
 import {
   OCEANSIDE_BOARD,
   OCEANSIDE_CONTACT,
@@ -199,25 +200,77 @@ async function clearCommunityAdminBookings(): Promise<void> {
 
 /** Replace Oceanside amenities with the verified Plaza at Oceanside set. */
 async function syncOceansidePlazaAmenities(): Promise<void> {
-  await clearCommunityAdminBookings();
-  const removed = await prisma.amenity.deleteMany({
+  const existing = await prisma.amenity.findMany({
     where: { communityId: OCEANSIDE_COMMUNITY_ID },
+    select: { id: true, name: true },
   });
-  await prisma.amenity.createMany({
-    data: OCEANSIDE_PLAZA_AMENITIES.map((a) => ({
+  const wanted = new Set(OCEANSIDE_PLAZA_AMENITIES.map((a) => a.name));
+  const existingNames = new Set(existing.map((a) => a.name));
+  const sameSet =
+    existing.length === OCEANSIDE_PLAZA_AMENITIES.length &&
+    OCEANSIDE_PLAZA_AMENITIES.every((a) => existingNames.has(a.name));
+
+  if (!sameSet) {
+    // Only wipe bookings when the amenity catalog itself changes.
+    await clearCommunityAdminBookings();
+    const removed = await prisma.amenity.deleteMany({
+      where: { communityId: OCEANSIDE_COMMUNITY_ID },
+    });
+    await prisma.amenity.createMany({
+      data: OCEANSIDE_PLAZA_AMENITIES.map((a) => ({
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: a.name,
+        description: a.description,
+        kind: a.kind,
+        schedule: a.schedule,
+        fee: a.fee,
+        unitCount: a.unitCount,
+        surface: "surface" in a ? a.surface : null,
+      })),
+    });
+    console.log(
+      `[oceanside] synced Plaza amenities: removed=${removed.count} created=${OCEANSIDE_PLAZA_AMENITIES.length}`,
+    );
+  } else {
+    // Keep amenity ids stable — update copy / metadata only.
+    for (const a of OCEANSIDE_PLAZA_AMENITIES) {
+      await prisma.amenity.updateMany({
+        where: { communityId: OCEANSIDE_COMMUNITY_ID, name: a.name },
+        data: {
+          description: a.description,
+          kind: a.kind,
+          schedule: a.schedule,
+          fee: a.fee,
+          unitCount: a.unitCount,
+          surface: "surface" in a ? a.surface : null,
+        },
+      });
+    }
+    console.log(
+      `[oceanside] plaza amenities unchanged (${wanted.size}); booking history preserved`,
+    );
+  }
+
+  // Retro-confirm free-slot bookings that were created as pending before auto-approve.
+  const pending = await prisma.booking.findMany({
+    where: {
       communityId: OCEANSIDE_COMMUNITY_ID,
-      name: a.name,
-      description: a.description,
-      kind: a.kind,
-      schedule: a.schedule,
-      fee: a.fee,
-      unitCount: a.unitCount,
-      surface: "surface" in a ? a.surface : null,
-    })),
+      status: "pending",
+    },
+    select: { id: true, amenity: true },
   });
-  console.log(
-    `[oceanside] synced Plaza amenities: removed=${removed.count} created=${OCEANSIDE_PLAZA_AMENITIES.length}`,
-  );
+  const toConfirm = pending
+    .filter((b) => !amenityRequiresManagementApproval(b.amenity))
+    .map((b) => b.id);
+  if (toConfirm.length > 0) {
+    const updated = await prisma.booking.updateMany({
+      where: { id: { in: toConfirm } },
+      data: { status: "confirmed" },
+    });
+    console.log(
+      `[oceanside] auto-confirmed ${updated.count} pending amenity booking(s)`,
+    );
+  }
 }
 
 /**

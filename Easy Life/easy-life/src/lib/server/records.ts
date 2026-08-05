@@ -19,6 +19,7 @@ import { sendPushToUser } from "@/lib/server/push";
 import { sendEmail } from "@/lib/server/notify";
 import { addMemberInboxItem } from "@/lib/server/project-management";
 import { appPath } from "@/lib/server/app-url";
+import { initialBookingStatus } from "@/lib/amenity-booking-policy";
 import { serializeTiebreakers, DEFAULT_TIEBREAKERS } from "@/lib/tournament-tiebreakers";
 import { DEFAULT_NO_START_POLICY } from "@/lib/tournament-no-start";
 import type { TiebreakerCriterion } from "@/lib/tournament-tiebreakers";
@@ -674,6 +675,9 @@ export async function createBooking(input: {
       ? normalizeCourtAddons(input.addons)
       : [];
 
+  // Slot is free (checked above). Auto-confirm unless this room needs staff approval.
+  const status = initialBookingStatus(amenityName);
+
   return prisma.booking.create({
     data: {
       communityId,
@@ -685,7 +689,7 @@ export async function createBooking(input: {
       date: input.date,
       startTime: input.startTime,
       endTime: input.endTime,
-      status: "pending",
+      status,
       inviteCapacity,
       addonsJson: JSON.stringify(addons),
     },
