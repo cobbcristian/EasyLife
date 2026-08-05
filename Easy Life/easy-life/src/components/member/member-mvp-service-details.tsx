@@ -82,7 +82,7 @@ export function MemberMvpServiceDetails({
   }
 
   return (
-    <div className="font-[family-name:var(--font-poppins)] pb-28">
+    <div className="font-[family-name:var(--font-poppins)] pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
       <div className="relative mx-auto max-w-lg">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -204,7 +204,7 @@ export function MemberMvpServiceDetails({
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border-2 bg-white/80 px-4 py-4 backdrop-blur-sm lg:static lg:mx-auto lg:max-w-lg lg:border-0 lg:bg-transparent lg:pb-10">
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border-2 bg-white/95 px-4 py-3 backdrop-blur-sm lg:static lg:bottom-auto lg:mx-auto lg:max-w-lg lg:border-0 lg:bg-transparent lg:px-4 lg:pb-10 lg:pt-0">
         {messageHref ? (
           <Link
             href={messageHref}

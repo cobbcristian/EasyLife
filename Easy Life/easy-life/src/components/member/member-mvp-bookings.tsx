@@ -627,12 +627,12 @@ export function MemberMvpBookings({
           />
           <form
             onSubmit={handleCreate}
-            className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl md:rounded-3xl"
+            className="relative z-10 flex max-h-[min(92dvh,92vh)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl md:rounded-3xl"
           >
-            <div className="flex justify-center pt-3 md:hidden">
+            <div className="flex shrink-0 justify-center pt-3 md:hidden">
               <span className="h-1.5 w-12 rounded-full bg-[#d8dde5]" />
             </div>
-            <div className="flex items-center justify-between px-5 pb-2 pt-3">
+            <div className="flex shrink-0 items-center justify-between px-5 pb-2 pt-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-grey">
                   {t("Step")} {bookStep} / 5
@@ -661,7 +661,7 @@ export function MemberMvpBookings({
               </button>
             </div>
 
-            <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-4 pt-2">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] px-5 pb-10 pt-2">
               {bookStep === 1 ? (
                 <>
               <label className="block">
@@ -1005,7 +1005,7 @@ export function MemberMvpBookings({
               ) : null}
             </div>
 
-            <div className="flex gap-3 border-t border-[#eceff3] px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="flex shrink-0 gap-3 border-t border-[#eceff3] bg-white px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button
                 type="button"
                 onClick={() => {

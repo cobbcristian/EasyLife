@@ -113,8 +113,16 @@ export function MemberMvpProfile({
         setPushHint("");
         return;
       }
-      const messages: Record<"unsupported" | "not_configured" | "denied" | "failed", string> = {
-        unsupported: "Push is not supported in this browser.",
+      // In-app WebViews (TestFlight / Play) do not support web PushManager —
+      // quietly keep the preference off instead of alarming the resident.
+      if (result.reason === "unsupported") {
+        setForm((prev) => ({ ...prev, commsPush: false }));
+        setPushHint(
+          "Push alerts use the Oceanside app after you install the latest build. This in-app browser can’t turn on web push.",
+        );
+        return;
+      }
+      const messages: Record<"not_configured" | "denied" | "failed", string> = {
         not_configured: "Push is not set up on the server yet (VAPID keys missing).",
         denied: "Browser blocked notifications. Enable them in site settings.",
         failed: "Could not enable push notifications. Try again.",
@@ -128,6 +136,16 @@ export function MemberMvpProfile({
   );
 
   usePushNotifications(form.commsPush, onPushResult);
+
+  const webPushSupported =
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    !(
+      window as Window & {
+        ReactNativeWebView?: unknown;
+      }
+    ).ReactNativeWebView;
 
   async function saveProfile() {
     setSaving(true);
@@ -325,15 +343,23 @@ export function MemberMvpProfile({
               />
             </label>
             <label className="flex items-center justify-between gap-3 rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3">
-              <span className="text-sm text-ink">{t("Push notifications")}</span>
+              <span className="min-w-0 text-sm text-ink">
+                {t("Push notifications")}
+                {!webPushSupported ? (
+                  <span className="mt-0.5 block text-[11px] font-normal text-grey">
+                    Available in a future app update — not in this in-app browser.
+                  </span>
+                ) : null}
+              </span>
               <input
                 type="checkbox"
                 checked={form.commsPush}
+                disabled={!webPushSupported}
                 onChange={(e) => {
                   setPushHint("");
                   setForm({ ...form, commsPush: e.target.checked });
                 }}
-                className="h-4 w-4 accent-[var(--mvp-blue)]"
+                className="h-4 w-4 accent-[var(--mvp-blue)] disabled:opacity-40"
               />
             </label>
             {pushHint ? (
