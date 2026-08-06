@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy, Download, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/ui/toast";
+import { downloadIcs } from "@/lib/calendar-ics";
 import { cn } from "@/lib/utils";
 
 type SyncLinks = {
@@ -101,8 +102,35 @@ export function CalendarSyncSheet({
     }
   }
 
-  function downloadIcs() {
-    window.location.href = "/api/member/calendar/sync?download=1";
+  async function downloadFeedIcs() {
+    try {
+      const res = await fetch("/api/member/calendar/sync?download=1");
+      if (!res.ok) throw new Error("download failed");
+      const ics = await res.text();
+      if (!ics.includes("BEGIN:VCALENDAR")) throw new Error("invalid ics");
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const filename = match?.[1]?.trim() || "club-calendar.ics";
+      const result = await downloadIcs(filename, ics);
+      if (!result.ok) {
+        toast({
+          variant: "warning",
+          title: t("Could not download calendar file"),
+        });
+        return;
+      }
+      if (result.method === "native" || result.method === "share") {
+        toast({
+          variant: "success",
+          title: t("Share the calendar file to save it"),
+        });
+      }
+    } catch {
+      toast({
+        variant: "warning",
+        title: t("Could not download calendar file"),
+      });
+    }
   }
 
   return (
@@ -193,7 +221,7 @@ export function CalendarSyncSheet({
             </button>
             <button
               type="button"
-              onClick={downloadIcs}
+              onClick={() => void downloadFeedIcs()}
               className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--mvp-blue)] px-3 text-[12px] font-semibold text-white"
             >
               <Download className="h-3.5 w-3.5" />

@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -208,11 +209,15 @@ function AppInner() {
       }
 
       if (
-        url.startsWith("about:") ||
-        url.startsWith("blob:") ||
-        url.startsWith("data:")
+        url.startsWith("about:")
       ) {
         return true;
+      }
+
+      // Never navigate the WebView to blob:/data: ICS dumps — that traps users
+      // on a raw calendar text page with no back button.
+      if (url.startsWith("blob:") || url.startsWith("data:")) {
+        return false;
       }
 
       if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -319,9 +324,28 @@ function AppInner() {
               const data = JSON.parse(event.nativeEvent.data) as {
                 type?: string;
                 chromeless?: boolean;
+                filename?: string;
+                ics?: string;
               };
               if (data?.type === "plaza-chromeless") {
                 setHidePortalBar(Boolean(data.chromeless));
+                return;
+              }
+              if (data?.type === "plaza-ics" && data.ics) {
+                const title = data.filename ?? "event.ics";
+                void Share.share(
+                  Platform.OS === "ios"
+                    ? {
+                        url: `data:text/calendar;charset=utf-8,${encodeURIComponent(data.ics)}`,
+                        title,
+                      }
+                    : {
+                        message: data.ics,
+                        title,
+                      },
+                ).catch(() => {
+                  /* user cancelled */
+                });
               }
             } catch {
               /* ignore non-json */

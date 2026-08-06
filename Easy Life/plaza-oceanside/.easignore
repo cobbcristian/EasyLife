@@ -11,3 +11,7 @@ dist/
 WAKE_UP.md
 STORE_ASSETS.md
 PRIVACY_NUTRITION.md
+store-screenshots/
+submit-log.txt
+*.aab
+*.ipa
