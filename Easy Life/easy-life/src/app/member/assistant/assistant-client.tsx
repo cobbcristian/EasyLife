@@ -231,6 +231,13 @@ export function AssistantClient() {
     }
   }
 
+  useEffect(() => {
+    const q = searchParams.get("q")?.trim();
+    if (!q || bootstrappedQuery.current) return;
+    bootstrappedQuery.current = true;
+    void send(q);
+  }, [searchParams]);
+
   function toggleListen() {
     const Ctor = getSpeechRecognition();
     if (!Ctor) {
@@ -289,8 +296,8 @@ export function AssistantClient() {
             </h1>
             <p className="mt-1 text-sm text-grey">
               {voiceEnabled
-                ? t("Voice or text ù I can book courts and in-app vendors, then confirm out loud.")
-                : t("Text mode ù reply by typing. Turn Voice on to hear spoken confirmations.")}
+                ? t("Voice or text ' I can book courts and in-app vendors, then confirm out loud.")
+                : t("Text mode ' reply by typing. Turn Voice on to hear spoken confirmations.")}
             </p>
           </div>
           <button
@@ -306,7 +313,7 @@ export function AssistantClient() {
               voiceEnabled ? t("Turn voice replies off") : t("Turn voice replies on")
             }
             title={
-              voiceEnabled ? t("Voice replies on ù tap to mute") : t("Voice replies off ù tap to enable")
+              voiceEnabled ? t("Voice replies on ' tap to mute") : t("Voice replies off ' tap to enable")
             }
           >
             {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
@@ -343,7 +350,7 @@ export function AssistantClient() {
         <div className="mt-4 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto pb-4">
           {messages.length === 0 ? (
             <p className="text-sm text-grey">
-              {t("Say or type what you want booked ù Iùll confirm when itùs done.")}
+              {t("Say or type what you want booked ' I'll confirm when it's done.")}
             </p>
           ) : (
             messages.map((m, i) => (
@@ -418,8 +425,8 @@ export function AssistantClient() {
               onChange={(e) => setInput(e.target.value)}
               placeholder={
                 listening
-                  ? t("Listeningù")
-                  : t("Ask or say: book a court tomorrow at 10ù")
+                  ? t("Listening'")
+                  : t("Ask or say: book a court tomorrow at 10'")
               }
               className="box-border h-11 min-w-0 flex-1 rounded-2xl border border-[#e4e8ee] px-4 text-sm leading-none outline-none focus:border-[var(--mvp-blue)]"
             />
@@ -428,7 +435,7 @@ export function AssistantClient() {
               disabled={busy || !input.trim()}
               className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {busy ? t("ù") : t("Send")}
+              {busy ? t("'") : t("Send")}
             </button>
           </div>
         </form>
