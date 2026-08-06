@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { brandAssets, imageForFoodItem } from "@/lib/brand-assets";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { useI18n } from "@/lib/i18n";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
@@ -712,7 +711,6 @@ export function MemberMvpDining({ restaurants, menuItems, initialOrders }: Props
           </form>
         </div>
       ) : null}
-      <MemberMvpBottomNav />
     </div>
   );
 }

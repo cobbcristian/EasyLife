@@ -8,7 +8,6 @@ import {
 } from "@/components/messages/chat-composer";
 import { BrandIcon } from "@/components/ui/brand-icon";
 import { Avatar } from "@/components/ui/avatar";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import {
   InviteMemberPicker,
   type InviteMember,
@@ -711,7 +710,7 @@ export default function MemberMessagesPage() {
           </div>
         </div>
       </div>
-      {!mobileConversation ? <MemberMvpBottomNav /> : null}
+      
     </div>
   );
 }

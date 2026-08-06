@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckoutButton } from "@/components/payments/checkout-button";
 import { PaymentMethodsSettings } from "@/components/payments/payment-methods-settings";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { communityIsResidentialHoa } from "@/lib/community-features";
@@ -362,6 +361,12 @@ export function PaymentsClient() {
               >
                 {t("Open")} {hoaPortal.label} →
               </a>
+              <Link
+                href="/member/newsletter"
+                className="mt-3 flex text-sm font-semibold text-[var(--mvp-blue)]"
+              >
+                {t("HOA Newsletter")} →
+              </Link>
             </section>
           ) : null}
 
@@ -562,7 +567,6 @@ export function PaymentsClient() {
           ) : null}
         </div>
       </div>
-      <MemberMvpBottomNav />
     </div>
   );
 }

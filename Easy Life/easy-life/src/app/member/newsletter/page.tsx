@@ -43,11 +43,14 @@ export default function MemberNewsletterPage() {
       <div className="mx-auto w-full max-w-lg md:max-w-2xl md:px-6 md:pb-10 md:pt-8">
         <header className="sticky top-0 z-20 border-b border-[#eceff3] bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:static md:rounded-2xl md:border md:border-[#e8ebf0] md:px-5 md:py-4 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-grey">
-            {t("Member")}
+            {t("HOA")}
           </p>
           <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink md:text-[26px]">
             {t("Newsletter")}
           </h1>
+          <p className="mt-1 text-[13px] text-grey">
+            {t("Association newsletters and board updates for residents.")}
+          </p>
         </header>
 
         <div className="px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:py-6 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">

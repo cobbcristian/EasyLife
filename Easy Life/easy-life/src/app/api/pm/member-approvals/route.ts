@@ -5,6 +5,7 @@ import { isSuperAdmin } from "@/lib/server/community-context";
 import {
   approvePendingMember,
   listPendingMembers,
+  rejectPendingMember,
 } from "@/lib/server/member-enrollment";
 import { logEvent } from "@/lib/server/records";
 
@@ -28,14 +29,14 @@ export async function GET() {
   return NextResponse.json({ pending });
 }
 
-/** Approve a pending resident → active + directory visible. */
+/** Approve or reject a pending resident registration. */
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session || !canApprove(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { userId?: string };
+  let body: { userId?: string; action?: string };
   try {
     body = await request.json();
   } catch {
@@ -45,7 +46,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "userId required" }, { status: 400 });
   }
 
+  const action = body.action === "reject" ? "reject" : "approve";
   const communityScope = isSuperAdmin(session) ? undefined : session.communityId;
+
+  if (action === "reject") {
+    const result = await rejectPendingMember({
+      userId: body.userId,
+      communityId: communityScope,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+    await logEvent({
+      communityId: result.user.communityId,
+      userName: session.name,
+      action: "Member rejected",
+      detail: result.user.email,
+    });
+    revalidatePath("/pm/member-approvals");
+    revalidatePath("/board/member-approvals");
+    revalidatePath("/users");
+    return NextResponse.json({ ok: true, action, user: result.user });
+  }
+
   const result = await approvePendingMember({
     userId: body.userId,
     communityId: communityScope,
@@ -62,7 +85,8 @@ export async function POST(request: Request) {
   });
 
   revalidatePath("/pm/member-approvals");
+  revalidatePath("/board/member-approvals");
   revalidatePath("/users");
   revalidatePath("/member/directory");
-  return NextResponse.json({ ok: true, user: result.user });
+  return NextResponse.json({ ok: true, action, user: result.user });
 }

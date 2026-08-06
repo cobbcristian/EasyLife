@@ -10,7 +10,6 @@ import {
   imageForEvent,
   imageForTournament,
 } from "@/lib/brand-assets";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { MemberMvpHomeSearch } from "@/components/member/member-mvp-home-search";
 import {
   RESIDENTIAL_HOA_ACCOUNT_LINKS,
@@ -382,14 +381,18 @@ export function MemberMvpHome({
                 className="relative h-20 w-[138px] shrink-0 snap-start overflow-hidden rounded-lg"
                 style={{ backgroundColor: tile.bg }}
               >
-                <span className="absolute left-2.5 top-3 text-base font-medium text-white">
+                <span className="absolute left-2.5 top-3 z-[1] max-w-[58%] text-base font-medium leading-tight text-white">
                   {t(tile.label)}
                 </span>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={tile.image}
                   alt=""
-                  className="absolute bottom-0 right-0 h-[72px] w-auto max-w-[55%] object-contain object-bottom"
+                  className={cn(
+                    "absolute bottom-0 right-0 h-[72px] w-auto max-w-[55%] object-contain object-bottom",
+                    // Flip Services art so the broom/squeegee clears the label.
+                    tile.key === "services" && "-scale-x-100",
+                  )}
                 />
               </Link>
             ))}
@@ -494,7 +497,6 @@ export function MemberMvpHome({
           )}
         </section>
       </div>
-      <MemberMvpBottomNav />
     </div>
   );
 }

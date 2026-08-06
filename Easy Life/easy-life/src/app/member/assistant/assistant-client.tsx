@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
@@ -136,6 +137,7 @@ function actionHref(a: AiAction): string {
 
 export function AssistantClient() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -144,6 +146,7 @@ export function AssistantClient() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isResidentialHoa, setIsResidentialHoa] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const bootstrappedQuery = useRef(false);
   const voiceSupported = typeof window !== "undefined" && Boolean(getSpeechRecognition());
 
   const load = useCallback(() => {
@@ -228,6 +231,15 @@ export function AssistantClient() {
     }
   }
 
+  useEffect(() => {
+    const q = searchParams.get("q")?.trim();
+    if (!q || bootstrappedQuery.current || busy) return;
+    bootstrappedQuery.current = true;
+    void send(q);
+    // Deep-link from Ask Plaza once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   function toggleListen() {
     const Ctor = getSpeechRecognition();
     if (!Ctor) {
@@ -286,8 +298,8 @@ export function AssistantClient() {
             </h1>
             <p className="mt-1 text-sm text-grey">
               {voiceEnabled
-                ? t("Voice or text ‚Äî I can book courts and in-app vendors, then confirm out loud.")
-                : t("Text mode ‚Äî reply by typing. Turn Voice on to hear spoken confirmations.")}
+                ? t("Voice or text ù I can book courts and in-app vendors, then confirm out loud.")
+                : t("Text mode ù reply by typing. Turn Voice on to hear spoken confirmations.")}
             </p>
           </div>
           <button
@@ -303,7 +315,7 @@ export function AssistantClient() {
               voiceEnabled ? t("Turn voice replies off") : t("Turn voice replies on")
             }
             title={
-              voiceEnabled ? t("Voice replies on ‚Äî tap to mute") : t("Voice replies off ‚Äî tap to enable")
+              voiceEnabled ? t("Voice replies on ù tap to mute") : t("Voice replies off ù tap to enable")
             }
           >
             {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
@@ -340,7 +352,7 @@ export function AssistantClient() {
         <div className="mt-4 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto pb-4">
           {messages.length === 0 ? (
             <p className="text-sm text-grey">
-              {t("Say or type what you want booked ‚Äî I‚Äôll confirm when it‚Äôs done.")}
+              {t("Say or type what you want booked ù Iùll confirm when itùs done.")}
             </p>
           ) : (
             messages.map((m, i) => (
@@ -415,8 +427,8 @@ export function AssistantClient() {
               onChange={(e) => setInput(e.target.value)}
               placeholder={
                 listening
-                  ? t("Listening‚Ä¶")
-                  : t("Ask or say: book a court tomorrow at 10‚Ä¶")
+                  ? t("Listeningù")
+                  : t("Ask or say: book a court tomorrow at 10ù")
               }
               className="box-border h-11 min-w-0 flex-1 rounded-2xl border border-[#e4e8ee] px-4 text-sm leading-none outline-none focus:border-[var(--mvp-blue)]"
             />
@@ -425,7 +437,7 @@ export function AssistantClient() {
               disabled={busy || !input.trim()}
               className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {busy ? t("‚Ä¶") : t("Send")}
+              {busy ? t("ù") : t("Send")}
             </button>
           </div>
         </form>

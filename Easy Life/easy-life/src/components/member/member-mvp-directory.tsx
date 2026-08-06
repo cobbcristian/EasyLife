@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { useI18n } from "@/lib/i18n";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 
@@ -222,7 +221,6 @@ export function MemberMvpDirectory() {
           </ul>
         )}
       </div>
-      <MemberMvpBottomNav />
     </div>
   );
 }

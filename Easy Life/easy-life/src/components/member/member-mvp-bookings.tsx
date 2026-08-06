@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { imageForAmenity, imageForBookingRow } from "@/lib/brand-assets";
 import { buildIcsEvent, downloadIcs } from "@/lib/calendar-ics";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { useI18n } from "@/lib/i18n";
 import {
   timeRangesOverlap,
@@ -1058,7 +1057,6 @@ export function MemberMvpBookings({
           </form>
         </div>
       ) : null}
-      <MemberMvpBottomNav />
     </div>
   );
 }

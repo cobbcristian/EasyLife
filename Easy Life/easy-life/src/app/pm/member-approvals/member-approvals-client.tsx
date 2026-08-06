@@ -21,29 +21,40 @@ export function MemberApprovalsClient({ initial }: { initial: PendingRow[] }) {
   const [rows, setRows] = useState(initial);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function approve(userId: string) {
+  async function act(userId: string, action: "approve" | "reject") {
     setBusyId(userId);
     try {
       const res = await fetch("/api/pm/member-approvals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, action }),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
         toast({
           variant: "warning",
-          title: t("Could not approve"),
+          title:
+            action === "approve"
+              ? t("Could not approve")
+              : t("Could not reject"),
           description: data.error,
         });
         return;
       }
       setRows((prev) => prev.filter((r) => r.id !== userId));
-      toast({
-        variant: "success",
-        title: t("Member approved"),
-        description: t("They can sign in and appear in the directory."),
-      });
+      if (action === "approve") {
+        toast({
+          variant: "success",
+          title: t("Member approved"),
+          description: t("They can sign in and appear in the directory."),
+        });
+      } else {
+        toast({
+          variant: "success",
+          title: t("Registration rejected"),
+          description: t("Their pending account was removed."),
+        });
+      }
     } finally {
       setBusyId(null);
     }
@@ -59,7 +70,7 @@ export function MemberApprovalsClient({ initial }: { initial: PendingRow[] }) {
       <PageBody>
         <p className="mb-6 text-sm text-grey">
           {t(
-            "Residents who self-registered wait here until you approve them. Approval activates login and directory visibility.",
+            "Residents who self-registered wait here until you approve them. Approval activates login and directory visibility. Reject removes the pending registration.",
           )}
         </p>
         <div className="overflow-x-auto rounded-xl border border-[#e8ebf0] bg-white">
@@ -90,14 +101,35 @@ export function MemberApprovalsClient({ initial }: { initial: PendingRow[] }) {
                       {new Date(r.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        disabled={busyId === r.id}
-                        onClick={() => void approve(r.id)}
-                        className="rounded-lg bg-[var(--mvp-blue)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                      >
-                        {busyId === r.id ? t("Approving…") : t("Approve")}
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={() => void act(r.id, "approve")}
+                          className="rounded-lg bg-[var(--mvp-blue)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        >
+                          {busyId === r.id ? t("Working…") : t("Approve")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                t(
+                                  "Reject this registration? Their pending account will be deleted.",
+                                ),
+                              )
+                            ) {
+                              return;
+                            }
+                            void act(r.id, "reject");
+                          }}
+                          className="rounded-lg border border-[#f0cfd0] bg-[#fff5f5] px-3 py-1.5 text-xs font-semibold text-[#b42318] disabled:opacity-50"
+                        >
+                          {t("Reject")}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

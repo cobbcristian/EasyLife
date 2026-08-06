@@ -18,8 +18,11 @@ export async function POST(
     type?: "service" | "activity";
     category?: string;
     email?: string;
+    phone?: string;
     firstName?: string;
     lastName?: string;
+    listingKind?: "club" | "local_pro";
+    description?: string;
   };
   try {
     body = await request.json();
@@ -39,8 +42,11 @@ export async function POST(
     type: body.type,
     category: body.category ?? "General",
     email: body.email,
+    phone: body.phone,
     firstName: body.firstName,
     lastName: body.lastName,
+    listingKind: body.listingKind,
+    description: body.description,
   });
 
   if (!result) {

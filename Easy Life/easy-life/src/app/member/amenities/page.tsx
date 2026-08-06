@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { imageForAmenity } from "@/lib/brand-assets";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 import { isBookableAmenityKind } from "@/lib/member-dtos";
 import { getSession } from "@/lib/server/auth";
@@ -78,7 +77,6 @@ export default async function MemberAmenitiesPage() {
           Quick reserve
         </a>
       </div>
-      <MemberMvpBottomNav />
     </div>
   );
 }

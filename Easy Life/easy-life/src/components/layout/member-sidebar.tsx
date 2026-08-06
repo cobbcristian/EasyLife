@@ -53,6 +53,8 @@ const hoaOnlyHrefs = new Set([
   "/member/service-requests",
   "/member/properties",
   "/member/real-estate",
+  "/member/newsletter",
+  "/member/payments",
 ]);
 
 const moreNav = [
@@ -79,11 +81,18 @@ const moreNav = [
   { label: "Rewards", href: "/member/rewards", icon: "Award" },
   { label: "Marketplace", href: "/member/marketplace", icon: "ShoppingBag" },
   { label: "Blog", href: "/member/blog", icon: "Newspaper" },
-  { label: "Newsletter", href: "/member/newsletter", icon: "Mail" },
   { label: "Gallery", href: "/member/gallery", icon: "Image" },
   { label: "Properties", href: "/member/properties", icon: "Building2" },
   { label: "Real Estate", href: "/member/real-estate", icon: "Home" },
   { label: "Contact", href: "/member/contact", icon: "Mail" },
+];
+
+/** HOA section — dues, newsletter, building ops. */
+const hoaNav = [
+  { label: "Payments", href: "/member/payments", icon: "CreditCard" },
+  { label: "Newsletter", href: "/member/newsletter", icon: "Mail" },
+  { label: "Service Requests", href: "/member/service-requests", icon: "Wrench" },
+  { label: "Documents", href: "/member/documents", icon: "FileText" },
 ];
 
 const residentialOnlyHrefs = new Set(["/member/visitors"]);
@@ -172,16 +181,32 @@ export function MemberSidebar({
     /oceanside/i.test(productName);
   const tramEnabled = hasTram && !isResidentialHoa;
   const visiblePrimaryNav = primaryNav
-    .filter(
-      (item) =>
-        hasHouseholdMembership || !householdMembershipHrefs.has(item.href),
-    )
+    .filter((item) => {
+      if (!hasHouseholdMembership && householdMembershipHrefs.has(item.href)) {
+        return false;
+      }
+      // Residential HOA: Payments + Newsletter live under the HOA section below.
+      if (
+        isResidentialHoa &&
+        paysHoa &&
+        (item.href === "/member/payments" || item.href === "/member/newsletter")
+      ) {
+        return false;
+      }
+      return true;
+    })
     .map((item) =>
       isResidentialHoa && item.href === "/member/membership"
         ? { ...item, label: "Your access" }
         : item,
     );
+  const visibleHoaNav =
+    isResidentialHoa && paysHoa
+      ? hoaNav
+      : [];
+  const hoaHrefSet = new Set(visibleHoaNav.map((i) => i.href));
   const visibleMoreNav = moreNav.filter((item) => {
+    if (hoaHrefSet.has(item.href)) return false;
     if (!paysHoa && hoaOnlyHrefs.has(item.href)) return false;
     if (!isResidentialHoa && residentialOnlyHrefs.has(item.href)) return false;
     if (!hasClubDining && clubDiningHrefs.has(item.href)) return false;
@@ -194,9 +219,13 @@ export function MemberSidebar({
     if (!hasRewards && rewardsHrefs.has(item.href)) return false;
     return true;
   });
+  const hoaActive = visibleHoaNav.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
   const moreActive = visibleMoreNav.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
+  const [hoaOpen, setHoaOpen] = useState(hoaActive || isResidentialHoa);
   const [moreOpen, setMoreOpen] = useState(moreActive);
 
   useEffect(() => {
@@ -285,6 +314,30 @@ export function MemberSidebar({
             onClose={onClose}
             t={t}
           />
+
+          {visibleHoaNav.length > 0 ? (
+            <div className="mt-4 border-t border-border-2 pt-3">
+              <button
+                type="button"
+                onClick={() => setHoaOpen((v) => !v)}
+                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey hover:bg-white/60"
+                aria-expanded={hoaOpen}
+              >
+                {t("HOA")}
+                <ChevronDown
+                  className={cn("h-4 w-4 transition-transform", hoaOpen && "rotate-180")}
+                />
+              </button>
+              {hoaOpen ? (
+                <NavList
+                  items={visibleHoaNav}
+                  pathname={pathname}
+                  onClose={onClose}
+                  t={t}
+                />
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="mt-4 border-t border-border-2 pt-3">
             <button

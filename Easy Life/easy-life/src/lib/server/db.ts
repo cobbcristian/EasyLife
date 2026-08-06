@@ -491,8 +491,11 @@ export async function addProviderToCommunity(
     type: "service" | "activity";
     category: string;
     email?: string;
+    phone?: string;
     firstName?: string;
     lastName?: string;
+    listingKind?: "club" | "local_pro";
+    description?: string;
   },
 ): Promise<
   | {
@@ -509,12 +512,18 @@ export async function addProviderToCommunity(
   });
   if (!community) return undefined;
 
+  const email = input.email?.trim().toLowerCase() || null;
+  const phone = input.phone?.trim() || null;
   const created = await prisma.provider.create({
     data: {
       communityId,
       name: input.businessName,
       category: input.category,
       type: input.type,
+      email,
+      phone,
+      listingKind: input.listingKind ?? "local_pro",
+      description: input.description?.trim() || "",
     },
   });
   await prisma.community.update({
@@ -538,18 +547,21 @@ export async function addProviderToCommunity(
   let emailSent = false;
   let emailError: string | undefined;
 
-  if (input.email?.trim()) {
-    const email = input.email.trim().toLowerCase();
+  if (email) {
     otp = randomBytes(4).toString("hex");
     const existing = await prisma.user.findFirst({ where: { email } });
+    const contactName =
+      [input.firstName, input.lastName].filter(Boolean).join(" ").trim() ||
+      input.businessName;
     if (!existing) {
       await prisma.user.create({
         data: {
           email,
           password: hashPassword(otp),
           role: "provider",
-          name: input.businessName,
+          name: contactName,
           communityId,
+          status: "active",
         },
       });
     } else {
@@ -558,15 +570,16 @@ export async function addProviderToCommunity(
         data: {
           password: hashPassword(otp),
           role: "provider",
-          name: input.businessName,
+          name: contactName,
           communityId,
+          status: "active",
         },
       });
     }
 
     const sent = await sendBusinessInvitationEmail({
       to: email,
-      firstName: input.firstName?.trim() || input.businessName,
+      firstName: input.firstName?.trim() || contactName,
       communityName: community.name,
       otp,
     });

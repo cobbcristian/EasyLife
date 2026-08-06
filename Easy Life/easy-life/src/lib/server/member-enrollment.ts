@@ -184,3 +184,56 @@ export async function listPendingMembers(communityId: string) {
     status: "pending" as const,
   }));
 }
+
+/**
+ * Reject a pending self-registration: remove the login + profile so they can
+ * re-apply later. Only deletes when status is still pending.
+ */
+export async function rejectPendingMember(opts: {
+  userId: string;
+  communityId?: string | null;
+}): Promise<
+  | {
+      ok: true;
+      user: { id: string; email: string; name: string; communityId: string | null };
+    }
+  | { ok: false; error: string; status: number }
+> {
+  const user = await prisma.user.findUnique({ where: { id: opts.userId } });
+  if (!user) return { ok: false, error: "Not found", status: 404 };
+  if (opts.communityId && user.communityId !== opts.communityId) {
+    return { ok: false, error: "Forbidden", status: 403 };
+  }
+  if (user.role !== "member") {
+    return { ok: false, error: "Only resident members can be rejected this way", status: 400 };
+  }
+  if (user.status !== "pending") {
+    return {
+      ok: false,
+      error: "Only pending registrations can be rejected",
+      status: 400,
+    };
+  }
+
+  await prisma.memberProfileExt.deleteMany({ where: { userEmail: user.email } });
+  if (user.communityId) {
+    await prisma.communityMember.deleteMany({
+      where: {
+        communityId: user.communityId,
+        name: user.name,
+        isManagement: false,
+      },
+    });
+  }
+  await prisma.user.delete({ where: { id: user.id } });
+
+  return {
+    ok: true,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      communityId: user.communityId,
+    },
+  };
+}

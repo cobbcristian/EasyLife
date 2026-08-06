@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { imageForAmenity } from "@/lib/brand-assets";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { isBookableAmenityKind } from "@/lib/member-dtos";
 import { getSession } from "@/lib/server/auth";
 import { ensureRecordsSeeded, listAmenities } from "@/lib/server/records";
@@ -73,7 +72,6 @@ export default async function MemberActivitiesPage() {
           Quick reserve
         </Link>
       </div>
-      <MemberMvpBottomNav />
     </div>
   );
 }

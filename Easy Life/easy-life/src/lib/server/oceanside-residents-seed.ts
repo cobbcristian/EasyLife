@@ -957,4 +957,102 @@ async function syncOceansideContactStaff(): Promise<void> {
     ],
   });
   console.log("[oceanside] synced contact / message hubs + board staff");
+
+  await ensureOceansideServiceProvider(
+    {
+      email: "isaacbreno@gmail.com",
+      contactName: "Isaac Andrade",
+      businessName: "Afonso Andrade Floor Installation",
+      phone: "(754) 423-7703",
+      category: "Handyman",
+      description:
+        "Floor installation and related interior finishes for Plaza at Oceanside residents.",
+    },
+  );
+}
+
+async function ensureOceansideServiceProvider(input: {
+  email: string;
+  contactName: string;
+  businessName: string;
+  phone: string;
+  category: string;
+  description: string;
+}): Promise<void> {
+  const email = input.email.trim().toLowerCase();
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (!existingUser) {
+    await prisma.user.create({
+      data: {
+        email,
+        name: input.contactName,
+        role: "provider",
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        status: "active",
+        // Temp login Isaac can change after first sign-in.
+        password: hashPassword("PlazaFloor2026!"),
+      },
+    });
+  } else {
+    await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        role: "provider",
+        name: input.contactName,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        status: "active",
+      },
+    });
+  }
+
+  const existingProvider = await prisma.provider.findFirst({
+    where: {
+      communityId: OCEANSIDE_COMMUNITY_ID,
+      OR: [{ email }, { name: input.businessName }],
+    },
+  });
+  if (existingProvider) {
+    await prisma.provider.update({
+      where: { id: existingProvider.id },
+      data: {
+        name: input.businessName,
+        email,
+        phone: input.phone,
+        category: input.category,
+        type: "service",
+        listingKind: "local_pro",
+        description: input.description,
+        status: "active",
+      },
+    });
+  } else {
+    await prisma.provider.create({
+      data: {
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        name: input.businessName,
+        email,
+        phone: input.phone,
+        category: input.category,
+        type: "service",
+        listingKind: "local_pro",
+        description: input.description,
+        status: "active",
+      },
+    });
+  }
+
+  await prisma.providerSubscription.upsert({
+    where: { userEmail: email },
+    create: {
+      userEmail: email,
+      businessName: input.businessName,
+      planId: "starter",
+      status: "active",
+    },
+    update: {
+      businessName: input.businessName,
+      status: "active",
+    },
+  });
+  console.log(`[oceanside] service provider ready: ${email}`);
 }

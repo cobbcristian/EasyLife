@@ -7,7 +7,6 @@ import { CalendarPlus, ChevronLeft, ChevronRight, Plus, RefreshCw } from "lucide
 import { imageForBookingRow, imageForEvent, imageForTournament } from "@/lib/brand-assets";
 import { AddEventSheet } from "@/components/member/add-event-sheet";
 import { CalendarSyncSheet } from "@/components/member/calendar-sync-sheet";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { buildIcsEvent, downloadIcs } from "@/lib/calendar-ics";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
@@ -849,7 +848,6 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
       </div>
       <AddEventSheet open={addOpen} onClose={() => setAddOpen(false)} />
       <CalendarSyncSheet open={syncOpen} onClose={() => setSyncOpen(false)} />
-      <MemberMvpBottomNav />
     </div>
   );
 }

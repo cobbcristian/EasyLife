@@ -9,6 +9,7 @@ import {
 } from "@/components/layout/user-avatar-menu";
 import { Logo } from "@/components/ui/logo";
 import { MemberSidebar } from "@/components/layout/member-sidebar";
+import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 
@@ -133,9 +134,11 @@ export function MemberShell({
             </div>
           </>
         ) : null}
-        <main id="main-content" className="flex-1">
+        <main id="main-content" className="flex-1 pb-28 md:pb-0">
           {children}
         </main>
+        {/* Always available on mobile so members can jump Home / Calendar / Messages from any page (including DM + Newsletter). */}
+        <MemberMvpBottomNav />
       </div>
     </div>
   );

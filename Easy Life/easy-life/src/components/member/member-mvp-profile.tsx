@@ -6,7 +6,6 @@ import { Camera, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import { ChangePhotoButton } from "@/components/account/change-photo-button";
-import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import {
   usePushNotifications,
   type PushSubscribeResult,
@@ -631,7 +630,6 @@ export function MemberMvpProfile({
           </div>
         </div>
       </div>
-      <MemberMvpBottomNav />
     </div>
   );
 }
