@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
-import { createPromotion, ensureRecordsSeeded, listPromotions } from "@/lib/server/records";
+import {
+  createPromotion,
+  deletePromotion,
+  ensureRecordsSeeded,
+  listPromotions,
+} from "@/lib/server/records";
 import { parseBody, promotionSchema } from "@/lib/server/validation";
 
 export async function GET() {
@@ -41,4 +46,27 @@ export async function POST(request: Request) {
   });
   revalidatePath("/provider/promotions");
   return NextResponse.json({ ok: true, promotion });
+}
+
+export async function DELETE(request: Request) {
+  const session = await getSession();
+  if (!session || session.role !== "provider") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  let body: { id?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  if (!body.id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  const ok = await deletePromotion(body.id, session.email);
+  if (!ok) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  revalidatePath("/provider/promotions");
+  revalidatePath("/member");
+  return NextResponse.json({ ok: true });
 }

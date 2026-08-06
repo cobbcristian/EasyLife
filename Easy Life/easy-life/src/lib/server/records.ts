@@ -2874,6 +2874,15 @@ export async function listPromotions(providerEmail: string) {
   });
 }
 
+export async function deletePromotion(id: string, providerEmail: string) {
+  const row = await prisma.promotion.findFirst({
+    where: { id, providerEmail: providerEmail.trim().toLowerCase() },
+  });
+  if (!row) return false;
+  await prisma.promotion.delete({ where: { id } });
+  return true;
+}
+
 export async function createPromotion(input: {
   providerEmail: string;
   communityId?: string | null;
