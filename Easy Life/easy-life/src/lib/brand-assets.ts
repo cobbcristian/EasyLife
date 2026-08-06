@@ -95,8 +95,8 @@ export const brandAssets = {
   /** Service / vendor covers — one distinct photo per category */
   serviceCleaning: "/brand/service-cleaning.png",
   serviceCarpet: "/brand/service-carpet.png",
-  /** Wood / install tools thumb — use for floor installation (not carpet cleaning). */
-  serviceFloorInstall: "/brand/service-painting.png",
+  /** Finished hardwood / flooring result — use for floor INSTALL (never carpet cleaning). */
+  serviceFloorInstall: "/brand/service-details-hero.png",
   serviceLandscaping: "/brand/service-landscaping.png",
   /** Iron Crest Lawn & Landscape — distinct outdoor thumbs per offering */
   serviceLawnEdging: "/brand/service-lawn-edging.jpg",
@@ -800,19 +800,26 @@ export function imageForProviderCategory(
   }
 
   if (n.includes("cassie") || c.includes("clean")) return brandAssets.serviceCleaningSupplies;
-  // Floor *installation* (wood/tile/laminate) — never the carpet-cleaning machine shot.
   if (
+    c.includes("carpet") ||
     c.includes("floor") ||
+    n.includes("carpet") ||
     n.includes("floor") ||
     n.includes("hardwood") ||
     n.includes("laminate") ||
     n.includes("tile install")
   ) {
+    // Carpet *cleaning* keeps the extractor shot; install / flooring gets finished floors.
+    if (
+      c.includes("clean") ||
+      n.includes("clean") ||
+      n.includes("shampoo") ||
+      n.includes("refresh") ||
+      (c.includes("carpet") && !c.includes("floor") && !n.includes("floor") && !n.includes("install"))
+    ) {
+      return brandAssets.serviceCarpet;
+    }
     return brandAssets.serviceFloorInstall;
-  }
-  // Carpet cleaning / shampoo work only.
-  if (c.includes("carpet") || n.includes("carpet")) {
-    return brandAssets.serviceCarpet;
   }
   if (
     c.includes("handyman") ||
@@ -820,10 +827,12 @@ export function imageForProviderCategory(
     c.includes("repair") ||
     n.includes("handyman")
   ) {
+    // Floor install businesses only — never carpet-cleaning stock for flooring pros.
     if (
       n.includes("floor") ||
       n.includes("hardwood") ||
-      n.includes("laminate")
+      n.includes("laminate") ||
+      n.includes("install")
     ) {
       return brandAssets.serviceFloorInstall;
     }

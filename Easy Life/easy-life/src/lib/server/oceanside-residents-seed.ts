@@ -1023,7 +1023,7 @@ async function ensureOceansideServiceProvider(input: {
         listingKind: "local_pro",
         description: input.description,
         status: "active",
-        imageUrl: brandAssets.serviceCarpet,
+        imageUrl: brandAssets.serviceFloorInstall,
       },
     });
   } else {
@@ -1038,7 +1038,7 @@ async function ensureOceansideServiceProvider(input: {
         listingKind: "local_pro",
         description: input.description,
         status: "active",
-        imageUrl: brandAssets.serviceCarpet,
+        imageUrl: brandAssets.serviceFloorInstall,
       },
     });
   }
@@ -1079,7 +1079,7 @@ async function ensureOceansideServiceProvider(input: {
         data: {
           title: input.businessName,
           detail: input.description,
-          imageUrl: brandAssets.serviceCarpet,
+          imageUrl: brandAssets.serviceFloorInstall,
           href: `/member/local-pros?highlight=${providerRow.id}`,
           subtitle: input.category,
           status: "active",
@@ -1098,7 +1098,7 @@ async function ensureOceansideServiceProvider(input: {
           detail: input.description,
           status: "active",
           redemptions: 0,
-          imageUrl: brandAssets.serviceCarpet,
+          imageUrl: brandAssets.serviceFloorInstall,
           href: `/member/local-pros?highlight=${providerRow.id}`,
           subtitle: input.category,
           rating: "New",
