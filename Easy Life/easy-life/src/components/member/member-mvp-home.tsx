@@ -342,7 +342,7 @@ export function MemberMvpHome({
         <section>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-[21px] font-medium text-black">{t("Categories")}</h2>
-            {categoryTiles.length >= 3 ? (
+            {categoryTiles.length > 3 ? (
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
