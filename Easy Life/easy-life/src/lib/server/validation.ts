@@ -109,7 +109,7 @@ export const promotionSchema = z.object({
   type: z.enum(["coupon", "ppc", "featured"]),
   detail: z.string().min(1),
   status: z.enum(["active", "scheduled", "ended"]).optional(),
-  imageUrl: z.string().url().optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")),
   href: z.string().optional(),
   subtitle: z.string().optional(),
   rating: z.string().optional(),
