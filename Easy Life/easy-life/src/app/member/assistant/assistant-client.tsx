@@ -231,15 +231,6 @@ export function AssistantClient() {
     }
   }
 
-  useEffect(() => {
-    const q = searchParams.get("q")?.trim();
-    if (!q || bootstrappedQuery.current || busy) return;
-    bootstrappedQuery.current = true;
-    void send(q);
-    // Deep-link from Ask Plaza once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
   function toggleListen() {
     const Ctor = getSpeechRecognition();
     if (!Ctor) {
