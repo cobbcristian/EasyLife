@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ContentHeader } from "@/components/layout/content-header";
 import { defaultAvatarForRole } from "@/lib/brand-assets";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
@@ -21,6 +22,7 @@ export function ProviderContentHeader({
 }) {
   const { t } = useI18n();
   const session = useSessionProfile();
+  const [openTasks, setOpenTasks] = useState(0);
   // Display name may come from the page, but the photo must always follow the
   // signed-in session — otherwise tabs that pass "" / business name / person
   // name flip between living-room and lawn thumbnails.
@@ -35,6 +37,30 @@ export function ProviderContentHeader({
     session.email,
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetch("/api/provider/bookings").then((r) => r.json()),
+      fetch("/api/provider/messages").then((r) => r.json()),
+    ])
+      .then(([bookingData, messageData]) => {
+        if (cancelled) return;
+        const pending = (
+          (bookingData.bookings ?? []) as Array<{ status: string }>
+        ).filter((b) => b.status === "pending" || b.status === "upcoming").length;
+        const unread = (
+          (messageData.threads ?? []) as Array<{ unread: boolean }>
+        ).filter((thread) => thread.unread).length;
+        setOpenTasks(pending + unread);
+      })
+      .catch(() => {
+        if (!cancelled) setOpenTasks(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <ContentHeader
       title={title}
@@ -44,7 +70,7 @@ export function ProviderContentHeader({
       avatarSrc={avatarSrc}
       translateTitle={translateTitle}
       tasksHref="/provider/bookings"
-      tasksLabel={`3 ${t("Tasks")}`}
+      tasksLabel={`${openTasks} ${t("Tasks")}`}
       messagesHref={showMessages ? "/provider/messages" : undefined}
     />
   );
