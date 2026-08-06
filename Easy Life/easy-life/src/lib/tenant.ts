@@ -489,7 +489,7 @@ export const DEMO_TENANTS: Record<DemoTenantId, DemoTenant> = {
   oceansideresidents: OCEANSIDE_RESIDENTS_TENANT,
 };
 
-function parseTenantId(raw: string | null | undefined): DemoTenantId | null {
+export function parseTenantId(raw: string | null | undefined): DemoTenantId | null {
   const id = raw?.trim().toLowerCase();
   if (!id) return null;
   if (

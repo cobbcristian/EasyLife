@@ -1054,5 +1054,42 @@ async function ensureOceansideServiceProvider(input: {
       status: "active",
     },
   });
+
+  const providerRow =
+    (await prisma.provider.findFirst({
+      where: { communityId: OCEANSIDE_COMMUNITY_ID, email },
+    })) ??
+    (await prisma.provider.findFirst({
+      where: { communityId: OCEANSIDE_COMMUNITY_ID, name: input.businessName },
+    }));
+  if (providerRow) {
+    const featured = await prisma.promotion.findFirst({
+      where: {
+        providerEmail: email,
+        communityId: OCEANSIDE_COMMUNITY_ID,
+        type: "featured",
+        status: "active",
+      },
+    });
+    if (!featured) {
+      await prisma.promotion.create({
+        data: {
+          providerEmail: email,
+          communityId: OCEANSIDE_COMMUNITY_ID,
+          title: input.businessName,
+          type: "featured",
+          detail: input.description,
+          status: "active",
+          redemptions: 0,
+          imageUrl: brandAssets.serviceCleaningSupplies,
+          href: `/member/local-pros?highlight=${providerRow.id}`,
+          subtitle: input.category,
+          rating: "New",
+          priceLabel: "Sponsored",
+          paidCents: 4900,
+        },
+      });
+    }
+  }
   console.log(`[oceanside] service provider ready: ${email}`);
 }

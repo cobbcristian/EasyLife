@@ -26,7 +26,7 @@ export function communityHasLocalPros(
   communityId: string | null | undefined,
 ): boolean {
   if (!communityId) return true;
-  if (communityId === "oceanside-residents") return false;
+  // Oceanside residents use Local Pros for sponsored home services / trades.
   return true;
 }
 

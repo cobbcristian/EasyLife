@@ -27,7 +27,6 @@ import {
 import { countUnreadMemberInbox } from "@/lib/server/project-management";
 import {
   communityHasTournaments,
-  communityIsResidentialHoa,
 } from "@/lib/community-features";
 
 export async function GET() {
@@ -39,7 +38,6 @@ export async function GET() {
 
   const communityId = session.communityId;
   const wantsTournaments = communityHasTournaments(communityId);
-  const residential = communityIsResidentialHoa(communityId);
 
   await ensureRecordsSeeded();
   if (isFourClubDemoId(communityId)) {
@@ -155,12 +153,8 @@ export async function GET() {
         .filter((t): t is NonNullable<typeof t> => t != null)
     : [];
 
-  if (!residential) {
-    await ensureDemoPaidFeatured(communityId);
-  }
-  const featuredTiles = residential
-    ? []
-    : await listPaidFeaturedTiles(communityId);
+  await ensureDemoPaidFeatured(communityId);
+  const featuredTiles = await listPaidFeaturedTiles(communityId);
 
   const [unreadInbox, pendingEventInvites, bookingInvites] = await Promise.all([
     countUnreadMemberInbox(session.email),

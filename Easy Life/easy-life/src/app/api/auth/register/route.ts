@@ -6,8 +6,8 @@ import {
   homeForRole,
   sessionCookieOptions,
 } from "@/lib/server/auth";
-import { createUser, registerClubAdmin, registerMember } from "@/lib/server/db";
-import { upsertProviderSubscription } from "@/lib/server/provider-subscriptions";
+import { registerClubAdmin, registerMember } from "@/lib/server/db";
+import { registerServiceProvider } from "@/lib/server/provider-enrollment";
 import { communityRequiresEnrollmentApproval } from "@/lib/server/member-enrollment";
 import {
   isPasswordStrongEnough,
@@ -47,6 +47,12 @@ export async function POST(request: Request) {
     state?: string;
     plan?: ProviderPlanId;
     directoryVisible?: boolean;
+    phone?: string;
+    category?: string;
+    bizType?: "food" | "service" | "activity" | string;
+    address?: string;
+    contactName?: string;
+    featured?: boolean;
   };
   try {
     body = await request.json();
@@ -91,41 +97,58 @@ export async function POST(request: Request) {
 
   let result;
   if (mode === "provider") {
-    result = await createUser({
+    if (!body.communityId?.trim()) {
+      return NextResponse.json(
+        { error: "Select the community you want to serve" },
+        { status: 400 },
+      );
+    }
+    const bizType = body.bizType === "activity" ? "activity" : "service";
+    result = await registerServiceProvider({
       email,
       password,
-      name,
-      role: "provider",
+      businessName: name,
+      communityId: body.communityId.trim(),
+      phone: body.phone,
+      category: body.category,
+      type: bizType,
+      contactName:
+        body.contactName?.trim() ||
+        `${body.firstName ?? ""} ${body.lastName ?? ""}`.trim() ||
+        undefined,
+      address: body.address,
+      planId: body.plan ?? "starter",
+      featured: body.featured !== false,
     });
-    if (!("error" in result)) {
-      await upsertProviderSubscription({
-        userEmail: result.email,
-        businessName: result.name,
-        planId: body.plan ?? "starter",
-        status: "pending",
-      });
-    }
   } else if (mode === "join") {
     if (!body.communityId) {
       return NextResponse.json({ error: "Select your community" }, { status: 400 });
     }
     const joinRole = body.role === "provider" ? "provider" : "member";
-    result = await registerMember({
-      email,
-      password,
-      name,
-      communityId: body.communityId,
-      inviteCode: body.inviteCode?.trim(),
-      unit: body.unit?.trim(),
-      role: joinRole,
-      directoryVisible: body.directoryVisible,
-    });
-    if (!("error" in result) && joinRole === "provider") {
-      await upsertProviderSubscription({
-        userEmail: result.email,
-        businessName: result.name,
+    if (joinRole === "provider") {
+      result = await registerServiceProvider({
+        email,
+        password,
+        businessName: name,
+        communityId: body.communityId,
+        phone: body.phone,
+        category: body.category,
+        type: body.bizType === "activity" ? "activity" : "service",
+        contactName: body.contactName,
+        address: body.address,
         planId: body.plan ?? "starter",
-        status: "pending",
+        featured: body.featured !== false,
+      });
+    } else {
+      result = await registerMember({
+        email,
+        password,
+        name,
+        communityId: body.communityId,
+        inviteCode: body.inviteCode?.trim(),
+        unit: body.unit?.trim(),
+        role: joinRole,
+        directoryVisible: body.directoryVisible,
       });
     }
   } else {
@@ -167,8 +190,8 @@ export async function POST(request: Request) {
   });
 
   const redirectTo =
-    mode === "provider"
-      ? "/provider/subscribe"
+    mode === "provider" || result.role === "provider"
+      ? "/provider"
       : mode === "join" && result.role === "member"
         ? "/member/welcome"
         : homeForRole(result.role, result.communityId);

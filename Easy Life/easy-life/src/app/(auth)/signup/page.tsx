@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Eye, MapPin } from "lucide-react";
 import { LoginHero } from "@/components/auth/login-hero";
 import { Logo } from "@/components/ui/logo";
 import { PROVIDER_PLANS, type ProviderPlanId } from "@/lib/provider-plans";
+import {
+  DEMO_TENANT_COOKIE,
+  DEMO_TENANTS,
+  parseTenantId,
+} from "@/lib/tenant";
 import {
   emailPolicyIssues,
   emailPolicyMessage,
@@ -15,6 +20,18 @@ import {
 
 const fieldClass =
   "h-[57px] w-full rounded-lg border border-border-2 bg-white px-4 text-[15px] text-ink placeholder:text-grey focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mvp-blue)]";
+
+function readTenantCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${DEMO_TENANT_COOKIE}=`));
+  if (!match) return null;
+  const raw = decodeURIComponent(match.split("=").slice(1).join("="));
+  const id = parseTenantId(raw);
+  return id ? DEMO_TENANTS[id].communityId : null;
+}
 
 function Pager({ step }: { step: 1 | 2 | 3 }) {
   return (
@@ -28,6 +45,10 @@ function Pager({ step }: { step: 1 | 2 | 3 }) {
     </div>
   );
 }
+
+const COMMUNITY_OPTIONS = Object.values(DEMO_TENANTS)
+  .map((t) => ({ id: t.communityId, name: t.communityName || t.productName }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -45,10 +66,24 @@ export default function SignUpPage() {
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [communityId, setCommunityId] = useState("");
+  const [tenantLocked, setTenantLocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const starterPlan = PROVIDER_PLANS.starter;
+  useEffect(() => {
+    const locked = readTenantCookie();
+    if (locked) {
+      setCommunityId(locked);
+      setTenantLocked(true);
+    }
+  }, []);
+
+  const communityLabel = useMemo(() => {
+    const hit = COMMUNITY_OPTIONS.find((c) => c.id === communityId);
+    return hit?.name ?? "";
+  }, [communityId]);
+
   const step1Valid =
     isRealSignupEmail(email) &&
     password.length >= 6 &&
@@ -61,34 +96,17 @@ export default function SignUpPage() {
     bizType &&
     address.trim().length > 0 &&
     phone.trim().length > 0 &&
-    isRealSignupEmail(contactEmail);
-
-  async function startSubscriptionCheckout() {
-    try {
-      const res = await fetch("/api/stripe/subscription-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: selectedPlan,
-          returnPath: "/provider/subscribe?subscription=success",
-        }),
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-        return true;
-      }
-    } catch {
-      // fall through to subscribe page
-    }
-    return false;
-  }
+    isRealSignupEmail(contactEmail) &&
+    Boolean(communityId);
 
   async function handleProviderSignup() {
     setError(null);
     if (!isRealSignupEmail(email)) {
       setError(emailPolicyMessage(emailPolicyIssues(email)));
+      return;
+    }
+    if (!communityId) {
+      setError("Select the community you want to serve");
       return;
     }
     setLoading(true);
@@ -103,6 +121,13 @@ export default function SignUpPage() {
           name: businessName,
           role: "provider",
           plan: selectedPlan,
+          communityId,
+          phone,
+          category,
+          bizType,
+          address,
+          contactName: businessName,
+          featured: true,
         }),
       });
       const data = await res.json();
@@ -112,10 +137,7 @@ export default function SignUpPage() {
         return;
       }
 
-      const checkoutStarted = await startSubscriptionCheckout();
-      if (checkoutStarted) return;
-
-      router.push(data.redirectTo ?? "/provider/subscribe");
+      router.push(data.redirectTo ?? "/provider");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
@@ -134,7 +156,7 @@ export default function SignUpPage() {
           <Link href="/login" className="hover:underline">
             Login
           </Link>{" "}
-          &gt; Sign Up
+          &gt; Provider Sign Up
         </p>
       </div>
 
@@ -145,10 +167,10 @@ export default function SignUpPage() {
         <div className="w-full max-w-md lg:ml-[42%]">
           {step === 1 ? (
             <div>
-              <h1 className="text-2xl font-bold text-ink">Welcome!</h1>
+              <h1 className="text-2xl font-bold text-ink">Create a provider account</h1>
               <p className="mt-2 text-sm text-grey">
-                Please provide a new email and password. This will replace the
-                temporary email and password provided.
+                Join as a service provider. After signup you appear in Local Pros
+                and can be featured in the Sponsored area on the member home.
               </p>
 
               <form
@@ -156,6 +178,7 @@ export default function SignUpPage() {
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!step1Valid) return;
+                  setContactEmail(email);
                   setStep(2);
                 }}
               >
@@ -165,67 +188,62 @@ export default function SignUpPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={fieldClass}
+                  autoComplete="email"
                 />
-                <div>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={`${fieldClass} pr-12`}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-grey-light"
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label="Toggle password visibility"
-                    >
-                      <Eye className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <p className="mt-1.5 text-xs text-grey-light">
-                    6 character minimum, includes number, includes symbol
-                  </p>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={fieldClass}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-grey"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label="Toggle password visibility"
+                  >
+                    <Eye className="h-5 w-5" />
+                  </button>
                 </div>
                 <div className="relative">
                   <input
                     type={showConfirm ? "text" : "password"}
-                    placeholder="Confirm Password"
+                    placeholder="Confirm password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={`${fieldClass} pr-12`}
+                    className={fieldClass}
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-grey-light"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-grey"
                     onClick={() => setShowConfirm((v) => !v)}
                     aria-label="Toggle confirm password visibility"
                   >
                     <Eye className="h-5 w-5" />
                   </button>
                 </div>
-
-                <div className="pt-4">
-                  <Pager step={1} />
-                </div>
+                <p className="text-xs text-grey">
+                  Use at least 6 characters with a number and a symbol.
+                </p>
                 <button
                   type="submit"
                   disabled={!step1Valid}
-                  className={`mt-2 flex h-[50px] w-full items-center justify-center rounded-lg text-base font-semibold text-white ${
-                    step1Valid ? "bg-[var(--mvp-blue)]" : "bg-[#e5e5ea]"
-                  }`}
+                  className="mt-2 flex h-[57px] w-full items-center justify-center rounded-lg bg-[var(--mvp-blue)] text-[15px] font-semibold text-white disabled:opacity-40"
                 >
                   Continue
                 </button>
+                <Pager step={1} />
               </form>
             </div>
           ) : step === 2 ? (
             <div>
-              <h1 className="text-2xl font-bold text-ink">Account Set Up</h1>
+              <h1 className="text-2xl font-bold text-ink">Business details</h1>
               <p className="mt-2 text-sm text-grey">
-                Please provide a few details about your business to create your
-                customized dashboard.
+                Tell us about your business so residents can find and book you.
               </p>
 
               <form
@@ -236,6 +254,29 @@ export default function SignUpPage() {
                   setStep(3);
                 }}
               >
+                <div className="relative">
+                  <select
+                    className={`${fieldClass} appearance-none pr-12 ${!communityId ? "text-grey" : "text-ink"}`}
+                    value={communityId}
+                    disabled={tenantLocked}
+                    onChange={(e) => setCommunityId(e.target.value)}
+                  >
+                    <option value="" disabled>
+                      Community you serve
+                    </option>
+                    {COMMUNITY_OPTIONS.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-grey-light" />
+                </div>
+                {tenantLocked && communityLabel ? (
+                  <p className="text-xs text-grey">
+                    Locked to {communityLabel} from your demo /go link.
+                  </p>
+                ) : null}
                 <input
                   placeholder="Business Name"
                   value={businessName}
@@ -316,9 +357,14 @@ export default function SignUpPage() {
                     </option>
                     <option value="cleaning">Cleaning</option>
                     <option value="landscaping">Landscaping</option>
-                    <option value="maintenance">Maintenance</option>
+                    <option value="maintenance">Handyman / Maintenance</option>
+                    <option value="flooring">Floor Installation</option>
+                    <option value="painting">Painting</option>
+                    <option value="pool">Pool</option>
+                    <option value="pest">Pest Control</option>
                     <option value="fitness">Fitness</option>
                     <option value="tennis">Tennis</option>
+                    <option value="other">Other</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-grey-light" />
                 </div>
@@ -338,96 +384,81 @@ export default function SignUpPage() {
                   className={fieldClass}
                 />
                 <input
-                  placeholder="Business Contact Email"
-                  type="email"
+                  placeholder="Contact email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   className={fieldClass}
                 />
-
-                <div className="pt-4">
-                  <Pager step={2} />
-                </div>
                 <button
                   type="submit"
                   disabled={!step2Valid}
-                  className={`mt-2 flex h-[50px] w-full items-center justify-center rounded-lg text-base font-semibold text-white ${
-                    step2Valid ? "bg-[var(--mvp-blue)]" : "bg-[#e5e5ea]"
-                  }`}
+                  className="mt-2 flex h-[57px] w-full items-center justify-center rounded-lg bg-[var(--mvp-blue)] text-[15px] font-semibold text-white disabled:opacity-40"
                 >
                   Continue
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="h-12 w-full text-sm font-medium text-grey hover:text-ink"
+                  className="w-full text-center text-sm font-medium text-[var(--mvp-blue)]"
                 >
                   Back
                 </button>
+                <Pager step={2} />
               </form>
             </div>
           ) : (
             <div>
               <h1 className="text-2xl font-bold text-ink">Choose your plan</h1>
               <p className="mt-2 text-sm text-grey">
-                Subscribe to unlock your provider dashboard and start accepting
-                bookings.
+                Starter includes Local Pros listing and Featured / Sponsored
+                placement on the member home for {communityLabel || "your community"}.
               </p>
-
-              <div className="mt-8 space-y-4">
-                {error ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error}
-                  </div>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => setSelectedPlan("starter")}
-                  className={`w-full rounded-xl border-2 p-5 text-left transition ${
-                    selectedPlan === "starter"
-                      ? "border-[var(--mvp-blue)] bg-[var(--mvp-blue)]/5"
-                      : "border-border-2 bg-white hover:border-[var(--mvp-blue)]/40"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-ink">{starterPlan.name}</p>
-                      <p className="mt-1 text-sm text-grey">{starterPlan.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-ink">{starterPlan.priceLabel}</p>
-                      <p className="text-xs text-grey">{starterPlan.period}</p>
-                    </div>
-                  </div>
-                  <ul className="mt-4 space-y-2">
-                    {starterPlan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-2 text-sm text-ink">
-                        <Check className="h-4 w-4 shrink-0 text-[var(--mvp-blue)]" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </button>
-
-                <div className="pt-4">
-                  <Pager step={3} />
-                </div>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={handleProviderSignup}
-                  className="mt-2 flex h-[50px] w-full items-center justify-center rounded-lg bg-[var(--mvp-blue)] text-base font-semibold text-white disabled:opacity-60"
-                >
-                  {loading ? "Starting checkout..." : "Continue to payment"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="h-12 w-full text-sm font-medium text-grey hover:text-ink"
-                >
-                  Back
-                </button>
+              <div className="mt-8 space-y-3">
+                {Object.values(PROVIDER_PLANS).map((plan) => {
+                  const selected = selectedPlan === plan.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedPlan(plan.id)}
+                      className={`w-full rounded-xl border px-4 py-4 text-left ${
+                        selected
+                          ? "border-[var(--mvp-blue)] bg-[var(--mvp-blue)]/5"
+                          : "border-border-2"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-ink">{plan.name}</p>
+                        {selected ? (
+                          <Check className="h-5 w-5 text-[var(--mvp-blue)]" />
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-sm text-grey">{plan.description}</p>
+                    </button>
+                  );
+                })}
               </div>
+              {error ? (
+                <p className="mt-4 text-sm text-red-600" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void handleProviderSignup()}
+                className="mt-6 flex h-[57px] w-full items-center justify-center rounded-lg bg-[var(--mvp-blue)] text-[15px] font-semibold text-white disabled:opacity-40"
+              >
+                {loading ? "Creating account…" : "Create provider account"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="mt-3 w-full text-center text-sm font-medium text-[var(--mvp-blue)]"
+              >
+                Back
+              </button>
+              <Pager step={3} />
             </div>
           )}
         </div>

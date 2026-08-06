@@ -2955,11 +2955,8 @@ export async function listPaidFeaturedTiles(
 
 /** Demo seed: convert static featured tiles into paid placements so demos stay non-empty. */
 export async function ensureDemoPaidFeatured(communityId: string): Promise<void> {
-  // Condo HOA — no paid sponsorships / clubhouse restaurant placements.
+  // Condo HOA keeps real provider-sponsored Featured rows — never wipe them for demo dining tiles.
   if (communityId === "oceanside-residents") {
-    await prisma.promotion.deleteMany({
-      where: { communityId, type: "featured" },
-    });
     return;
   }
 

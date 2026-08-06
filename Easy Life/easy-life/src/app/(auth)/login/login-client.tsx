@@ -329,6 +329,11 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
           <Link href="/register" className="font-semibold text-[#007aff] hover:underline">
             Register
           </Link>
+          {" · "}
+          Service provider?{" "}
+          <Link href="/signup" className="font-semibold text-[#007aff] hover:underline">
+            Create provider account
+          </Link>
         </p>
       ) : null}
 

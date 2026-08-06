@@ -230,11 +230,13 @@ export function MemberMvpHome({
   const emptyScheduleCta = isResidentialHoa
     ? "Book an amenity or service"
     : "Book a court or service";
-  const featuredViewAllHref = isGolfClub
-    ? "/member/bookings"
-    : hasClubDining
-      ? "/member/dining"
-      : "/member/amenities";
+  const featuredViewAllHref = isResidentialHoa
+    ? "/member/local-pros"
+    : isGolfClub
+      ? "/member/bookings"
+      : hasClubDining
+        ? "/member/dining"
+        : "/member/amenities";
   const showHoa = paysHoa && residencyStatus !== "non_resident";
   const categoryTiles = homeCategoryTiles
     .filter((tile) => {
@@ -256,7 +258,8 @@ export function MemberMvpHome({
       if (tile.key === "services" && isResidentialHoa) {
         return {
           ...tile,
-          href: "/member/service-requests",
+          // Sponsored Local Pros marketplace for condo HOAs.
+          href: hasLocalPros ? "/member/local-pros" : "/member/service-requests",
         };
       }
       if (tile.key === "hoa" && isResidentialHoa) {
@@ -403,7 +406,9 @@ export function MemberMvpHome({
         {featured.length > 0 ? (
           <section>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[21px] font-medium text-black">{t("Featured")}</h2>
+              <h2 className="text-[21px] font-medium text-black">
+                {t(isResidentialHoa ? "Sponsored" : "Featured")}
+              </h2>
               <Link href={featuredViewAllHref} className="text-[11px] text-[var(--mvp-blue)]">
                 {t("View all")}
               </Link>

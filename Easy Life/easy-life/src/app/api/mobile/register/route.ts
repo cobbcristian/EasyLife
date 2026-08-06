@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSessionToken } from "@/lib/server/auth";
-import { createUser, registerMember } from "@/lib/server/db";
-import { upsertProviderSubscription } from "@/lib/server/provider-subscriptions";
+import { registerMember } from "@/lib/server/db";
+import { registerServiceProvider } from "@/lib/server/provider-enrollment";
 import { clientIp, rateLimit } from "@/lib/server/rate-limit";
 import {
   emailPolicyIssues,
@@ -24,6 +24,9 @@ export async function POST(request: Request) {
     password?: string;
     name?: string;
     phone?: string;
+    category?: string;
+    bizType?: string;
+    address?: string;
     role?: AuthRole;
     communityId?: string;
     inviteCode?: string;
@@ -61,26 +64,29 @@ export async function POST(request: Request) {
   const mode = body.mode ?? "join";
   let result;
 
-  if (mode === "provider") {
-    result = await createUser({
+  if (mode === "provider" || body.role === "provider") {
+    if (!body.communityId?.trim()) {
+      return NextResponse.json(
+        { error: "Select the community you want to serve" },
+        { status: 400 },
+      );
+    }
+    result = await registerServiceProvider({
       email,
       password,
-      name,
-      role: "provider",
+      businessName: name,
+      communityId: body.communityId.trim(),
+      phone: body.phone,
+      category: body.category,
+      type: body.bizType === "activity" ? "activity" : "service",
+      address: body.address,
+      planId: body.plan ?? "starter",
+      featured: true,
     });
-    if (!("error" in result)) {
-      await upsertProviderSubscription({
-        userEmail: result.email,
-        businessName: result.name,
-        planId: body.plan ?? "starter",
-        status: "pending",
-      });
-    }
   } else {
     if (!body.communityId) {
       return NextResponse.json({ error: "Select your community" }, { status: 400 });
     }
-    const joinRole = body.role === "provider" ? "provider" : "member";
     result = await registerMember({
       email,
       password,
@@ -88,16 +94,8 @@ export async function POST(request: Request) {
       communityId: body.communityId,
       inviteCode: body.inviteCode?.trim(),
       unit: body.unit?.trim(),
-      role: joinRole,
+      role: "member",
     });
-    if (!("error" in result) && joinRole === "provider") {
-      await upsertProviderSubscription({
-        userEmail: result.email,
-        businessName: result.name,
-        planId: body.plan ?? "starter",
-        status: "pending",
-      });
-    }
   }
 
   if ("error" in result) {
