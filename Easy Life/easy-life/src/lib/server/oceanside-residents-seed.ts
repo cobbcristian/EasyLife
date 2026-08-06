@@ -1057,56 +1057,12 @@ async function ensureOceansideServiceProvider(input: {
     },
   });
 
-  const providerRow =
-    (await prisma.provider.findFirst({
-      where: { communityId: OCEANSIDE_COMMUNITY_ID, email },
-    })) ??
-    (await prisma.provider.findFirst({
-      where: { communityId: OCEANSIDE_COMMUNITY_ID, name: input.businessName },
-    }));
-
-  if (providerRow) {
-    const featured = await prisma.promotion.findFirst({
-      where: {
-        providerEmail: email,
-        communityId: OCEANSIDE_COMMUNITY_ID,
-        type: "featured",
-      },
-    });
-    if (featured) {
-      await prisma.promotion.update({
-        where: { id: featured.id },
-        data: {
-          title: input.businessName,
-          detail: input.description,
-          imageUrl: brandAssets.serviceFloorInstall,
-          href: `/member/local-pros?highlight=${providerRow.id}`,
-          subtitle: input.category,
-          status: "active",
-          priceLabel: "Sponsored",
-          rating: featured.rating || "New",
-          paidCents: Math.max(featured.paidCents, 1),
-        },
-      });
-    } else {
-      await prisma.promotion.create({
-        data: {
-          providerEmail: email,
-          communityId: OCEANSIDE_COMMUNITY_ID,
-          title: input.businessName,
-          type: "featured",
-          detail: input.description,
-          status: "active",
-          redemptions: 0,
-          imageUrl: brandAssets.serviceFloorInstall,
-          href: `/member/local-pros?highlight=${providerRow.id}`,
-          subtitle: input.category,
-          rating: "New",
-          priceLabel: "Sponsored",
-          paidCents: 4900,
-        },
-      });
-    }
-  }
+  // Keep Local Pro listing; do not auto-create Sponsored / promo cards.
+  await prisma.promotion.deleteMany({
+    where: {
+      providerEmail: email,
+      communityId: OCEANSIDE_COMMUNITY_ID,
+    },
+  });
   console.log(`[oceanside] service provider ready: ${email}`);
 }
