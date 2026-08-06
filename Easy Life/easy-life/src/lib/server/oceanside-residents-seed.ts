@@ -964,7 +964,7 @@ async function syncOceansideContactStaff(): Promise<void> {
       contactName: "Isaac Andrade",
       businessName: "Afonso Andrade Floor Installation",
       phone: "(754) 423-7703",
-      category: "Handyman",
+      category: "Floor Installation",
       description:
         "Floor installation and related interior finishes for Plaza at Oceanside residents.",
     },
@@ -1023,6 +1023,7 @@ async function ensureOceansideServiceProvider(input: {
         listingKind: "local_pro",
         description: input.description,
         status: "active",
+        imageUrl: brandAssets.serviceCarpet,
       },
     });
   } else {
@@ -1037,6 +1038,7 @@ async function ensureOceansideServiceProvider(input: {
         listingKind: "local_pro",
         description: input.description,
         status: "active",
+        imageUrl: brandAssets.serviceCarpet,
       },
     });
   }
@@ -1071,7 +1073,21 @@ async function ensureOceansideServiceProvider(input: {
         status: "active",
       },
     });
-    if (!featured) {
+    if (featured) {
+      await prisma.promotion.update({
+        where: { id: featured.id },
+        data: {
+          title: input.businessName,
+          detail: input.description,
+          imageUrl: brandAssets.serviceCarpet,
+          href: `/member/local-pros?highlight=${providerRow.id}`,
+          subtitle: "Floor Installation",
+          status: "active",
+          priceLabel: "Sponsored",
+          paidCents: Math.max(featured.paidCents, 1),
+        },
+      });
+    } else {
       await prisma.promotion.create({
         data: {
           providerEmail: email,
@@ -1081,9 +1097,9 @@ async function ensureOceansideServiceProvider(input: {
           detail: input.description,
           status: "active",
           redemptions: 0,
-          imageUrl: brandAssets.serviceCleaningSupplies,
+          imageUrl: brandAssets.serviceCarpet,
           href: `/member/local-pros?highlight=${providerRow.id}`,
-          subtitle: input.category,
+          subtitle: "Floor Installation",
           rating: "New",
           priceLabel: "Sponsored",
           paidCents: 4900,

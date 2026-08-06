@@ -25,7 +25,7 @@ import { DEFAULT_NO_START_POLICY } from "@/lib/tournament-no-start";
 import type { TiebreakerCriterion } from "@/lib/tournament-tiebreakers";
 import type { NoStartDefault } from "@/lib/tournament-no-start";
 import { parseScoresJson, type TournamentScoresData } from "@/lib/tournament-scores";
-import { brandAssets, genericClubFeaturedTiles, heritageBayFeaturedTiles, homeFeaturedTiles, rewriteTenantApparelImageUrl, spanishWellsFeaturedTiles } from "@/lib/brand-assets";
+import { brandAssets, genericClubFeaturedTiles, heritageBayFeaturedTiles, homeFeaturedTiles, imageForProviderCategory, rewriteTenantApparelImageUrl, spanishWellsFeaturedTiles } from "@/lib/brand-assets";
 import { isDemoSeedAllowed } from "@/lib/server/demo-mode";
 import {
   assertCanBookAmenity,
@@ -2947,8 +2947,10 @@ export async function listPaidFeaturedTiles(
     sub: row.subtitle || row.detail,
     rating: row.rating || "4.5",
     price: row.priceLabel || "$$",
-    image: row.imageUrl || brandAssets.featuredDining,
-    href: row.href || "/member/dining",
+    image:
+      row.imageUrl ||
+      imageForProviderCategory(row.subtitle || row.detail || "", undefined, row.title),
+    href: row.href || "/member/local-pros",
     sponsored: true as const,
   }));
 }

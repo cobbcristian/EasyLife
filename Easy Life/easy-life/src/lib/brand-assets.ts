@@ -798,7 +798,35 @@ export function imageForProviderCategory(
   }
 
   if (n.includes("cassie") || c.includes("clean")) return brandAssets.serviceCleaningSupplies;
-  if (c.includes("carpet") || n.includes("carpet")) return brandAssets.serviceCarpet;
+  if (
+    c.includes("carpet") ||
+    c.includes("floor") ||
+    n.includes("carpet") ||
+    n.includes("floor") ||
+    n.includes("hardwood") ||
+    n.includes("laminate") ||
+    n.includes("tile install")
+  ) {
+    return brandAssets.serviceCarpet;
+  }
+  if (
+    c.includes("handyman") ||
+    c.includes("maintenance") ||
+    c.includes("repair") ||
+    n.includes("handyman")
+  ) {
+    // Generic trades — use carpet/flooring only when the business name says so;
+    // otherwise keep a neutral home-service look (cleaning supplies, not dining).
+    if (
+      n.includes("floor") ||
+      n.includes("carpet") ||
+      n.includes("hardwood") ||
+      n.includes("laminate")
+    ) {
+      return brandAssets.serviceCarpet;
+    }
+    return brandAssets.serviceCleaningSupplies;
+  }
   if (c.includes("paint")) return brandAssets.servicePainting;
   if (c.includes("pool") || c.includes("swim") || n.includes("pool") || n.includes("swim") || n.includes("aquafit") || n.includes("aqua")) {
     return brandAssets.servicePool;
