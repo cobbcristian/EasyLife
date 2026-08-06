@@ -95,6 +95,8 @@ export const brandAssets = {
   /** Service / vendor covers — one distinct photo per category */
   serviceCleaning: "/brand/service-cleaning.png",
   serviceCarpet: "/brand/service-carpet.png",
+  /** Wood / install tools thumb — use for floor installation (not carpet cleaning). */
+  serviceFloorInstall: "/brand/service-painting.png",
   serviceLandscaping: "/brand/service-landscaping.png",
   /** Iron Crest Lawn & Landscape — distinct outdoor thumbs per offering */
   serviceLawnEdging: "/brand/service-lawn-edging.jpg",
@@ -798,15 +800,18 @@ export function imageForProviderCategory(
   }
 
   if (n.includes("cassie") || c.includes("clean")) return brandAssets.serviceCleaningSupplies;
+  // Floor *installation* (wood/tile/laminate) — never the carpet-cleaning machine shot.
   if (
-    c.includes("carpet") ||
     c.includes("floor") ||
-    n.includes("carpet") ||
     n.includes("floor") ||
     n.includes("hardwood") ||
     n.includes("laminate") ||
     n.includes("tile install")
   ) {
+    return brandAssets.serviceFloorInstall;
+  }
+  // Carpet cleaning / shampoo work only.
+  if (c.includes("carpet") || n.includes("carpet")) {
     return brandAssets.serviceCarpet;
   }
   if (
@@ -815,14 +820,14 @@ export function imageForProviderCategory(
     c.includes("repair") ||
     n.includes("handyman")
   ) {
-    // Generic trades — use carpet/flooring only when the business name says so;
-    // otherwise keep a neutral home-service look (cleaning supplies, not dining).
     if (
       n.includes("floor") ||
-      n.includes("carpet") ||
       n.includes("hardwood") ||
       n.includes("laminate")
     ) {
+      return brandAssets.serviceFloorInstall;
+    }
+    if (n.includes("carpet")) {
       return brandAssets.serviceCarpet;
     }
     return brandAssets.serviceCleaningSupplies;

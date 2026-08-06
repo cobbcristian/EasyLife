@@ -1023,7 +1023,7 @@ async function ensureOceansideServiceProvider(input: {
         listingKind: "local_pro",
         description: input.description,
         status: "active",
-        imageUrl: brandAssets.serviceCarpet,
+        imageUrl: brandAssets.serviceFloorInstall,
       },
     });
   } else {
@@ -1038,7 +1038,7 @@ async function ensureOceansideServiceProvider(input: {
         listingKind: "local_pro",
         description: input.description,
         status: "active",
-        imageUrl: brandAssets.serviceCarpet,
+        imageUrl: brandAssets.serviceFloorInstall,
       },
     });
   }
