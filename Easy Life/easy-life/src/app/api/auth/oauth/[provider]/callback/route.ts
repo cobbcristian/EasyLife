@@ -111,13 +111,31 @@ async function completeOAuthLogin(opts: {
     detail: `${opts.provider} · ${user.role}`,
   });
 
+  const cookieNames = oauthCookieNames();
+  const mobileNative = readCookie(
+    opts.request.headers.get("cookie") ?? "",
+    "oauth_mobile",
+  );
+
+  // Oceanside / Plaza native shell — finish SSO via app deep link + JWT.
+  if (mobileNative === "plaza") {
+    const deep = new URL("plaza-oceanside://oauth");
+    deep.searchParams.set("token", token);
+    const response = NextResponse.redirect(deep.toString());
+    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
+    response.cookies.delete(cookieNames.state);
+    response.cookies.delete(cookieNames.provider);
+    response.cookies.delete("oauth_mobile");
+    return response;
+  }
+
   const redirectTo = homeForRole(user.role, user.communityId);
   const response = NextResponse.redirect(appPath(redirectTo));
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
 
-  const cookieNames = oauthCookieNames();
   response.cookies.delete(cookieNames.state);
   response.cookies.delete(cookieNames.provider);
+  response.cookies.delete("oauth_mobile");
 
   const tenant = resolveDemoTenantFromCookieHeader(
     opts.request.headers.get("host"),

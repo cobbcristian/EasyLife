@@ -30,8 +30,8 @@
         "ascAppId": "6797508012"
       },
       "android": {
-        "track": "internal",
-        "releaseStatus": "draft",
+        "track": "The Plaza at Oceanside",
+        "releaseStatus": "completed",
         "serviceAccountKeyPath": "./google-play-service-account.json"
       }
     }

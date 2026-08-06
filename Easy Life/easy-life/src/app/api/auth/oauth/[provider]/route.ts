@@ -24,6 +24,9 @@ export async function GET(
     );
   }
 
+  const reqUrl = new URL(_request.url);
+  const mobile = reqUrl.searchParams.get("mobile")?.trim() || "";
+
   const state = createOAuthState();
   const url = await buildOAuthAuthorizeUrl(raw, state);
   const response = NextResponse.redirect(url);
@@ -43,5 +46,17 @@ export async function GET(
     maxAge: 600,
     secure,
   });
+  // Native Plaza app opens SSO in the system browser; callback returns a deep link.
+  if (mobile === "plaza") {
+    response.cookies.set("oauth_mobile", "plaza", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 600,
+      secure,
+    });
+  } else {
+    response.cookies.delete("oauth_mobile");
+  }
   return response;
 }
