@@ -693,6 +693,24 @@ async function ensureIronCrestDiningOfferings(email: string) {
   }
 }
 
+/** Demo cleaning / court packages — only Cassie (and named club demos) keep these. */
+async function purgeGenericDemoOfferings(email: string) {
+  await prisma.providerOffering.deleteMany({
+    where: {
+      providerEmail: email,
+      OR: [
+        { name: { startsWith: "Court " } },
+        { description: { contains: "Har-Tru" } },
+        { name: "Standard Clean" },
+        { name: "Move-out Clean" },
+        { name: "Carpet Refresh" },
+        { name: "Full House Cleaning" },
+        { name: "Carpet Cleaning" },
+      ],
+    },
+  });
+}
+
 export async function ensureSeedProviderOfferings(providerEmail: string) {
   const email = providerEmail.trim().toLowerCase();
   if (email === IRON_CREST_LAWN_PROVIDER_EMAIL) {
@@ -708,52 +726,6 @@ export async function ensureSeedProviderOfferings(providerEmail: string) {
     return;
   }
 
-  const activityCount = await prisma.providerOffering.count({
-    where: { providerEmail: email, kind: "activity" },
-  });
-  if (activityCount === 0) {
-    await prisma.providerOffering.createMany({
-      data: Array.from({ length: 6 }, (_, i) => ({
-        providerEmail: email,
-        name: `Court ${i + 1}`,
-        description: "Har-Tru Hydro-Grid playing court",
-        kind: "activity",
-        priceLabel: "Free",
-        priceCents: 0,
-      })),
-    });
-  }
-  const serviceCount = await prisma.providerOffering.count({
-    where: { providerEmail: email, kind: "service" },
-  });
-  if (serviceCount === 0) {
-    await prisma.providerOffering.createMany({
-      data: [
-        {
-          providerEmail: email,
-          name: "Standard Clean",
-          description: "2–3 bedroom deep clean",
-          kind: "service",
-          priceLabel: "$150",
-          priceCents: 15000,
-        },
-        {
-          providerEmail: email,
-          name: "Move-out Clean",
-          description: "Full property turnover clean",
-          kind: "service",
-          priceLabel: "$275",
-          priceCents: 27500,
-        },
-        {
-          providerEmail: email,
-          name: "Carpet Refresh",
-          description: "Room-by-room carpet shampoo",
-          kind: "service",
-          priceLabel: "$90",
-          priceCents: 9000,
-        },
-      ],
-    });
-  }
+  // Real / self-serve providers start empty — never inherit Cassie’s cleaning demos.
+  await purgeGenericDemoOfferings(email);
 }
