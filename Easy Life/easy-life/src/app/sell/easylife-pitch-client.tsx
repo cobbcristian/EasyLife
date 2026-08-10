@@ -511,6 +511,13 @@ function buildSlides(): Slide[] {
               Club demos
             </Link>
             <Link
+              href="/sell/tour"
+              className="inline-flex items-center rounded-full border border-white/25 px-7 py-3 text-sm font-semibold text-white/90 transition hover:border-white/50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Screenshot tour
+            </Link>
+            <Link
               href="/sell/story"
               className="inline-flex items-center rounded-full border border-white/25 px-7 py-3 text-sm font-semibold text-white/90 transition hover:border-white/50"
               onClick={(e) => e.stopPropagation()}
