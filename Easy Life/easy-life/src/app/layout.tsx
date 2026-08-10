@@ -28,13 +28,17 @@ export async function generateMetadata(): Promise<Metadata> {
   const headerStore = await headers();
   const path = (headerStore.get("x-pathname") ?? "").split("?")[0] ?? "";
   // Sales directory lists every club — never inherit a locked /go/[tenant] cookie title.
-  if (path === "/go") {
+  if (path === "/go" || path === "/sell/plaza" || path.startsWith("/sell/plaza/")) {
     return {
       title: {
-        absolute: "Easy Life | Sales demos",
+        absolute:
+          path.startsWith("/sell")
+            ? "The Plaza at Oceanside | Easy Life"
+            : "Easy Life | Sales demos",
       },
-      description:
-        "Easy Life sales directory — open a club demo and copy logins.",
+      description: path.startsWith("/sell")
+        ? "Boardroom sales pitch — The Plaza at Oceanside on Easy Life."
+        : "Easy Life sales directory — open a club demo and copy logins.",
       icons: {
         icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
         apple: [{ url: "/icon-192.png" }],
@@ -43,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
       appleWebApp: {
         capable: true,
         statusBarStyle: "default",
-        title: "Easy Life",
+        title: path.startsWith("/sell") ? "The Plaza at Oceanside" : "Easy Life",
       },
     };
   }

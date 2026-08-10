@@ -180,7 +180,13 @@ export function isActiveServiceBooking(status: ServiceBookingStatus): boolean {
   return status === "pending" || status === "accepted" || status === "upcoming";
 }
 
-export type AuthRole = "admin" | "provider" | "member" | "board" | "pm";
+export type AuthRole =
+  | "admin"
+  | "provider"
+  | "member"
+  | "board"
+  | "pm"
+  | "sales";
 
 export interface AuthUser {
   id: string;

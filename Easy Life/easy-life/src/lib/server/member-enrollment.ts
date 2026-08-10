@@ -2,6 +2,8 @@ import { communityIsResidentialHoa } from "@/lib/community-features";
 import { prisma } from "@/lib/server/prisma";
 import { hashPassword } from "@/lib/server/password";
 import type { AuthUser } from "@/lib/types";
+import { upsertMembership } from "@/lib/server/memberships";
+import { recordResidentActivation } from "@/lib/server/commissions";
 
 export type EnrollmentStatus = "active" | "pending" | "frozen";
 
@@ -125,6 +127,20 @@ export async function approvePendingMember(opts: {
     where: { id: user.id },
     data: { status: "active" },
   });
+
+  if (user.communityId) {
+    await upsertMembership({
+      userId: user.id,
+      communityId: user.communityId,
+      role: "member",
+      status: "active",
+      isPrimary: true,
+    });
+    void recordResidentActivation({
+      communityId: user.communityId,
+      userId: user.id,
+    }).catch(() => {});
+  }
 
   const hoaTier = communityIsResidentialHoa(user.communityId)
     ? "hoa"

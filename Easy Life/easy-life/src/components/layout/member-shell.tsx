@@ -8,6 +8,7 @@ import {
   UserAvatarMenu,
 } from "@/components/layout/user-avatar-menu";
 import { Logo } from "@/components/ui/logo";
+import { ClubSwitcher } from "@/components/layout/club-switcher";
 import { MemberSidebar } from "@/components/layout/member-sidebar";
 import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
@@ -116,15 +117,16 @@ export function MemberShell({
                 communityName={branding?.name}
                 showCommunityName={false}
               />
+              <ClubSwitcher className="ml-auto" compact />
               <UserAvatarMenu
                 name={accountName}
                 email={accountEmail}
                 avatarSrc={avatarSrc}
                 links={accountLinks}
-                className="ml-auto"
               />
             </header>
-            <div className="sticky top-0 z-30 hidden h-14 items-center justify-end border-b border-border-2 bg-white px-8 lg:flex">
+            <div className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-border-2 bg-white px-8 lg:flex">
+              <ClubSwitcher />
               <UserAvatarMenu
                 name={accountName}
                 email={accountEmail}

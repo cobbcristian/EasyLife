@@ -9,6 +9,8 @@ import {
 } from "@/lib/server/records";
 import { upsertProviderSubscription } from "@/lib/server/provider-subscriptions";
 import type { AuthUser } from "@/lib/types";
+import { upsertMembership } from "@/lib/server/memberships";
+import { recordProviderActivation } from "@/lib/server/commissions";
 
 function titleCaseCategory(raw: string): string {
   const cleaned = raw.trim();
@@ -85,6 +87,19 @@ export async function registerServiceProvider(input: {
       status: "active",
     },
   });
+
+  await upsertMembership({
+    userId: user.id,
+    communityId,
+    role: "provider",
+    status: "active",
+    isPrimary: true,
+  });
+
+  void recordProviderActivation({
+    communityId,
+    userId: user.id,
+  }).catch(() => {});
 
   const provider = await prisma.provider.create({
     data: {

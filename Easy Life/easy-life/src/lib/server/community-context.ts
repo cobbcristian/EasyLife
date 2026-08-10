@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/server/prisma";
 import type { SessionPayload } from "@/lib/types";
 import { ACTIVE_COMMUNITY_COOKIE } from "@/lib/tenant";
+import { userHasActiveMembership } from "@/lib/server/memberships";
 
 export { ACTIVE_COMMUNITY_COOKIE };
 export const DEFAULT_COMMUNITY = "__missing_community__";
@@ -26,9 +27,14 @@ export async function getActiveCommunityCookie(): Promise<string | null> {
 export async function resolveScopedCommunityId(
   session: SessionPayload,
 ): Promise<string> {
-  if (session.communityId) return session.communityId;
   const active = await getActiveCommunityCookie();
-  if (active) return active;
+  if (active) {
+    if (isSuperAdmin(session)) return active;
+    if (session.sub && (await userHasActiveMembership(session.sub, active))) {
+      return active;
+    }
+  }
+  if (session.communityId) return session.communityId;
   const first = await prisma.community.findFirst({
     orderBy: { name: "asc" },
     select: { id: true },
@@ -39,8 +45,15 @@ export async function resolveScopedCommunityId(
 export async function getActiveCommunityId(
   session: SessionPayload,
 ): Promise<string | null> {
+  const active = await getActiveCommunityCookie();
+  if (active) {
+    if (isSuperAdmin(session)) return active;
+    if (session.sub && (await userHasActiveMembership(session.sub, active))) {
+      return active;
+    }
+  }
   if (session.communityId) return session.communityId;
-  return getActiveCommunityCookie();
+  return null;
 }
 
 export function canManageCommunity(

@@ -10,7 +10,7 @@ import {
 import { logEvent } from "@/lib/server/records";
 import type { AuthRole } from "@/lib/types";
 
-const ALLOWED_ROLES: AuthRole[] = ["admin", "member", "board", "pm", "provider"];
+const ALLOWED_ROLES: AuthRole[] = ["admin", "member", "board", "pm", "provider", "sales"];
 
 export async function GET(request: Request) {
   const session = await getSession();

@@ -109,6 +109,14 @@ export function SuperAdminConsole({ initialTab = "bookings" }: { initialTab?: Ta
         <p className="mt-1 text-sm text-grey">
           {t("View all bookings, community members, and service providers.")}
         </p>
+        <p className="mt-3">
+          <Link
+            href="/super-admin/sales"
+            className="text-sm font-semibold text-[var(--mvp-blue)] hover:underline"
+          >
+            Sales CRM &amp; commissions →
+          </Link>
+        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

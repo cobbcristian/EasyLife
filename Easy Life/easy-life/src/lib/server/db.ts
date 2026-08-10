@@ -6,7 +6,7 @@ import {
 } from "@/lib/brand-assets";
 import { IRON_LAKE_DEMO_USERS } from "@/lib/iron-lake-demo";
 import { prisma } from "@/lib/server/prisma";
-import { hashPassword } from "@/lib/server/password";
+import { hashPassword, verifyPassword } from "@/lib/server/password";
 import { defaultCommunityForRole } from "@/lib/server/auth";
 import { isDemoSeedAllowed } from "@/lib/server/demo-mode";
 import {
@@ -15,6 +15,12 @@ import {
 } from "@/lib/server/member-enrollment";
 import { sendBusinessInvitationEmail } from "@/lib/server/notify";
 import type { AuthUser, Community, Provider } from "@/lib/types";
+import { upsertMembership, ensureMembershipBackfill } from "@/lib/server/memberships";
+import { ensureSalesSeed } from "@/lib/server/sales-crm";
+import {
+  recordResidentActivation,
+  recordProviderActivation,
+} from "@/lib/server/commissions";
 
 const seedUsers: AuthUser[] = [
   { id: "u-admin", email: "superadmin@gmail.com", password: "password", role: "admin", name: "Easy Life Admin", communityId: null },
@@ -367,6 +373,8 @@ export async function ensureSeeded(): Promise<void> {
       await backfillInviteCodes();
       await backfillBrandImages();
       await backfillSuperAdminIdentity();
+      await ensureMembershipBackfill();
+      await ensureSalesSeed();
     })();
   }
   return seedPromise;
@@ -699,6 +707,27 @@ export async function createUser(input: {
       status,
     },
   });
+  if (communityId) {
+    await upsertMembership({
+      userId: user.id,
+      communityId,
+      role: input.role,
+      status: status === "pending" ? "invited" : "active",
+      isPrimary: true,
+    });
+  }
+  if (status === "active" && communityId && input.role === "member") {
+    void recordResidentActivation({
+      communityId,
+      userId: user.id,
+    }).catch(() => {});
+  }
+  if (status === "active" && communityId && input.role === "provider") {
+    void recordProviderActivation({
+      communityId,
+      userId: user.id,
+    }).catch(() => {});
+  }
   return {
     id: user.id,
     email: user.email,
@@ -943,6 +972,59 @@ export async function registerMember(input: {
   }
 
   const role = input.role ?? "member";
+
+  // Existing account: add this club as a second membership when password matches.
+  const existing = await findUserByEmail(input.email);
+  if (existing) {
+    if (!verifyPassword(input.password, existing.password)) {
+      return { error: "An account with this email already exists" };
+    }
+    const already = await prisma.userCommunity.findUnique({
+      where: {
+        userId_communityId: {
+          userId: existing.id,
+          communityId: community.id,
+        },
+      },
+    });
+    if (already?.status === "active") {
+      return { error: "You are already a member of this community" };
+    }
+    if (requiresApproval && role === "member") {
+      return createPendingResident({
+        email: input.email,
+        password: input.password,
+        name: input.name,
+        communityId: community.id,
+        unit: input.unit ?? "",
+        directoryVisible: input.directoryVisible,
+      });
+    }
+    await upsertMembership({
+      userId: existing.id,
+      communityId: community.id,
+      role,
+      status: "active",
+      isPrimary: !existing.communityId,
+    });
+    if (!existing.communityId) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { communityId: community.id },
+      });
+    }
+    if (role === "member") {
+      void recordResidentActivation({
+        communityId: community.id,
+        userId: existing.id,
+      }).catch(() => {});
+    }
+    return {
+      ...existing,
+      communityId: existing.communityId ?? community.id,
+    };
+  }
+
   if (requiresApproval && role === "member") {
     return createPendingResident({
       email: input.email,

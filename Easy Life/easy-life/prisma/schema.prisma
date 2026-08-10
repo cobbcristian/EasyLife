@@ -17,6 +17,7 @@ model User {
   role              String
   name              String
   avatarUrl         String?
+  /// Cached active community (last used / switcher selection).
   communityId       String?
   /// active | pending | frozen — pending = awaiting HOA approval; frozen cannot log in
   status            String   @default("active")
@@ -25,6 +26,27 @@ model User {
   mfaSecret         String?
   mfaRecoveryHashes String?
   createdAt         DateTime @default(now())
+  memberships       UserCommunity[]
+  salesperson       Salesperson?
+}
+
+/// User ↔ Community membership (supports multi-club).
+model UserCommunity {
+  id          String   @id @default(cuid())
+  userId      String
+  communityId String
+  /// member | board | pm | admin | provider
+  role        String
+  /// active | invited | revoked
+  status      String   @default("active")
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, communityId])
+  @@index([userId, status])
+  @@index([communityId, status])
 }
 
 model Community {
@@ -45,6 +67,10 @@ model Community {
   posLastSyncAt  DateTime?
   /// Demo / ops weather state: { rainAdvisories:[{date,active,message}], rainUntil? }
   weatherJson    String            @default("{}")
+  /// When set, community contract is closed for sales commission.
+  contractClosedAt DateTime?
+  /// Contract value in USD used for commission event gross.
+  contractValueUsd Float?
   createdAt      DateTime          @default(now())
   members        CommunityMember[]
   providers      Provider[]
@@ -1519,5 +1545,87 @@ model KnowledgeArticle {
 
   @@index([communityId, category])
   @@index([communityId, published])
+}
+
+// ============================================================================
+// SALES CRM + COMMISSION PYRAMID
+// ============================================================================
+
+model Salesperson {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  parentId    String?
+  /// active | inactive
+  status      String   @default("active")
+  hireable    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      Salesperson?  @relation("SalesTree", fields: [parentId], references: [id])
+  children    Salesperson[] @relation("SalesTree")
+  assignments CommunitySalesAssignment[]
+  commissionLines CommissionLine[]
+
+  @@index([parentId])
+  @@index([status])
+}
+
+model CommunitySalesAssignment {
+  id            String    @id @default(cuid())
+  communityId   String
+  salespersonId String
+  /// owner | support
+  role          String    @default("owner")
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  reason        String?
+  salesperson   Salesperson @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, endedAt])
+  @@index([salespersonId, endedAt])
+}
+
+model CommissionPlan {
+  id                  String   @id @default(cuid())
+  name                String
+  active              Boolean  @default(true)
+  closerPctContract   Float    @default(20)
+  managerPctContract  Float    @default(5)
+  directorPctContract Float    @default(2)
+  closerPctResidual   Float    @default(5)
+  managerPctResidual  Float    @default(1.5)
+  directorPctResidual Float    @default(0.5)
+  createdAt           DateTime @default(now())
+}
+
+model CommissionEvent {
+  id          String   @id @default(cuid())
+  /// community_contract | resident_activation | provider_activation
+  type        String
+  communityId String
+  sourceId    String?
+  amountGross Float
+  occurredAt  DateTime @default(now())
+  planId      String?
+  lines       CommissionLine[]
+
+  @@index([communityId, occurredAt])
+  @@index([type])
+}
+
+model CommissionLine {
+  id            String   @id @default(cuid())
+  eventId       String
+  salespersonId String
+  /// 0 = closer, 1 = manager, 2 = director
+  level         Int
+  amount        Float
+  /// pending | payable | paid
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  event         CommissionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  salesperson   Salesperson     @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
+
+  @@index([salespersonId, status])
+  @@index([eventId])
 }
 

@@ -36,6 +36,7 @@ const COMMUNITY_BY_ROLE: Record<string, string | null> = {
   board: null,
   pm: null,
   provider: null,
+  sales: null,
 };
 
 /** Legacy fallback — prefer passing communityId explicitly to createUser. */
@@ -104,6 +105,8 @@ export function homeForRole(
       return "/board";
     case "pm":
       return "/pm";
+    case "sales":
+      return "/sales";
     default:
       return "/member";
   }

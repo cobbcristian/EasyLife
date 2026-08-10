@@ -40,6 +40,7 @@ const routeRoles: { prefixes: string[]; role: string }[] = [
   { prefixes: ["/member"], role: "member" },
   { prefixes: ["/board"], role: "board" },
   { prefixes: ["/pm"], role: "pm" },
+  { prefixes: ["/sales"], role: "sales" },
 ];
 
 function matches(pathname: string, prefixes: string[]) {
@@ -164,12 +165,14 @@ async function stagingApiBlock(request: NextRequest) {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Sales directory / guides — clear locked club cookies so branding stays Easy Life.
+  // Sales directory / guides / pitch — clear locked club cookies so branding stays intentional.
   if (
     pathname === "/go" ||
     pathname === "/go/" ||
     pathname === "/go/guide" ||
-    pathname === "/go/guide/"
+    pathname === "/go/guide/" ||
+    pathname === "/sell/plaza" ||
+    pathname === "/sell/plaza/"
   ) {
     const response = NextResponse.next({
       request: { headers: withPathnameHeader(request, pathname) },
@@ -306,6 +309,8 @@ export const config = {
     "/go/guide/",
     "/go/superadmin",
     "/go/superadmin/",
+    "/sell/plaza",
+    "/sell/plaza/",
     "/go/ironcrest",
     "/go/ironcrest/",
     "/go/goldenocala",
@@ -382,6 +387,9 @@ export const config = {
     "/member/:path*",
     "/board/:path*",
     "/pm/:path*",
+    "/sales/:path*",
+    "/sales",
+    "/super-admin/:path*",
     "/staging",
     "/api/:path*",
   ],

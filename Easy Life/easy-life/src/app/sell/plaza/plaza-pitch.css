@@ -1,0 +1,19 @@
+@keyframes pitch-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+  }
+}
+
+.pitch-breathe {
+  animation: pitch-breathe 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pitch-breathe {
+    animation: none;
+  }
+}

@@ -7,6 +7,7 @@ const ROLE_LABELS: Record<string, string> = {
   pm: "Property Mgr",
   provider: "Provider",
   admin: "Admin",
+  sales: "Sales",
 };
 
 /** Longest-prefix match for permission-gated routes. */
@@ -69,6 +70,7 @@ export function forbiddenRedirect(role: string, baseUrl: string): URL {
     board: "/board",
     pm: "/pm",
     provider: "/provider",
+    sales: "/sales",
   };
   return new URL(paths[role] ?? "/login", baseUrl);
 }

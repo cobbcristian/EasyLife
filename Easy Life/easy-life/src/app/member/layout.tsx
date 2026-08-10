@@ -17,16 +17,22 @@ export default async function MemberLayout({
   const session = await getSession();
   const cookieStore = await cookies();
   const headerStore = await headers();
+  const activeCookie = cookieStore.get(ACTIVE_COMMUNITY_COOKIE)?.value;
   const brandSeed =
     demoBrandFromCookies(
       readCookieValue(headerStore.get("cookie"), DEMO_TENANT_COOKIE) ??
         cookieStore.get(DEMO_TENANT_COOKIE)?.value,
-      cookieStore.get(ACTIVE_COMMUNITY_COOKIE)?.value,
+      activeCookie,
     ) ?? demoBrandFromCommunityId(session?.communityId);
 
+  const brandingCommunityId =
+    activeCookie && session?.communityId
+      ? activeCookie
+      : (session?.communityId ?? brandSeed?.communityId ?? null);
+
   const fromDb =
-    session?.communityId != null
-      ? await getCommunityBranding(session.communityId)
+    brandingCommunityId != null
+      ? await getCommunityBranding(brandingCommunityId)
       : null;
 
   const branding = brandSeed
