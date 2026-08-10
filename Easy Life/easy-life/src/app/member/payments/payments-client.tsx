@@ -361,12 +361,6 @@ export function PaymentsClient() {
               >
                 {t("Open")} {hoaPortal.label} →
               </a>
-              <Link
-                href="/member/newsletter"
-                className="mt-3 flex text-sm font-semibold text-[var(--mvp-blue)]"
-              >
-                {t("HOA Newsletter")} →
-              </Link>
             </section>
           ) : null}
 

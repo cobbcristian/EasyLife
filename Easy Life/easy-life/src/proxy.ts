@@ -172,7 +172,9 @@ export async function proxy(request: NextRequest) {
     pathname === "/go/guide" ||
     pathname === "/go/guide/" ||
     pathname === "/sell/plaza" ||
-    pathname === "/sell/plaza/"
+    pathname === "/sell/plaza/" ||
+    pathname === "/sell" ||
+    pathname === "/sell/"
   ) {
     const response = NextResponse.next({
       request: { headers: withPathnameHeader(request, pathname) },
@@ -311,6 +313,8 @@ export const config = {
     "/go/superadmin/",
     "/sell/plaza",
     "/sell/plaza/",
+    "/sell",
+    "/sell/",
     "/go/ironcrest",
     "/go/ironcrest/",
     "/go/goldenocala",

@@ -28,17 +28,27 @@ export async function generateMetadata(): Promise<Metadata> {
   const headerStore = await headers();
   const path = (headerStore.get("x-pathname") ?? "").split("?")[0] ?? "";
   // Sales directory lists every club — never inherit a locked /go/[tenant] cookie title.
-  if (path === "/go" || path === "/sell/plaza" || path.startsWith("/sell/plaza/")) {
+  if (
+    path === "/go" ||
+    path === "/sell" ||
+    path === "/sell/plaza" ||
+    path.startsWith("/sell/")
+  ) {
+    const isPlaza = path.startsWith("/sell/plaza");
+    const isSell = path === "/sell" || path.startsWith("/sell/");
     return {
       title: {
-        absolute:
-          path.startsWith("/sell")
-            ? "The Plaza at Oceanside | Easy Life"
+        absolute: isPlaza
+          ? "The Plaza at Oceanside | Easy Life"
+          : isSell
+            ? "Easy Life | Sales pitch"
             : "Easy Life | Sales demos",
       },
-      description: path.startsWith("/sell")
+      description: isPlaza
         ? "Boardroom sales pitch — The Plaza at Oceanside on Easy Life."
-        : "Easy Life sales directory — open a club demo and copy logins.",
+        : isSell
+          ? "Boardroom pitch — Easy Life for clubs and HOA communities."
+          : "Easy Life sales directory — open a club demo and copy logins.",
       icons: {
         icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
         apple: [{ url: "/icon-192.png" }],
@@ -47,7 +57,7 @@ export async function generateMetadata(): Promise<Metadata> {
       appleWebApp: {
         capable: true,
         statusBarStyle: "default",
-        title: path.startsWith("/sell") ? "The Plaza at Oceanside" : "Easy Life",
+        title: isPlaza ? "The Plaza at Oceanside" : "Easy Life",
       },
     };
   }
