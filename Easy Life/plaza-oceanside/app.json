@@ -86,6 +86,7 @@
       "communityId": "oceanside-residents",
       "tenantGoPath": "/go/oceansideresidents",
       "supportEmail": "cobbcristian17@gmail.com",
+      "supportUrl": "https://easylife-plaza-app.azurewebsites.net/support",
       "privacyPolicyUrl": "https://easylife-plaza-app.azurewebsites.net/privacy"
     },
     "plugins": [
