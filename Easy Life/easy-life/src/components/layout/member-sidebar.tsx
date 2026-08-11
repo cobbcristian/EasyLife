@@ -67,7 +67,7 @@ const moreNav = [
   { label: "Violations", href: "/member/violations", icon: "AlertTriangle" },
   { label: "Help & FAQ", href: "/member/faq", icon: "HelpCircle" },
   { label: "Dining", href: "/member/dining", icon: "Utensils" },
-  { label: "Fun Stuff", href: "/member/activities", icon: "Sparkles" },
+  { label: "Activities", href: "/member/activities", icon: "Sparkles" },
   { label: "Grab & Go", href: "/member/grab-go", icon: "ShoppingBag" },
   { label: "Local Pros", href: "/member/local-pros", icon: "Sparkles" },
   { label: "Vendors", href: "/member/vendors", icon: "Store" },

@@ -193,7 +193,11 @@ export const es: Record<string, string> = {
   "Voice not supported in this browser.": "La voz no es compatible con este navegador.",
   "Could not start microphone.": "No se pudo iniciar el micrófono.",
   Fun: "Diversión",
-  "Fun Stuff": "Diversión",
+  "Fun Stuff": "Actividades",
+  "Browse Fun Stuff": "Explorar actividades",
+  "All Fun Stuff": "Todas las actividades",
+  "Check back soon, or browse Fun Stuff while you wait.":
+    "Vuelve pronto, o explora Actividades mientras esperas.",
   Food: "Comida",
   HOA: "HOA",
   "Resident · pays HOA": "Residente · paga HOA",

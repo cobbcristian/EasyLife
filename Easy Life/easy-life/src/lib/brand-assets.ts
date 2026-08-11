@@ -182,7 +182,7 @@ export const brandAssets = {
 export const homeCategoryTiles = [
   {
     key: "activities",
-    label: "Fun Stuff",
+    label: "Activities",
     bg: "#0047ff",
     image: brandAssets.activityBike,
     href: "/member/activities",

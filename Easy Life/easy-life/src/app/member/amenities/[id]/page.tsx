@@ -33,7 +33,7 @@ export default async function MemberAmenityDetailPage({
       />
       <p className="mx-auto max-w-lg px-4 pb-8 text-center text-[12px] text-grey">
         <Link href="/member/activities" className="font-semibold text-[var(--mvp-blue)]">
-          All Fun Stuff
+          All Activities
         </Link>
       </p>
     </div>

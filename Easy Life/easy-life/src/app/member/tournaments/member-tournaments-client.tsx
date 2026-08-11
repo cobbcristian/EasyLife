@@ -176,13 +176,13 @@ export function MemberTournamentsClient({
             <div className="rounded-xl bg-[#f7f8fa] px-5 py-8 text-center">
               <p className="text-sm font-semibold text-ink">{t("No tournaments scheduled.")}</p>
               <p className="mt-1 text-sm text-grey">
-                {t("Check back soon, or browse Fun Stuff while you wait.")}
+                {t("Check back soon, or browse Activities while you wait.")}
               </p>
               <Link
                 href="/member/activities"
                 className="mt-4 inline-flex h-10 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
               >
-                {t("Browse Fun Stuff")}
+                {t("Browse Activities")}
               </Link>
             </div>
           ) : (

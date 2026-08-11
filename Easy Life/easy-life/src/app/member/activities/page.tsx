@@ -22,7 +22,7 @@ export default async function MemberActivitiesPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-grey">
           Member
         </p>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Fun Stuff</h1>
+        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Activities</h1>
         <p className="mt-1 text-sm text-grey">
           Courts, spa, and partner activities — tap for details, then reserve.
         </p>

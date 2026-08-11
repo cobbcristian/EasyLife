@@ -221,8 +221,18 @@ function AppInner() {
 
       if (url.startsWith("http://") || url.startsWith("https://")) {
         try {
-          const host = new URL(url).hostname;
+          const host = new URL(url).hostname.toLowerCase();
           const apiHost = new URL(API_BASE_URL).hostname;
+          // Payment portals must leave the shell — no in-app back chrome on third-party sites.
+          if (
+            host === "clickpay.com" ||
+            host.endsWith(".clickpay.com") ||
+            host === "www.clickpay.com" ||
+            host.includes("clickpay")
+          ) {
+            void Linking.openURL(url);
+            return false;
+          }
           const allowed =
             host === apiHost ||
             host.endsWith(".azurewebsites.net") ||
@@ -230,7 +240,6 @@ function AppInner() {
             host === "oceansideresidents.com" ||
             host.endsWith(".oceansideresidents.com") ||
             host.endsWith(".stripe.com") ||
-            host.endsWith(".clickpay.com") ||
             host.includes("oceanside") ||
             host.includes("google") ||
             host.includes("microsoft") ||
@@ -311,6 +320,18 @@ function AppInner() {
         <StatusBar style="dark" />
         {!hidePortalBar ? (
           <View style={styles.portalBar}>
+            {canGoBack ? (
+              <Pressable
+                onPress={() => webRef.current?.goBack?.()}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <Text style={styles.link}>Back</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.portalBarSpacer} />
+            )}
             <Text style={styles.portalTitle} numberOfLines={1}>
               {APP_NAME}
             </Text>
@@ -425,12 +446,14 @@ const styles = StyleSheet.create({
   },
   portalTitle: {
     flex: 1,
-    marginRight: 12,
+    textAlign: "center",
+    marginHorizontal: 8,
     fontWeight: "700",
     color: BRAND,
     fontSize: 14,
   },
-  link: { color: ACCENT, fontWeight: "600" },
+  portalBarSpacer: { width: 48 },
+  link: { color: ACCENT, fontWeight: "600", minWidth: 48 },
   webviewLoading: {
     position: "absolute",
     left: 0,
