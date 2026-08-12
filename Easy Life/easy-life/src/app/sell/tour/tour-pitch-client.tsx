@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
  * - Close with a single clear next step
  */
 
-type BeatKind = "open" | "screen" | "bridge" | "cta";
+type BeatKind = "open" | "screen" | "cta";
 
 type Beat = {
   id: string;
@@ -35,8 +35,115 @@ type Beat = {
 
 const DEMO_HREF = "/go/oceansideresidents";
 const LOGO_ICON = "/brand/logo-icon.png";
+/** Bump when screenshots are recaptured so browsers pick up new PNGs. */
+const SHOT_V = "4";
 
-/** One continuous afternoon — screens in the order a resident taps. */
+/** Every product shot in story order — do not drop any. */
+const STORY_SCREENS: Array<{
+  id: string;
+  chapter: string;
+  line: string;
+  whisper: string;
+  file: string;
+}> = [
+  {
+    id: "home",
+    chapter: "Resident",
+    line: "Maya opens her community.",
+    whisper: "Home",
+    file: "01-member-home.png",
+  },
+  {
+    id: "amenities",
+    chapter: "Resident",
+    line: "She books the grill.",
+    whisper: "Activities",
+    file: "02-amenities.png",
+  },
+  {
+    id: "calendar",
+    chapter: "Resident",
+    line: "It lands on her day.",
+    whisper: "Calendar",
+    file: "03-calendar.png",
+  },
+  {
+    id: "messages",
+    chapter: "Resident",
+    line: "She asks the desk.",
+    whisper: "Messages",
+    file: "04-messages.png",
+  },
+  {
+    id: "pros",
+    chapter: "Resident",
+    line: "She hires a Local Pro.",
+    whisper: "Services",
+    file: "05-local-pros.png",
+  },
+  {
+    id: "payments",
+    chapter: "Resident",
+    line: "Charges, clear.",
+    whisper: "Payments",
+    file: "06-payments.png",
+  },
+  {
+    id: "visitors",
+    chapter: "Resident",
+    line: "Guests arrive expected.",
+    whisper: "Visitors",
+    file: "07-visitors.png",
+  },
+  {
+    id: "provider",
+    chapter: "Provider",
+    line: "The pro sees the job.",
+    whisper: "Provider",
+    file: "13-provider-home.png",
+  },
+  {
+    id: "pm",
+    chapter: "Property",
+    line: "PM sees today’s pulse.",
+    whisper: "Operations",
+    file: "08-pm-home.png",
+  },
+  {
+    id: "desk",
+    chapter: "Property",
+    line: "Front desk checks them in.",
+    whisper: "Front desk",
+    file: "09-pm-front-desk.png",
+  },
+  {
+    id: "maintenance",
+    chapter: "Property",
+    line: "Work queue, live.",
+    whisper: "Maintenance",
+    file: "10-pm-bookings.png",
+  },
+  {
+    id: "board",
+    chapter: "Board",
+    line: "Board sees one source of truth.",
+    whisper: "Governance",
+    file: "11-board-home.png",
+  },
+  {
+    id: "budget",
+    chapter: "Board",
+    line: "Reserves without the chase.",
+    whisper: "Budget",
+    file: "12-board-budget.png",
+  },
+];
+
+function shotUrl(file: string) {
+  return `/sell/tour/${file}?v=${SHOT_V}`;
+}
+
+/** Continuous story: open → every screen → close. No text-only gaps. */
 const BEATS: Beat[] = [
   {
     id: "open",
@@ -44,122 +151,14 @@ const BEATS: Beat[] = [
     chapter: "The Plaza",
     line: "One building. Four roles. Zero binders.",
   },
-  {
-    id: "tension",
-    kind: "bridge",
-    chapter: "Before",
-    line: "Paper, group chats, and “who has the PDF?”",
-  },
-  {
-    id: "home",
-    kind: "screen",
-    chapter: "Resident",
-    line: "Maya opens her community.",
-    whisper: "Home",
-    shot: "/sell/tour/01-member-home.png?v=3",
-  },
-  {
-    id: "amenities",
-    kind: "screen",
-    chapter: "Resident",
-    line: "She books the grill.",
-    whisper: "Activities",
-    shot: "/sell/tour/02-amenities.png?v=3",
-  },
-  {
-    id: "calendar",
-    kind: "screen",
-    chapter: "Resident",
-    line: "It lands on her day.",
-    whisper: "Calendar",
-    shot: "/sell/tour/03-calendar.png?v=3",
-  },
-  {
-    id: "messages",
-    kind: "screen",
-    chapter: "Resident",
-    line: "She asks the desk.",
-    whisper: "Messages",
-    shot: "/sell/tour/04-messages.png?v=3",
-  },
-  {
-    id: "pros",
-    kind: "screen",
-    chapter: "Resident",
-    line: "She hires a Local Pro.",
-    whisper: "Services",
-    shot: "/sell/tour/05-local-pros.png?v=3",
-  },
-  {
-    id: "payments",
-    kind: "screen",
-    chapter: "Resident",
-    line: "Charges, clear.",
-    whisper: "Payments",
-    shot: "/sell/tour/06-payments.png?v=3",
-  },
-  {
-    id: "visitors",
-    kind: "screen",
-    chapter: "Resident",
-    line: "Guests arrive expected.",
-    whisper: "Visitors",
-    shot: "/sell/tour/07-visitors.png?v=3",
-  },
-  {
-    id: "ripple",
-    kind: "bridge",
-    chapter: "Same moment",
-    line: "Her taps move the whole building.",
-  },
-  {
-    id: "provider",
-    kind: "screen",
-    chapter: "Provider",
-    line: "The pro sees the job.",
-    whisper: "Work queue",
-    shot: "/sell/tour/13-provider-home.png?v=3",
-  },
-  {
-    id: "pm",
-    kind: "screen",
-    chapter: "Property",
-    line: "PM sees today’s pulse.",
-    whisper: "Operations",
-    shot: "/sell/tour/08-pm-home.png?v=3",
-  },
-  {
-    id: "desk",
-    kind: "screen",
-    chapter: "Property",
-    line: "Front desk checks them in.",
-    whisper: "Front desk",
-    shot: "/sell/tour/09-pm-front-desk.png?v=3",
-  },
-  {
-    id: "pm-bookings",
-    kind: "screen",
-    chapter: "Property",
-    line: "Work queue, live.",
-    whisper: "Maintenance",
-    shot: "/sell/tour/10-pm-bookings.png?v=3",
-  },
-  {
-    id: "board",
-    kind: "screen",
-    chapter: "Board",
-    line: "Board sees one source of truth.",
-    whisper: "Governance",
-    shot: "/sell/tour/11-board-home.png?v=3",
-  },
-  {
-    id: "budget",
-    kind: "screen",
-    chapter: "Board",
-    line: "Reserves without the chase.",
-    whisper: "Budget",
-    shot: "/sell/tour/12-board-budget.png?v=3",
-  },
+  ...STORY_SCREENS.map((s) => ({
+    id: s.id,
+    kind: "screen" as const,
+    chapter: s.chapter,
+    line: s.line,
+    whisper: s.whisper,
+    shot: shotUrl(s.file),
+  })),
   {
     id: "cta",
     kind: "cta",
@@ -170,9 +169,7 @@ const BEATS: Beat[] = [
 
 const CHAPTER_TONE: Record<string, string> = {
   "The Plaza": "#9ec5ff",
-  Before: "rgba(232,238,245,0.55)",
   Resident: "#9ec5ff",
-  "Same moment": "var(--el-ember)",
   Provider: "var(--el-ember)",
   Property: "#f0c674",
   Board: "#c9b4ff",
@@ -185,11 +182,23 @@ export function TourPitchClient() {
   const reducedMotion = usePrefersReducedMotion();
   const last = BEATS.length - 1;
   const beat = BEATS[index]!;
+  const screenIndex =
+    beat.kind === "screen"
+      ? STORY_SCREENS.findIndex((s) => s.id === beat.id)
+      : -1;
 
   const go = useCallback(
     (next: number) => setIndex(Math.max(0, Math.min(last, next))),
     [last],
   );
+
+  useEffect(() => {
+    // Prefetch every tour shot so advancing never blanks a screen.
+    for (const s of STORY_SCREENS) {
+      const img = new window.Image();
+      img.src = shotUrl(s.file);
+    }
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -261,7 +270,11 @@ export function TourPitchClient() {
           </div>
         </div>
         <p className="shrink-0 text-[11px] tabular-nums text-white/40">
-          {index + 1} / {BEATS.length}
+          {screenIndex >= 0
+            ? `${screenIndex + 1} / ${STORY_SCREENS.length}`
+            : beat.kind === "open"
+              ? "Start"
+              : "Next"}
         </p>
       </header>
 
@@ -359,19 +372,29 @@ function BeatBody({
     );
   }
 
-  if (beat.kind === "bridge") {
-    return (
-      <div className="mx-auto max-w-lg text-center">
-        <Line>{beat.line}</Line>
-      </div>
-    );
-  }
-
   if (beat.kind === "cta") {
     return (
-      <div className="mx-auto max-w-lg text-center">
+      <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         <Line>{beat.line}</Line>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <div className="mt-7 flex w-full max-w-2xl gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {STORY_SCREENS.map((s) => (
+            <div
+              key={s.id}
+              className="relative h-[7.5rem] w-[3.45rem] shrink-0 overflow-hidden rounded-[0.65rem] ring-1 ring-white/20 shadow-[0_12px_30px_rgba(0,0,0,0.45)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={shotUrl(s.file)}
+                alt={s.whisper}
+                className="h-full w-full object-cover object-top"
+              />
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-white/35">
+          All {STORY_SCREENS.length} screens · one afternoon
+        </p>
+        <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link
             href={DEMO_HREF}
             className="inline-flex rounded-full bg-[var(--el-signal)] px-8 py-3.5 text-sm font-semibold text-white shadow-[0_12px_40px_rgba(10,132,255,0.35)] hover:brightness-110"
@@ -380,32 +403,29 @@ function BeatBody({
             Open live Oceanside
           </Link>
         </div>
-        <p className="mt-5 text-[12px] text-white/40">
-          Same tenant. Every role.
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-5 lg:flex-row lg:items-center lg:gap-12">
-      <div className="order-2 w-full max-w-sm shrink-0 text-center lg:order-1 lg:w-[38%] lg:max-w-none lg:text-left">
+    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4">
+      <div className="w-full max-w-md shrink-0 text-center">
         {beat.whisper ? (
           <p
-            className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em]"
+            className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.24em]"
             style={{ color: CHAPTER_TONE[beat.chapter] ?? "#9ec5ff" }}
           >
             {beat.whisper}
           </p>
         ) : null}
-        <Line className="text-[1.65rem] sm:text-3xl lg:text-[2.35rem]">
+        <Line className="text-[1.45rem] sm:text-[1.85rem] lg:text-[2.1rem]">
           {beat.line}
         </Line>
       </div>
 
       <div
         className={cn(
-          "order-1 flex justify-center lg:order-2 lg:flex-1",
+          "flex justify-center",
           active && !reducedMotion && "tour-phone-in",
         )}
       >
@@ -430,7 +450,7 @@ function BeatBody({
 function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div
-      className="relative w-[min(72vw,280px)] sm:w-[300px] lg:w-[320px]"
+      className="relative w-[min(78vw,300px)] sm:w-[320px] lg:w-[340px]"
       style={{ aspectRatio: "393 / 852" }}
     >
       <div className="absolute inset-0 rounded-[2.15rem] bg-gradient-to-b from-white/25 via-white/5 to-white/10 p-[2px] shadow-[0_40px_100px_rgba(0,0,0,0.65)]">
@@ -447,10 +467,7 @@ function PhoneFrame({ children }: { children: ReactNode }) {
 }
 
 function Atmosphere({ chapter }: { chapter: string }) {
-  const warm =
-    chapter === "Provider" ||
-    chapter === "Same moment" ||
-    chapter === "Property";
+  const warm = chapter === "Provider" || chapter === "Property";
   return (
     <div
       aria-hidden
