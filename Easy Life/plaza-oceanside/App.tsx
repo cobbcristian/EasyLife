@@ -15,8 +15,9 @@ import { StatusBar } from "expo-status-bar";
 import { WebView } from "react-native-webview";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
+import * as Notifications from "expo-notifications";
 import { sessionBridgeUrl } from "./src/api";
-import { ensurePushRegistered } from "./src/push";
+import { ensurePushRegistered, unregisterPush } from "./src/push";
 import {
   APP_NAME,
   API_BASE_URL,
@@ -186,8 +187,20 @@ function AppInner() {
 
   useEffect(() => {
     if (!token || mode !== "portal") return;
-    void ensurePushRegistered(token);
+    void ensurePushRegistered(token, { request: false });
   }, [token, mode]);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const target = response.notification.request.content.data?.url;
+      if (typeof target !== "string" || !webRef.current) return;
+      const path = target.startsWith("http") ? target : `${API_BASE_URL}${target}`;
+      webRef.current.injectJavaScript(
+        `window.location.assign(${JSON.stringify(path)}); true;`,
+      );
+    });
+    return () => sub.remove();
+  }, []);
 
   async function onSignOut() {
     await SecureStore.deleteItemAsync(SESSION_KEY);
@@ -274,9 +287,18 @@ function AppInner() {
         chromeless?: boolean;
         filename?: string;
         ics?: string;
+        enabled?: boolean;
       };
       if (data?.type === "plaza-session" && data.token) {
         void enterPortal(data.token);
+        return;
+      }
+      if (data?.type === "plaza-push") {
+        if (data.enabled && token) {
+          void ensurePushRegistered(token, { request: true });
+        } else if (token) {
+          void unregisterPush(token);
+        }
         return;
       }
       if (data?.type === "plaza-chromeless") {

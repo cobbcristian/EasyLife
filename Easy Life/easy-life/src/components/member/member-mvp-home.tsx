@@ -24,7 +24,7 @@ import {
   communityIsResidentialHoa,
 } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
-import { formatDate } from "@/lib/utils";
+import { formatDate, isUpcomingItem } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface HomeBooking {
@@ -50,6 +50,7 @@ interface HomeEvent {
   time: string;
   location: string;
   category: string;
+  userRsvped?: boolean;
 }
 
 interface HomeTournament {
@@ -120,7 +121,10 @@ function buildUpcomingRows(
 ): UpcomingRow[] {
   const rows: UpcomingRow[] = [];
 
-  for (const event of events.slice(0, 3)) {
+  for (const event of events.filter(
+    (item) =>
+      item.userRsvped !== false && isUpcomingItem(item.date, item.time),
+  ).slice(0, 3)) {
     rows.push({
       id: `event-${event.id}`,
       title: event.title,
@@ -133,7 +137,11 @@ function buildUpcomingRows(
     });
   }
 
-  for (const booking of bookings.filter((b) => b.status !== "cancelled").slice(0, 3)) {
+  for (const booking of bookings
+    .filter(
+      (b) => b.status !== "cancelled" && isUpcomingItem(b.date, b.time),
+    )
+    .slice(0, 3)) {
     const { label, tone } = amenityStatusLabel(booking.status);
     rows.push({
       id: `booking-${booking.id}`,
@@ -148,7 +156,7 @@ function buildUpcomingRows(
   }
 
   for (const service of serviceBookings
-    .filter((b) => b.date >= new Date().toISOString().slice(0, 10))
+    .filter((b) => isUpcomingItem(b.date, b.time))
     .slice(0, 3)) {
     rows.push({
       id: `service-${service.id}`,
@@ -162,7 +170,12 @@ function buildUpcomingRows(
     });
   }
 
-  for (const tournament of tournaments.filter((t) => t.nextMatch?.opponent).slice(0, 3)) {
+  for (const tournament of tournaments
+    .filter((t) => t.nextMatch?.opponent)
+    .filter((t) =>
+      isUpcomingItem(t.nextMatch?.date || t.date, t.nextMatch?.time),
+    )
+    .slice(0, 3)) {
     const match = tournament.nextMatch!;
     const courtPart =
       tournament.sport.toLowerCase() === "tennis" && match.courtLabel

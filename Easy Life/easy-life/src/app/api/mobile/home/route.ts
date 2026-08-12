@@ -14,6 +14,7 @@ import {
 } from "@/lib/server/project-management";
 import { listChatThreadsForUser } from "@/lib/server/local-pros";
 import { isActiveServiceBooking } from "@/lib/types";
+import { isUpcomingItem } from "@/lib/utils";
 import { prisma } from "@/lib/server/prisma";
 
 export async function GET(request: Request) {
@@ -64,7 +65,11 @@ export async function GET(request: Request) {
 
   const upcoming = [
     ...bookings
-      .filter((b) => b.status !== "cancelled")
+      .filter(
+        (b) =>
+          b.status !== "cancelled" &&
+          isUpcomingItem(b.date, `${b.startTime} – ${b.endTime}`),
+      )
       .slice(0, 5)
       .map((b) => ({
         id: `b-${b.id}`,
@@ -74,24 +79,31 @@ export async function GET(request: Request) {
         time: `${b.startTime} – ${b.endTime}`,
         kind: "booking" as const,
       })),
-    ...events.slice(0, 5).map((e) => ({
-      id: `e-${e.id}`,
-      title: e.title,
-      status: e.rsvps.some((r) => r.memberEmail === session.email)
-        ? "Going"
-        : "Open",
-      date: e.date,
-      time: e.time ?? "",
-      kind: "event" as const,
-    })),
-    ...serviceBookings.map((b) => ({
-      id: `s-${b.id}`,
-      title: b.service,
-      status: b.status === "accepted" ? "Confirmed" : "Pending",
-      date: b.date,
-      time: b.endTime ? `${b.time} – ${b.endTime}` : b.time,
-      kind: "service" as const,
-    })),
+    ...events
+      .filter(
+        (e) =>
+          e.rsvps.some((r) => r.memberEmail.toLowerCase() === email) &&
+          isUpcomingItem(e.date, e.time),
+      )
+      .slice(0, 5)
+      .map((e) => ({
+        id: `e-${e.id}`,
+        title: e.title,
+        status: "Going",
+        date: e.date,
+        time: e.time ?? "",
+        kind: "event" as const,
+      })),
+    ...serviceBookings
+      .filter((b) => isUpcomingItem(b.date, b.endTime ? `${b.time} – ${b.endTime}` : b.time))
+      .map((b) => ({
+        id: `s-${b.id}`,
+        title: b.service,
+        status: b.status === "accepted" ? "Confirmed" : "Pending",
+        date: b.date,
+        time: b.endTime ? `${b.time} – ${b.endTime}` : b.time,
+        kind: "service" as const,
+      })),
   ]
     .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
     .slice(0, 8);

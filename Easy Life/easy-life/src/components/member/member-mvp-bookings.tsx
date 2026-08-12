@@ -11,7 +11,7 @@ import {
   translateCapacityLabel,
   unitNoun,
 } from "@/lib/scheduling";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, isUpcomingItem } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import { InviteMemberPicker, type InviteMember } from "@/components/ui/invite-member-picker";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
@@ -388,7 +388,11 @@ export function MemberMvpBookings({
 
   const clubAmenities = amenities.filter((a) => a.ownership !== "external");
   const externalAmenities = amenities.filter((a) => a.ownership === "external");
-  const active = initialBookings.filter((b) => b.status !== "cancelled");
+  const active = initialBookings.filter(
+    (b) =>
+      b.status !== "cancelled" &&
+      isUpcomingItem(b.date, `${b.startTime}–${b.endTime}`),
+  );
   const cancelled = initialBookings.filter((b) => b.status === "cancelled");
 
   return (

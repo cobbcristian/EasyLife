@@ -77,6 +77,15 @@ export function MemberMvpProfile({
   const [pet, setPet] = useState({ name: "", type: "", breed: "" });
   const [pushHint, setPushHint] = useState("");
   const [gateOpen, setGateOpen] = useState(false);
+  const [nativeShell, setNativeShell] = useState(false);
+
+  useEffect(() => {
+    setNativeShell(
+      Boolean(
+        (window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView,
+      ),
+    );
+  }, []);
 
   useEffect(() => {
     let on = true;
@@ -115,6 +124,7 @@ export function MemberMvpProfile({
       // In-app WebViews (TestFlight / Play) do not support web PushManager —
       // quietly keep the preference off instead of alarming the resident.
       if (result.reason === "unsupported") {
+        if (nativeShell) return;
         setForm((prev) => ({ ...prev, commsPush: false }));
         setPushHint(
           "Push alerts use the Oceanside app after you install the latest build. This in-app browser can’t turn on web push.",
@@ -131,20 +141,16 @@ export function MemberMvpProfile({
         setForm((prev) => ({ ...prev, commsPush: false }));
       }
     },
-    [],
+    [nativeShell],
   );
 
-  usePushNotifications(form.commsPush, onPushResult);
+  usePushNotifications(form.commsPush, onPushResult, nativeShell);
 
   const webPushSupported =
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    !(
-      window as Window & {
-        ReactNativeWebView?: unknown;
-      }
-    ).ReactNativeWebView;
+    "PushManager" in window;
+  const pushToggleEnabled = nativeShell || webPushSupported;
 
   async function saveProfile() {
     setSaving(true);
@@ -344,19 +350,39 @@ export function MemberMvpProfile({
             <label className="flex items-center justify-between gap-3 rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3">
               <span className="min-w-0 text-sm text-ink">
                 {t("Push notifications")}
-                {!webPushSupported ? (
+                {!pushToggleEnabled ? (
                   <span className="mt-0.5 block text-[11px] font-normal text-grey">
                     Available in a future app update — not in this in-app browser.
+                  </span>
+                ) : nativeShell ? (
+                  <span className="mt-0.5 block text-[11px] font-normal text-grey">
+                    {t("Bookings, messages, and community news.")}
                   </span>
                 ) : null}
               </span>
               <input
                 type="checkbox"
                 checked={form.commsPush}
-                disabled={!webPushSupported}
+                disabled={!pushToggleEnabled}
                 onChange={(e) => {
+                  const enabled = e.target.checked;
                   setPushHint("");
-                  setForm({ ...form, commsPush: e.target.checked });
+                  setForm({ ...form, commsPush: enabled });
+                  if (nativeShell) {
+                    const rn = (
+                      window as Window & {
+                        ReactNativeWebView?: { postMessage: (msg: string) => void };
+                      }
+                    ).ReactNativeWebView;
+                    rn?.postMessage(
+                      JSON.stringify({ type: "plaza-push", enabled }),
+                    );
+                  }
+                  void fetch("/api/member/profile", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ commsPush: enabled }),
+                  });
                 }}
                 className="h-4 w-4 accent-[var(--mvp-blue)] disabled:opacity-40"
               />

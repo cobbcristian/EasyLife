@@ -191,14 +191,20 @@ export async function GET() {
       status: b.status,
     })),
     serviceBookings,
-    events: events.slice(0, 5).map((e) => ({
-      id: e.id,
-      title: e.title,
-      date: e.date,
-      time: e.time,
-      location: e.location,
-      category: e.category,
-    })),
+    events: events
+      .filter((e) =>
+        e.rsvps.some((r) => r.memberEmail.toLowerCase() === email),
+      )
+      .slice(0, 8)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        time: e.time,
+        location: e.location,
+        category: e.category,
+        userRsvped: true,
+      })),
     requests: requests.slice(0, 5).map((r) => ({
       id: r.id,
       title: r.title,

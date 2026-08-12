@@ -134,7 +134,7 @@ export function sessionBridgeUrl(token: string, nextPath?: string): string {
   const q = new URLSearchParams({ token });
   if (nextPath) q.set("next", nextPath);
   // Bust WebView HTTP cache when the shell app updates.
-  q.set("_v", "15");
+  q.set("_v", "16");
   return `${API_BASE_URL}/api/mobile/bridge?${q.toString()}`;
 }
 

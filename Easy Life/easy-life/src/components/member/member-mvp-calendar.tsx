@@ -71,6 +71,14 @@ function toDateKey(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
+function eventDayKey(value: string) {
+  const iso = value.trim().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return toDateKey(parsed);
+}
+
 function calendarDotKind(event: CalendarEventDTO): DotKind {
   if (event.source === "service" || event.category === "service") return "service";
   if (event.source === "dining" || event.category === "dining") return "dining";
@@ -284,7 +292,7 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEventDTO[]>();
     for (const event of sorted) {
-      const key = event.date.slice(0, 10);
+      const key = eventDayKey(event.date);
       const list = map.get(key) ?? [];
       list.push(event);
       map.set(key, list);
@@ -302,19 +310,19 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
 
   const listEvents = useMemo(() => {
     if ((view === "month" || view === "week") && effectiveSelectedDay) {
-      return sorted.filter((e) => e.date.slice(0, 10) === effectiveSelectedDay);
+      return sorted.filter((e) => eventDayKey(e.date) === effectiveSelectedDay);
     }
     return sorted;
   }, [sorted, view, effectiveSelectedDay]);
 
   const pastListEvents = useMemo(() => {
     if (view !== "list" || !todayKey) return [] as CalendarEventDTO[];
-    return sorted.filter((e) => e.date.slice(0, 10) < todayKey);
+    return sorted.filter((e) => eventDayKey(e.date) < todayKey);
   }, [sorted, view, todayKey]);
 
   const upcomingListEvents = useMemo(() => {
     if (view !== "list" || !todayKey) return listEvents;
-    return sorted.filter((e) => e.date.slice(0, 10) >= todayKey);
+    return sorted.filter((e) => eventDayKey(e.date) >= todayKey);
   }, [sorted, view, todayKey, listEvents]);
 
   const selectedDayLabel = useMemo(() => {

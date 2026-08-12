@@ -23,7 +23,8 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Allow camera access to upload photos for your resident profile and service requests.",
         "NSPhotoLibraryUsageDescription": "Allow photo library access to upload images for your resident profile and service requests.",
-        "NSLocationWhenInUseUsageDescription": "Location may be used for community visitor and amenity features when you opt in."
+        "NSLocationWhenInUseUsageDescription": "Location may be used for community visitor and amenity features when you opt in.",
+        "UIBackgroundModes": ["remote-notification"]
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
@@ -49,7 +50,8 @@
       },
       "permissions": [
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "POST_NOTIFICATIONS"
       ],
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
@@ -92,6 +94,13 @@
     "plugins": [
       "expo-secure-store",
       "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#002856",
+          "sounds": []
+        }
+      ],
       [
         "expo-splash-screen",
         {

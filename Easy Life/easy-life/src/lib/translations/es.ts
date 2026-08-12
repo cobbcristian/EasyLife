@@ -78,6 +78,8 @@ export const es: Record<string, string> = {
   Yes: "Sí",
   No: "No",
   Language: "Idioma",
+  "Bookings, messages, and community news.":
+    "Reservas, mensajes y noticias de la comunidad.",
   English: "Inglés",
   Spanish: "Español",
   "Log out": "Cerrar sesión",

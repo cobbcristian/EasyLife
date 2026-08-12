@@ -28,6 +28,7 @@ interface HomeEvent {
   time: string;
   location: string;
   category: string;
+  userRsvped?: boolean;
 }
 
 interface HomeTournament {

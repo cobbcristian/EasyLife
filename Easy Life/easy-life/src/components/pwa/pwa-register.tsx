@@ -58,9 +58,10 @@ export async function ensurePushSubscription(): Promise<PushSubscribeResult> {
 export function usePushNotifications(
   enabled: boolean,
   onResult?: (result: PushSubscribeResult) => void,
+  nativeShell = false,
 ) {
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || nativeShell) return;
     let cancelled = false;
     ensurePushSubscription().then((result) => {
       if (!cancelled) onResult?.(result);
@@ -68,7 +69,7 @@ export function usePushNotifications(
     return () => {
       cancelled = true;
     };
-  }, [enabled, onResult]);
+  }, [enabled, onResult, nativeShell]);
 }
 
 function urlBase64ToUint8Array(base64String: string) {
