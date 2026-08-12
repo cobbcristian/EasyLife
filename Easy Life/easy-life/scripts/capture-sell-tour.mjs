@@ -1,16 +1,12 @@
 /**
- * Capture Oceanside demo screenshots for /sell/tour — phone-native (iPhone frame).
+ * Capture Oceanside demo screenshots for /sell/tour — phone-native.
  *
  * Usage:
  *   WALK_BASE=https://easylife-plaza-app.azurewebsites.net node scripts/capture-sell-tour.mjs
  *
- * Why mobile: the pitch renders shots inside a phone chrome. Desktop captures
- * look broken (sidebar + whitespace jammed into a portrait frame).
- *
- * Also seeds light demo traffic (check-ins / service requests) and mocks empty
- * board budget JSON so ops screens aren't a wall of zeros in the pitch.
+ * Critical: clip exactly 393×852 so PNGs match PhoneFrame and never crop.
  */
-import { chromium, devices } from "playwright";
+import { chromium } from "playwright";
 import { mkdirSync } from "fs";
 import { join } from "path";
 
@@ -19,10 +15,8 @@ const BASE =
 const OUT = join(process.cwd(), "public", "sell", "tour");
 mkdirSync(OUT, { recursive: true });
 
-const PHONE = {
-  ...devices["iPhone 14 Pro"],
-  deviceScaleFactor: 3,
-};
+const VIEWPORT = { width: 393, height: 852 };
+const DPR = 3;
 
 const DEMO_BUDGET = {
   lines: [
@@ -105,7 +99,6 @@ async function scrubUi(page) {
         )
         .forEach((el) => el.remove());
 
-      // Sales shots should not show multi-club switcher chrome.
       document.querySelectorAll("a, button, span, p").forEach((el) => {
         const text = (el.textContent || "").trim();
         if (/join another club/i.test(text)) {
@@ -134,7 +127,7 @@ async function settle(page) {
   await page.waitForTimeout(350);
 }
 
-async function shot(page, name, path, { scrollTo } = {}) {
+async function shot(page, name, path) {
   await page
     .goto(`${BASE}${path}`, {
       waitUntil: "networkidle",
@@ -148,22 +141,12 @@ async function shot(page, name, path, { scrollTo } = {}) {
     });
   await settle(page);
 
-  if (scrollTo) {
-    await page
-      .locator(scrollTo)
-      .first()
-      .scrollIntoViewIfNeeded()
-      .catch(() => null);
-    await page.waitForTimeout(500);
-    await scrubUi(page);
-  }
-
   const file = join(OUT, `${name}.png`);
   await page.screenshot({
     path: file,
-    fullPage: false,
     type: "png",
     animations: "disabled",
+    clip: { x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height },
   });
   console.log("saved", name, "←", page.url());
 }
@@ -173,12 +156,11 @@ async function postJson(page, path, body) {
     data: body,
     headers: { "Content-Type": "application/json" },
   });
-  const ok = res.ok();
-  if (!ok) {
+  if (!res.ok()) {
     const text = await res.text().catch(() => "");
     console.warn("POST", path, res.status(), text.slice(0, 160));
   }
-  return ok;
+  return res.ok();
 }
 
 async function seedResidentTraffic(page) {
@@ -220,10 +202,7 @@ async function seedPmTraffic(page) {
       data: row,
       headers: { "Content-Type": "application/json" },
     });
-    if (!res.ok()) {
-      console.warn("checkin POST failed", res.status());
-      continue;
-    }
+    if (!res.ok()) continue;
     const data = await res.json();
     if (data?.checkin?.id) ids.push(data.checkin.id);
   }
@@ -244,7 +223,6 @@ async function focusFrontDeskLog(page) {
       );
       formHeading?.closest(".rounded-xl")?.remove();
 
-      // Dedupe repeated demo check-ins so the pitch shot looks clean.
       const seen = new Set();
       const rows = [
         ...document.querySelectorAll(".space-y-3 > .flex.items-center"),
@@ -272,13 +250,16 @@ async function focusFrontDeskLog(page) {
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    ...PHONE,
+    viewport: VIEWPORT,
+    deviceScaleFactor: DPR,
+    isMobile: true,
+    hasTouch: true,
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
     locale: "en-US",
     timezoneId: "America/New_York",
   });
 
-  // Board budget is often empty in prod (global seed short-circuits).
-  // Fulfill for the pitch only — live app data unchanged.
   await context.route("**/api/budget", async (route) => {
     await route.fulfill({
       status: 200,
@@ -302,8 +283,6 @@ async function main() {
   });
 
   const page = await context.newPage();
-
-  // —— Resident golden path ——
   await goLogin(
     page,
     "social.committee@oceansideresidents.com",
@@ -318,42 +297,41 @@ async function main() {
   await shot(page, "06-payments", "/member/payments");
   await shot(page, "07-visitors", "/member/visitors");
 
-  // —— Property ——
   await clearAuth(context);
   const page2 = await context.newPage();
   await goLogin(page2, "pm.demo@oceansideresidents.com", "password");
   await seedPmTraffic(page2);
   await shot(page2, "08-pm-home", "/pm");
-  await page2.goto(`${BASE}/pm/front-desk`, {
-    waitUntil: "networkidle",
-    timeout: 90000,
-  }).catch(async () => {
-    await page2.goto(`${BASE}/pm/front-desk`, {
-      waitUntil: "domcontentloaded",
+
+  await page2
+    .goto(`${BASE}/pm/front-desk`, {
+      waitUntil: "networkidle",
       timeout: 90000,
+    })
+    .catch(async () => {
+      await page2.goto(`${BASE}/pm/front-desk`, {
+        waitUntil: "domcontentloaded",
+        timeout: 90000,
+      });
     });
-  });
   await settle(page2);
   await focusFrontDeskLog(page2);
   await scrubUi(page2);
   await page2.screenshot({
     path: join(OUT, "09-pm-front-desk.png"),
-    fullPage: false,
     type: "png",
     animations: "disabled",
+    clip: { x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height },
   });
   console.log("saved 09-pm-front-desk ←", page2.url());
-  // Bookings page is a blank form — maintenance shows live work instead.
   await shot(page2, "10-pm-bookings", "/pm/maintenance");
 
-  // —— Board ——
   await clearAuth(context);
   const page3 = await context.newPage();
   await goLogin(page3, "board.demo@oceansideresidents.com", "password");
   await shot(page3, "11-board-home", "/board");
   await shot(page3, "12-board-budget", "/board/budget");
 
-  // —— Provider ——
   await clearAuth(context);
   const page4 = await context.newPage();
   try {

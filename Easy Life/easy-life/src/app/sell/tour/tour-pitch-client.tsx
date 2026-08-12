@@ -36,7 +36,7 @@ type Beat = {
 const DEMO_HREF = "/go/oceansideresidents";
 const LOGO_ICON = "/brand/logo-icon.png";
 /** Bump when screenshots are recaptured so browsers pick up new PNGs. */
-const SHOT_V = "4";
+const SHOT_V = "6";
 
 /** Every product shot in story order — do not drop any. */
 const STORY_SCREENS: Array<{
@@ -434,9 +434,9 @@ function BeatBody({
             <Image
               src={beat.shot}
               alt={beat.line}
-              width={393}
-              height={852}
-              className="h-full w-full object-cover object-top"
+              width={1179}
+              height={2556}
+              className="h-full w-full object-fill"
               priority={active}
               unoptimized
             />
@@ -448,17 +448,14 @@ function BeatBody({
 }
 
 function PhoneFrame({ children }: { children: ReactNode }) {
+  // Must match capture clip 393×852 (device pixels 1179×2556).
   return (
     <div
-      className="relative w-[min(78vw,300px)] sm:w-[320px] lg:w-[340px]"
+      className="relative w-[min(82vw,300px)] sm:w-[320px] lg:w-[340px]"
       style={{ aspectRatio: "393 / 852" }}
     >
       <div className="absolute inset-0 rounded-[2.15rem] bg-gradient-to-b from-white/25 via-white/5 to-white/10 p-[2px] shadow-[0_40px_100px_rgba(0,0,0,0.65)]">
-        <div className="relative h-full w-full overflow-hidden rounded-[2.05rem] bg-[#0b0d10] ring-1 ring-black/40">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-2 z-20 h-6 w-24 -translate-x-1/2 rounded-full bg-black/85"
-          />
+        <div className="relative h-full w-full overflow-hidden rounded-[2.05rem] bg-white ring-1 ring-black/40">
           <div className="absolute inset-0">{children}</div>
         </div>
       </div>
