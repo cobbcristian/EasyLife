@@ -18,6 +18,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.easylife.oceanside",
       "buildNumber": "15",
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "CFBundleDisplayName": "The Plaza at Oceanside",
         "ITSAppUsesNonExemptEncryption": false,
