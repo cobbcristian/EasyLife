@@ -17,9 +17,9 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: { absolute: "Easy Life | Product tour" },
+  title: { absolute: "Easy Life | Live the afternoon" },
   description:
-    "Screenshot walkthrough of Easy Life — resident, provider, PM, and board with real product UI.",
+    "A short product story: one resident afternoon ripples to provider, property, and board — real screens, few words.",
   robots: { index: false, follow: false },
 };
 

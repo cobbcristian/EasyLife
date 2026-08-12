@@ -5,147 +5,186 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-type Role = "Narrator" | "Resident" | "Provider" | "PM" | "Board";
+/**
+ * Sales story for /sell/tour — research-backed choices baked in:
+ * - Buyer/resident as hero (not the product)
+ * - Setup → tension → turning point → resolution
+ * - Show > tell (≤ ~12 words per beat)
+ * - One golden path: live a day in the building
+ * - Close with a single clear next step
+ */
 
-type Slide = {
+type BeatKind = "open" | "screen" | "bridge" | "cta";
+
+type Beat = {
   id: string;
-  role: Role;
-  title: string;
-  body: string;
+  kind: BeatKind;
+  chapter: string;
+  line: string;
+  /** Optional micro-caption under the line (≤ 6 words). */
+  whisper?: string;
   shot?: string;
-  cta?: boolean;
 };
 
 const DEMO_HREF = "/go/oceansideresidents";
 const LOGO_ICON = "/brand/logo-icon.png";
 
-const ROLE_COLOR: Record<Role, string> = {
-  Narrator: "var(--el-signal-soft)",
-  Resident: "#9ec5ff",
-  Provider: "var(--el-ember)",
-  PM: "#f0c674",
-  Board: "#d4b5ff",
-};
-
-const SLIDES: Slide[] = [
+/** One continuous afternoon — screens in the order a resident taps. */
+const BEATS: Beat[] = [
   {
     id: "open",
-    role: "Narrator",
-    title: "See Easy Life, not a mockup.",
-    body: "Real Oceanside product screens — resident, provider, PM, and board — as the story unfolds.",
+    kind: "open",
+    chapter: "The Plaza",
+    line: "One building. Four roles. Zero binders.",
+  },
+  {
+    id: "tension",
+    kind: "bridge",
+    chapter: "Before",
+    line: "Paper, group chats, and “who has the PDF?”",
   },
   {
     id: "home",
-    role: "Resident",
-    title: "Maya opens her community home.",
-    body: "Greeting, Ask Plaza, categories, upcoming bookings — her life, not a feed.",
+    kind: "screen",
+    chapter: "Resident",
+    line: "Maya opens her community.",
+    whisper: "Home",
     shot: "/sell/tour/01-member-home.png",
   },
   {
     id: "amenities",
-    role: "Resident",
-    title: "She books real amenities.",
-    body: "Tennis, theater, grills, board room, simulator — live inventory with real times.",
+    kind: "screen",
+    chapter: "Resident",
+    line: "She books the grill.",
+    whisper: "Activities",
     shot: "/sell/tour/02-amenities.png",
   },
   {
     id: "calendar",
-    role: "Resident",
-    title: "It shows up on her calendar.",
-    body: "What’s reserved, what’s pending, what she can cancel — without a paper binder.",
+    kind: "screen",
+    chapter: "Resident",
+    line: "It lands on her day.",
+    whisper: "Calendar",
     shot: "/sell/tour/03-calendar.png",
   },
   {
     id: "messages",
-    role: "Resident",
-    title: "She messages management.",
-    body: "A real thread to staff — not a Facebook post that vanishes.",
+    kind: "screen",
+    chapter: "Resident",
+    line: "She asks the desk.",
+    whisper: "Messages",
     shot: "/sell/tour/04-messages.png",
   },
   {
     id: "pros",
-    role: "Resident",
-    title: "She finds a trusted Local Pro.",
-    body: "Floor installation inside the community — View → book → chat.",
+    kind: "screen",
+    chapter: "Resident",
+    line: "She hires a Local Pro.",
+    whisper: "Services",
     shot: "/sell/tour/05-local-pros.png",
   },
   {
     id: "payments",
-    role: "Resident",
-    title: "Dues and charges in one place.",
-    body: "HOA portal when needed. Account statement for amenity spend.",
+    kind: "screen",
+    chapter: "Resident",
+    line: "Charges, clear.",
+    whisper: "Payments",
     shot: "/sell/tour/06-payments.png",
   },
   {
     id: "visitors",
-    role: "Resident",
-    title: "Guests are expected before they arrive.",
-    body: "Pre-register visitors so the desk isn’t guessing.",
+    kind: "screen",
+    chapter: "Resident",
+    line: "Guests arrive expected.",
+    whisper: "Visitors",
     shot: "/sell/tour/07-visitors.png",
   },
   {
+    id: "ripple",
+    kind: "bridge",
+    chapter: "Same moment",
+    line: "Her taps move the whole building.",
+  },
+  {
     id: "provider",
-    role: "Provider",
-    title: "The provider sees the work.",
-    body: "Same platform, provider desk — jobs, messages, money.",
+    kind: "screen",
+    chapter: "Provider",
+    line: "The pro sees the job.",
+    whisper: "Work queue",
     shot: "/sell/tour/13-provider-home.png",
   },
   {
     id: "pm",
-    role: "PM",
-    title: "PM sees today’s operations.",
-    body: "Front-desk load, maintenance, the pulse of the building.",
+    kind: "screen",
+    chapter: "Property",
+    line: "PM sees today’s pulse.",
+    whisper: "Operations",
     shot: "/sell/tour/08-pm-home.png",
   },
   {
     id: "desk",
-    role: "PM",
-    title: "Front desk checks guests in.",
-    body: "Name, host, photo — expected visitors from the calendar show here.",
+    kind: "screen",
+    chapter: "Property",
+    line: "Front desk checks them in.",
+    whisper: "Front desk",
     shot: "/sell/tour/09-pm-front-desk.png",
   },
   {
     id: "pm-bookings",
-    role: "PM",
-    title: "Staff see amenity demand.",
-    body: "Who booked what — conflicts and capacity without spreadsheet chaos.",
+    kind: "screen",
+    chapter: "Property",
+    line: "Amenity demand, live.",
+    whisper: "Bookings",
     shot: "/sell/tour/10-pm-bookings.png",
   },
   {
     id: "board",
-    role: "Board",
-    title: "Board opens the same source of truth.",
-    body: "Meetings, surveys, governance — before anyone says “send me the file.”",
+    kind: "screen",
+    chapter: "Board",
+    line: "Board sees one source of truth.",
+    whisper: "Governance",
     shot: "/sell/tour/11-board-home.png",
   },
   {
     id: "budget",
-    role: "Board",
-    title: "Budget and reserves, visible.",
-    body: "Spend clarity for boardroom decisions — not a last-minute PDF.",
+    kind: "screen",
+    chapter: "Board",
+    line: "Reserves without the chase.",
+    whisper: "Budget",
     shot: "/sell/tour/12-board-budget.png",
   },
   {
     id: "cta",
-    role: "Narrator",
-    title: "Now click through it yourself.",
-    body: "Same Oceanside tenant these screens came from — try every role.",
-    cta: true,
+    kind: "cta",
+    chapter: "Next",
+    line: "Walk it yourself.",
   },
 ];
+
+const CHAPTER_TONE: Record<string, string> = {
+  "The Plaza": "#9ec5ff",
+  Before: "rgba(232,238,245,0.55)",
+  Resident: "#9ec5ff",
+  "Same moment": "var(--el-ember)",
+  Provider: "var(--el-ember)",
+  Property: "#f0c674",
+  Board: "#c9b4ff",
+  Next: "var(--el-signal-soft)",
+};
 
 export function TourPitchClient() {
   const [index, setIndex] = useState(0);
   const touchX = useRef<number | null>(null);
   const reducedMotion = usePrefersReducedMotion();
-  const last = SLIDES.length - 1;
-  const slide = SLIDES[index]!;
+  const last = BEATS.length - 1;
+  const beat = BEATS[index]!;
 
   const go = useCallback(
     (next: number) => setIndex(Math.max(0, Math.min(last, next))),
@@ -172,7 +211,7 @@ export function TourPitchClient() {
     return () => window.removeEventListener("keydown", onKey);
   }, [go, index, last]);
 
-  function onClickSurface(e: React.MouseEvent<HTMLDivElement>) {
+  function onClickSurface(e: MouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
     if (target.closest("a,button")) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -183,7 +222,7 @@ export function TourPitchClient() {
 
   return (
     <div
-      className="relative min-h-dvh overflow-hidden bg-[var(--el-void)] text-[var(--el-mist)]"
+      className="tour-root relative min-h-dvh overflow-hidden bg-[var(--el-void)] text-[var(--el-mist)]"
       style={{ fontFamily: "var(--font-el-sans), system-ui, sans-serif" }}
       onClick={onClickSurface}
       onTouchStart={(e) => {
@@ -200,71 +239,78 @@ export function TourPitchClient() {
         else go(index - 1);
       }}
     >
+      <Atmosphere chapter={beat.chapter} />
+
       <header className="relative z-30 flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2.5">
           <img
             src={LOGO_ICON}
             alt=""
-            className="h-7 w-7 rounded-lg object-cover"
+            className="h-7 w-7 rounded-lg object-cover ring-1 ring-white/15"
           />
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-              Easy Life · Product tour
+            <p className="truncate text-[11px] font-semibold tracking-[-0.01em] text-white">
+              Easy Life
             </p>
             <p
-              className="truncate text-[10px] font-semibold uppercase tracking-[0.22em]"
-              style={{ color: ROLE_COLOR[slide.role] }}
+              className="truncate text-[10px] font-semibold uppercase tracking-[0.2em]"
+              style={{ color: CHAPTER_TONE[beat.chapter] ?? "#9ec5ff" }}
             >
-              {slide.role}
+              {beat.chapter}
             </p>
           </div>
         </div>
         <p className="shrink-0 text-[11px] tabular-nums text-white/40">
-          {index + 1} / {SLIDES.length}
+          {index + 1} / {BEATS.length}
         </p>
       </header>
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-6.5rem)] max-w-6xl flex-col justify-center px-3 pb-20 sm:px-6">
-        {SLIDES.map((s, i) => {
+      <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-6.25rem)] max-w-5xl flex-col justify-center px-3 pb-16 sm:px-6">
+        {BEATS.map((b, i) => {
           const active = i === index;
           return (
             <div
-              key={s.id}
+              key={b.id}
               aria-hidden={!active}
               className={cn(
-                "absolute inset-x-3 top-14 bottom-16 flex flex-col justify-center sm:inset-x-6",
+                "absolute inset-x-3 top-14 bottom-14 flex flex-col justify-center sm:inset-x-6",
                 reducedMotion
                   ? active
                     ? "opacity-100"
                     : "pointer-events-none opacity-0"
                   : active
                     ? "translate-y-0 opacity-100 transition-all duration-500 ease-out"
-                    : "pointer-events-none translate-y-3 opacity-0 transition-all duration-500 ease-out",
+                    : "pointer-events-none translate-y-4 opacity-0 transition-all duration-500 ease-out",
               )}
             >
-              <SlideBody slide={s} />
+              <BeatBody beat={b} active={active} reducedMotion={reducedMotion} />
             </div>
           );
         })}
       </div>
 
-      <footer className="relative z-30 flex items-center justify-center gap-1.5 px-4 pb-5">
-        {SLIDES.map((s, i) => (
+      <footer className="relative z-30 flex items-center justify-center gap-1 px-4 pb-5">
+        {BEATS.map((b, i) => (
           <button
-            key={s.id}
+            key={b.id}
             type="button"
-            aria-label={`Slide ${i + 1}`}
+            aria-label={`Beat ${i + 1}`}
             aria-current={i === index}
             onClick={(e) => {
               e.stopPropagation();
               go(i);
             }}
             className={cn(
-              "h-1.5 rounded-full transition-all duration-300",
-              i === index ? "w-7" : "w-1.5 bg-white/20 hover:bg-white/40",
+              "h-1 rounded-full transition-all duration-300",
+              i === index ? "w-6" : "w-1 bg-white/20 hover:bg-white/40",
             )}
             style={
-              i === index ? { backgroundColor: ROLE_COLOR[s.role] } : undefined
+              i === index
+                ? {
+                    backgroundColor:
+                      CHAPTER_TONE[b.chapter] ?? "var(--el-signal-soft)",
+                  }
+                : undefined
             }
           />
         ))}
@@ -277,78 +323,172 @@ export function TourPitchClient() {
           !reducedMotion && "transition-transform duration-500 ease-out",
         )}
         style={{
-          backgroundColor: ROLE_COLOR[slide.role],
-          transform: `scaleX(${(index + 1) / SLIDES.length})`,
+          backgroundColor: CHAPTER_TONE[beat.chapter] ?? "var(--el-signal-soft)",
+          transform: `scaleX(${(index + 1) / BEATS.length})`,
         }}
       />
     </div>
   );
 }
 
-function SlideBody({ slide }: { slide: Slide }) {
-  if (slide.cta) {
+function BeatBody({
+  beat,
+  active,
+  reducedMotion,
+}: {
+  beat: Beat;
+  active: boolean;
+  reducedMotion: boolean;
+}) {
+  if (beat.kind === "open") {
     return (
-      <div className="mx-auto max-w-2xl text-center">
-        <Display>{slide.title}</Display>
-        <Soft className="mx-auto mt-4">{slide.body}</Soft>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link
-            href={DEMO_HREF}
-            className="inline-flex rounded-full bg-[var(--el-signal)] px-7 py-3 text-sm font-semibold text-white hover:brightness-110"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Open live Oceanside
-          </Link>
-          <Link
-            href="/sell/story"
-            className="inline-flex rounded-full border border-white/25 px-7 py-3 text-sm font-semibold text-white/90"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Text-only story
-          </Link>
-          <Link
-            href="/sell"
-            className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm text-white/65"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Platform pitch
-          </Link>
-        </div>
+      <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+        <img
+          src={LOGO_ICON}
+          alt="Easy Life"
+          className={cn(
+            "mb-8 h-16 w-16 rounded-[1.15rem] object-cover ring-1 ring-white/20 shadow-[0_20px_60px_rgba(10,132,255,0.25)]",
+            active && !reducedMotion && "tour-logo-in",
+          )}
+        />
+        <Line>{beat.line}</Line>
+        <p className="mt-6 text-[11px] font-medium uppercase tracking-[0.28em] text-white/35">
+          Tap or →
+        </p>
       </div>
     );
   }
 
-  if (!slide.shot) {
+  if (beat.kind === "bridge") {
     return (
-      <div className="mx-auto max-w-2xl text-center">
-        <img
-          src={LOGO_ICON}
-          alt="Easy Life"
-          className="mx-auto mb-6 h-14 w-14 rounded-2xl object-cover"
-        />
-        <Display>{slide.title}</Display>
-        <Soft className="mx-auto mt-4">{slide.body}</Soft>
+      <div className="mx-auto max-w-lg text-center">
+        <Line>{beat.line}</Line>
+      </div>
+    );
+  }
+
+  if (beat.kind === "cta") {
+    return (
+      <div className="mx-auto max-w-lg text-center">
+        <Line>{beat.line}</Line>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link
+            href={DEMO_HREF}
+            className="inline-flex rounded-full bg-[var(--el-signal)] px-8 py-3.5 text-sm font-semibold text-white shadow-[0_12px_40px_rgba(10,132,255,0.35)] hover:brightness-110"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Open live Oceanside
+          </Link>
+        </div>
+        <p className="mt-5 text-[12px] text-white/40">
+          Same tenant. Every role.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 lg:flex-row lg:items-center lg:gap-8">
-      <div className="shrink-0 lg:w-[34%]">
-        <Display className="text-3xl sm:text-4xl lg:text-5xl">{slide.title}</Display>
-        <Soft className="mt-3 text-base sm:text-lg">{slide.body}</Soft>
+    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-5 lg:flex-row lg:items-center lg:gap-12">
+      <div className="order-2 w-full max-w-sm shrink-0 text-center lg:order-1 lg:w-[38%] lg:max-w-none lg:text-left">
+        {beat.whisper ? (
+          <p
+            className="mb-2 text-[11px] font-semibold uppercase tracking-[0.24em]"
+            style={{ color: CHAPTER_TONE[beat.chapter] ?? "#9ec5ff" }}
+          >
+            {beat.whisper}
+          </p>
+        ) : null}
+        <Line className="text-[1.65rem] sm:text-3xl lg:text-[2.35rem]">
+          {beat.line}
+        </Line>
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl ring-1 ring-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-        <Image
-          src={slide.shot}
-          alt={slide.title}
-          width={1280}
-          height={800}
-          className="h-auto w-full object-cover object-top"
-          priority
-        />
+
+      <div
+        className={cn(
+          "order-1 flex justify-center lg:order-2 lg:flex-1",
+          active && !reducedMotion && "tour-phone-in",
+        )}
+      >
+        <PhoneFrame>
+          {beat.shot ? (
+            <Image
+              src={beat.shot}
+              alt={beat.line}
+              width={390}
+              height={844}
+              className="h-full w-full object-cover object-top"
+              priority={active}
+            />
+          ) : null}
+        </PhoneFrame>
       </div>
     </div>
+  );
+}
+
+function PhoneFrame({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="relative w-[min(72vw,280px)] sm:w-[300px] lg:w-[320px]"
+      style={{ aspectRatio: "390 / 844" }}
+    >
+      <div className="absolute inset-0 rounded-[2.15rem] bg-gradient-to-b from-white/25 via-white/5 to-white/10 p-[2px] shadow-[0_40px_100px_rgba(0,0,0,0.65)]">
+        <div className="relative h-full w-full overflow-hidden rounded-[2.05rem] bg-[#0b0d10] ring-1 ring-black/40">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-2 z-20 h-6 w-24 -translate-x-1/2 rounded-full bg-black/85"
+          />
+          <div className="absolute inset-0">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Atmosphere({ chapter }: { chapter: string }) {
+  const warm =
+    chapter === "Provider" ||
+    chapter === "Same moment" ||
+    chapter === "Property";
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 transition-[background] duration-700"
+      style={{
+        background: warm
+          ? `
+            radial-gradient(ellipse 65% 45% at 80% 15%, rgba(125,211,192,0.14), transparent 55%),
+            radial-gradient(ellipse 50% 40% at 10% 90%, rgba(240,198,116,0.08), transparent 50%),
+            linear-gradient(165deg, #07090c 0%, #10151c 55%, #141a22 100%)
+          `
+          : `
+            radial-gradient(ellipse 70% 50% at 85% 0%, rgba(10,132,255,0.2), transparent 55%),
+            radial-gradient(ellipse 45% 35% at 5% 100%, rgba(158,197,255,0.06), transparent 50%),
+            linear-gradient(165deg, #07090c 0%, #0e1319 50%, #151b24 100%)
+          `,
+      }}
+    />
+  );
+}
+
+function Line({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <h1
+      className={cn(
+        "text-balance font-medium leading-[1.12] tracking-[-0.025em] text-white",
+        "text-[1.85rem] sm:text-4xl",
+        className,
+      )}
+      style={{ fontFamily: "var(--font-el-display), Georgia, serif" }}
+    >
+      {children}
+    </h1>
   );
 }
 
@@ -362,43 +502,4 @@ function usePrefersReducedMotion() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
   return reduced;
-}
-
-function Display({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <h1
-      className={cn(
-        "text-balance font-medium leading-[1.08] tracking-[-0.02em] text-white",
-        className,
-      )}
-      style={{ fontFamily: "var(--font-el-display), Georgia, serif" }}
-    >
-      {children}
-    </h1>
-  );
-}
-
-function Soft({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <p
-      className={cn(
-        "max-w-xl text-pretty font-light leading-relaxed text-[var(--el-mute)]",
-        className,
-      )}
-    >
-      {children}
-    </p>
-  );
 }
