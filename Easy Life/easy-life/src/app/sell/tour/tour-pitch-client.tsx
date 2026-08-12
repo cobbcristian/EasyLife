@@ -56,7 +56,7 @@ const BEATS: Beat[] = [
     chapter: "Resident",
     line: "Maya opens her community.",
     whisper: "Home",
-    shot: "/sell/tour/01-member-home.png",
+    shot: "/sell/tour/01-member-home.png?v=3",
   },
   {
     id: "amenities",
@@ -64,7 +64,7 @@ const BEATS: Beat[] = [
     chapter: "Resident",
     line: "She books the grill.",
     whisper: "Activities",
-    shot: "/sell/tour/02-amenities.png",
+    shot: "/sell/tour/02-amenities.png?v=3",
   },
   {
     id: "calendar",
@@ -72,7 +72,7 @@ const BEATS: Beat[] = [
     chapter: "Resident",
     line: "It lands on her day.",
     whisper: "Calendar",
-    shot: "/sell/tour/03-calendar.png",
+    shot: "/sell/tour/03-calendar.png?v=3",
   },
   {
     id: "messages",
@@ -80,7 +80,7 @@ const BEATS: Beat[] = [
     chapter: "Resident",
     line: "She asks the desk.",
     whisper: "Messages",
-    shot: "/sell/tour/04-messages.png",
+    shot: "/sell/tour/04-messages.png?v=3",
   },
   {
     id: "pros",
@@ -88,7 +88,7 @@ const BEATS: Beat[] = [
     chapter: "Resident",
     line: "She hires a Local Pro.",
     whisper: "Services",
-    shot: "/sell/tour/05-local-pros.png",
+    shot: "/sell/tour/05-local-pros.png?v=3",
   },
   {
     id: "payments",
@@ -96,7 +96,7 @@ const BEATS: Beat[] = [
     chapter: "Resident",
     line: "Charges, clear.",
     whisper: "Payments",
-    shot: "/sell/tour/06-payments.png",
+    shot: "/sell/tour/06-payments.png?v=3",
   },
   {
     id: "visitors",
@@ -104,7 +104,7 @@ const BEATS: Beat[] = [
     chapter: "Resident",
     line: "Guests arrive expected.",
     whisper: "Visitors",
-    shot: "/sell/tour/07-visitors.png",
+    shot: "/sell/tour/07-visitors.png?v=3",
   },
   {
     id: "ripple",
@@ -118,7 +118,7 @@ const BEATS: Beat[] = [
     chapter: "Provider",
     line: "The pro sees the job.",
     whisper: "Work queue",
-    shot: "/sell/tour/13-provider-home.png",
+    shot: "/sell/tour/13-provider-home.png?v=3",
   },
   {
     id: "pm",
@@ -126,7 +126,7 @@ const BEATS: Beat[] = [
     chapter: "Property",
     line: "PM sees today’s pulse.",
     whisper: "Operations",
-    shot: "/sell/tour/08-pm-home.png",
+    shot: "/sell/tour/08-pm-home.png?v=3",
   },
   {
     id: "desk",
@@ -134,15 +134,15 @@ const BEATS: Beat[] = [
     chapter: "Property",
     line: "Front desk checks them in.",
     whisper: "Front desk",
-    shot: "/sell/tour/09-pm-front-desk.png",
+    shot: "/sell/tour/09-pm-front-desk.png?v=3",
   },
   {
     id: "pm-bookings",
     kind: "screen",
     chapter: "Property",
-    line: "Amenity demand, live.",
-    whisper: "Bookings",
-    shot: "/sell/tour/10-pm-bookings.png",
+    line: "Work queue, live.",
+    whisper: "Maintenance",
+    shot: "/sell/tour/10-pm-bookings.png?v=3",
   },
   {
     id: "board",
@@ -150,7 +150,7 @@ const BEATS: Beat[] = [
     chapter: "Board",
     line: "Board sees one source of truth.",
     whisper: "Governance",
-    shot: "/sell/tour/11-board-home.png",
+    shot: "/sell/tour/11-board-home.png?v=3",
   },
   {
     id: "budget",
@@ -158,7 +158,7 @@ const BEATS: Beat[] = [
     chapter: "Board",
     line: "Reserves without the chase.",
     whisper: "Budget",
-    shot: "/sell/tour/12-board-budget.png",
+    shot: "/sell/tour/12-board-budget.png?v=3",
   },
   {
     id: "cta",
@@ -414,10 +414,11 @@ function BeatBody({
             <Image
               src={beat.shot}
               alt={beat.line}
-              width={390}
-              height={844}
+              width={393}
+              height={852}
               className="h-full w-full object-cover object-top"
               priority={active}
+              unoptimized
             />
           ) : null}
         </PhoneFrame>
@@ -430,7 +431,7 @@ function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div
       className="relative w-[min(72vw,280px)] sm:w-[300px] lg:w-[320px]"
-      style={{ aspectRatio: "390 / 844" }}
+      style={{ aspectRatio: "393 / 852" }}
     >
       <div className="absolute inset-0 rounded-[2.15rem] bg-gradient-to-b from-white/25 via-white/5 to-white/10 p-[2px] shadow-[0_40px_100px_rgba(0,0,0,0.65)]">
         <div className="relative h-full w-full overflow-hidden rounded-[2.05rem] bg-[#0b0d10] ring-1 ring-black/40">
