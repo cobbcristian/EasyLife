@@ -1,0 +1,209 @@
+[
+  {
+    "severity": "CRITICAL",
+    "location": "scripts/deploy-azure.sh",
+    "title": "Hardcoded production credentials in deployment script",
+    "description": "The deployment script prints real login credentials (email and password) to stdout and embeds them in the deployment summary. These credentials can authenticate against the production application.",
+    "attack_path": "An attacker with access to the repository (public or leaked) can use the credentials to log in as the primary account.",
+    "evidence": [
+      "scripts/deploy-azure.sh:164 — echo \"   Email: Dlms6768@gmail.com\"",
+      "scripts/deploy-azure.sh:165 — echo \"   Password: Slater96!\""
+    ]
+  },
+  {
+    "severity": "CRITICAL",
+    "location": "src/proxy.ts",
+    "title": "Superadmin credentials exposed in URL and middleware logic",
+    "description": "Visiting /go/superadmin redirects to /login with plaintext email and password pre-filled as query parameters. Anyone who discovers the URL can obtain superadmin access without brute-force.",
+    "attack_path": "Navigate to /go/superadmin. The redirect URL contains ?email=superadmin@gmail.com&password=password. The attacker copies those values and logs in with full admin privileges.",
+    "evidence": [
+      "src/proxy.ts:191-199 — Redirect to /login with email=superadmin@gmail.com&password=password as query params"
+    ]
+  },
+  {
+    "severity": "HIGH",
+    "location": "src/app/api/mobile/amenities/[id]/availability/route.ts",
+    "title": "Cross-tenant IDOR: amenity availability accessible across communities",
+    "description": "The endpoint authenticates the user but does not verify that the requested amenity ID belongs to the user's communityId. The underlying getAmenityAvailability() function queries by amenityId alone with no community filter. An authenticated user of Community A can enumerate and view availability of amenities in Community B.",
+    "attack_path": "Authenticated user sends GET /api/mobile/amenities/<amenity-id-from-another-community>/availability?date=2026-08-15. The server returns availability data for a resource the user should not access.",
+    "evidence": [
+      "src/app/api/mobile/amenities/[id]/availability/route.ts:29 — getAmenityAvailability(id, date, ...) with no communityId check",
+      "src/lib/server/records.ts:1881 — prisma.amenity.findUnique({ where: { id: amenityId } }) — no communityId filter"
+    ]
+  },
+  {
+    "severity": "HIGH",
+    "location": "src/app/api/cron/reminders/route.ts",
+    "title": "Cron endpoint accessible without authentication in non-production environments",
+    "description": "When CRON_SECRET is not set AND NODE_ENV != 'production', the /api/cron/reminders endpoint is publicly accessible without any authentication. This is intentional for dev but dangerous if the app runs in preview/staging deployments that are internet-accessible (e.g. Vercel preview deployments).",
+    "attack_path": "An attacker discovers the preview deployment URL and calls GET /api/cron/reminders. The endpoint processes reminders and dependent membership aging, potentially sending notifications or changing member statuses.",
+    "evidence": [
+      "src/app/api/cron/reminders/route.ts:10 — authorizeCronRequest(request) allows bypass when secret is unset",
+      "src/lib/server/cron-auth.ts:13-16 — Returns ok:true when secret is empty and env is not production"
+    ]
+  },
+  {
+    "severity": "HIGH",
+    "location": "src/proxy.ts",
+    "title": "Credentials passed via URL query parameters in /go/ routes",
+    "description": "The /go/<club> demo tenant routing accepts email and password as query parameters and forwards them to /login. URLs with credentials may be logged in server access logs, browser history, referrer headers, and analytics platforms.",
+    "attack_path": "A sales team member shares a /go/ironcrest?email=admin@club.com&password=secret link. The URL is captured in server logs, Referer headers, or browser history. Anyone with log access gains the credential.",
+    "evidence": [
+      "src/proxy.ts:206-208 — const email = request.nextUrl.searchParams.get('email'); url.searchParams.set('email', email)",
+      "src/proxy.ts:207-210 — password propagated as query parameter to /login redirect"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "src/app/api/checkins/route.ts (PATCH)",
+    "title": "Missing community ownership check on checkin status update",
+    "description": "The PATCH handler validates role but calls updateCheckinStatus(body.id, body.status) using a client-supplied ID without verifying the checkin record belongs to the user's community. A PM in Community A could update a checkin record in Community B if they guess or enumerate IDs.",
+    "attack_path": "An authenticated PM sends PATCH /api/checkins with body { id: '<checkin-id-from-other-community>', status: 'checked_in' }. The server updates the record without confirming communityId ownership.",
+    "evidence": [
+      "src/app/api/checkins/route.ts:135 — await updateCheckinStatus(body.id, body.status) — no communityId guard"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "src/app/api/favorites/route.ts (DELETE)",
+    "title": "Potential IDOR on favorite deletion",
+    "description": "The DELETE handler passes the user's email and an id to removeFavorite. If the underlying implementation only checks that the favorite exists (not that it belongs to the requesting user's email), an attacker could delete other users' favorites. Severity depends on the implementation of removeFavorite.",
+    "attack_path": "User A guesses favorite ID belonging to User B, sends DELETE /api/favorites?id=<id>. If removeFavorite does not filter by email, the record is removed.",
+    "evidence": [
+      "src/app/api/favorites/route.ts:42 — removeFavorite(session.email, id) — mitigated if implementation filters by email"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "src/app/api/help-tickets/route.ts (POST)",
+    "title": "User-controlled email field allows impersonation in tickets",
+    "description": "The POST handler accepts an optional 'email' field from the request body and uses it as the ticket's contact email (body.email ?? session.email). An authenticated user can submit tickets appearing to come from a different email address.",
+    "attack_path": "Authenticated user submits POST /api/help-tickets with { subject:'...', message:'...', email:'ceo@company.com' }. The ticket is filed with a spoofed contact email, potentially triggering misdirected replies.",
+    "evidence": [
+      "src/app/api/help-tickets/route.ts:36 — email: body.email ?? session.email — client-supplied email overrides session"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "scripts/seed-oceanside-residents.ts",
+    "title": "Default 4-digit PINs for tram drivers in seeded data",
+    "description": "Tram driver records are seeded with simple sequential PINs (1234, 2345, 3456, 4567). If this seed runs against a production database, drivers get trivially guessable auth codes.",
+    "attack_path": "An attacker discovers the tram driver auth interface and tries common PINs (1234, etc.) to impersonate a driver.",
+    "evidence": [
+      "scripts/seed-oceanside-residents.ts:345 — pin: '1234'",
+      "scripts/seed-oceanside-residents.ts:352 — pin: '2345'",
+      "scripts/seed-oceanside-residents.ts:359 — pin: '3456'",
+      "scripts/seed-oceanside-residents.ts:366 — pin: '4567'"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "src/app/api/contact/route.ts",
+    "title": "No recipient validation — potential spam / abuse vector",
+    "description": "The POST handler accepts any string as 'recipient' without validating it against a list of allowed recipients. If the system later adds email delivery, this becomes an email relay vulnerability. Currently, data is stored without sanitization.",
+    "attack_path": "Authenticated user sends arbitrarily large numbers of contact messages with attacker-controlled recipient strings. If email sending is wired up, this becomes an open relay.",
+    "evidence": [
+      "src/app/api/contact/route.ts:19-26 — recipient: body.recipient used directly, no allowlist validation"
+    ]
+  },
+  {
+    "severity": "LOW",
+    "location": "src/app/api/member/hoa-checkout/route.ts",
+    "title": "Demo mode auto-marks HOA payment as paid without real payment",
+    "description": "When Stripe is not configured and isDemoPaymentAllowed() returns true, the endpoint marks the HOA charge as paid without collecting real payment. If ALLOW_DEMO_SEED is accidentally enabled in production, residents get free HOA credits.",
+    "attack_path": "If the production environment lacks STRIPE_SECRET_KEY but has demo mode enabled, any member can hit POST /api/member/hoa-checkout and their balance is zeroed out.",
+    "evidence": [
+      "src/app/api/member/hoa-checkout/route.ts:43-44 — if (isDemoPaymentAllowed()) await markHoaChargePaid(payment.chargeId)"
+    ]
+  },
+  {
+    "severity": "LOW",
+    "location": "prisma/schema.prisma",
+    "title": "User password stored without documented hashing indication in schema",
+    "description": "The User model stores a 'password' field as a plain String. While hashing likely occurs at the application layer, there is no database-level protection. If a database dump occurs, password security depends entirely on application-layer hashing implementation.",
+    "attack_path": "Database compromise leads to bulk credential theft if hashing is weak or absent.",
+    "evidence": [
+      "prisma/schema.prisma:16 — password String (no @db.Text or comment indicating bcrypt)"
+    ]
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/gallery/route.ts",
+    "title": "No issues found — properly authenticated and validated",
+    "description": "The gallery endpoint checks session, validates file type and size, runs content moderation, and scopes data to communityId. No security issues identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/mobile/amenities/route.ts",
+    "title": "No issues found — properly authenticated and community-scoped",
+    "description": "The amenities list endpoint verifies the bearer token and scopes the query to session.communityId. No vulnerabilities identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/member/visitors/route.ts",
+    "title": "No issues found — properly authenticated with community and role checks",
+    "description": "Both GET and POST verify session, enforce role=member, scope queries to communityId, and derive the host from the session name. No vulnerabilities identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/member/home/route.ts",
+    "title": "No issues found — authenticated and community-scoped",
+    "description": "The member home endpoint checks session, requires communityId, and queries data only for the authenticated user's community and email. No vulnerabilities identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/member/hoa-dues/route.ts",
+    "title": "No issues found — authenticated, community-scoped, read-only",
+    "description": "The endpoint checks session, requires communityId, and queries only the authenticated user's own profile and unit fee data. No vulnerabilities identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/budget/route.ts",
+    "title": "No issues found — role-restricted and community-scoped",
+    "description": "Budget endpoint requires board/admin/pm role and scopes data to session.communityId. No vulnerabilities identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/admin/backfill-brand-images/route.ts",
+    "title": "No issues found — admin-only",
+    "description": "The endpoint strictly checks for admin role. No vulnerabilities identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/guest-fees/route.ts",
+    "title": "No issues found — role-restricted and community-scoped",
+    "description": "Guest fees endpoint checks for pm/admin/board roles and scopes all data to session.communityId. Input validation is present for email format and amount. No vulnerabilities identified.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/webhooks/",
+    "title": "No webhook files found",
+    "description": "No files exist under src/app/api/webhooks/. No webhook-related vulnerabilities to assess.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "INFO",
+    "location": "src/lib/server/email.ts",
+    "title": "File does not exist",
+    "description": "No email.ts file exists in src/lib/server/. Cannot assess email injection vulnerabilities.",
+    "attack_path": "N/A",
+    "evidence": []
+  }
+]
