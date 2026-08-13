@@ -1,0 +1,240 @@
+[
+  {
+    "id": "MOBILE-001",
+    "severity": "high",
+    "location": "src/app/api/mobile/providers/route.ts",
+    "title": "Cross-Tenant Provider Data Leakage via listAllProviders",
+    "description": "The /api/mobile/providers endpoint calls listAllProviders() which queries ALL providers across ALL communities without any communityId filter. An authenticated member from Community A can see the full provider directory (names, categories, emails, ratings) of Community B, Community C, etc. The same issue exists in the /api/mobile/home endpoint which also calls listAllProviders() for the 'featured' section.",
+    "impact": "Authenticated users from any community can enumerate all service providers across every tenant in the platform. This leaks business names, categories, ratings, and community affiliations. In a multi-tenant SaaS, this is a tenant isolation breach that exposes competitive business intelligence across communities.",
+    "attack_path": [
+      "1. Attacker registers as a member of any community (e.g. via /api/mobile/register)",
+      "2. Attacker calls GET /api/mobile/providers with their valid Bearer token",
+      "3. The endpoint calls listAllProviders() which runs: prisma.provider.findMany({}) with no communityId filter",
+      "4. Response contains providers from ALL communities including name, category, type, rating, and community name",
+      "5. Attacker can also see cross-tenant providers via GET /api/mobile/home in the 'featured' array"
+    ],
+    "evidence": [
+      "src/app/api/mobile/providers/route.ts:12 - calls listAllProviders() without communityId",
+      "src/lib/server/db.ts:622 - prisma.provider.findMany with no where clause filtering by communityId",
+      "src/app/api/mobile/home/route.ts:46 - listAllProviders() also called here for featured providers"
+    ],
+    "remediation": "Replace listAllProviders() calls in mobile endpoints with a community-scoped query: prisma.provider.findMany({ where: { communityId: session.communityId } }). Create a new listProvidersForCommunity(communityId) function.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-002",
+    "severity": "high",
+    "location": "src/app/api/mobile/amenities/[id]/availability/route.ts",
+    "title": "Cross-Tenant Amenity Availability Access (IDOR)",
+    "description": "The /api/mobile/amenities/[id]/availability endpoint accepts an arbitrary amenity ID and queries its availability without verifying that the amenity belongs to the authenticated user's community. The underlying getAmenityAvailability() function uses prisma.amenity.findUnique({ where: { id: amenityId } }) with no communityId check. An attacker can enumerate amenity IDs from other communities and view their booking schedules, availability windows, and unit counts.",
+    "impact": "Members from Community A can probe amenity availability (court schedules, booking density, operating hours) for amenities belonging to Community B. This leaks operational data about other communities' facilities and could reveal usage patterns, peak times, and member activity levels of competing clubs.",
+    "attack_path": [
+      "1. Attacker authenticates as a member of Community A",
+      "2. Attacker guesses or enumerates amenity IDs (CUID format) from other communities",
+      "3. Attacker calls GET /api/mobile/amenities/{crossTenantAmenityId}/availability?date=2026-08-13",
+      "4. getAmenityAvailability() queries the amenity by ID alone, no communityId filter",
+      "5. The response reveals unitCount, unitsUsed, unitsFree, fullyBooked, and time windows for the foreign community's amenity"
+    ],
+    "evidence": [
+      "src/app/api/mobile/amenities/[id]/availability/route.ts:29 - calls getAmenityAvailability(id, date) with no communityId",
+      "src/lib/server/records.ts:1881 - prisma.amenity.findUnique({ where: { id: amenityId } }) has no communityId check",
+      "src/lib/server/records.ts:1884-1891 - booking query also lacks communityId filter"
+    ],
+    "remediation": "Add communityId verification: after fetching the amenity, check that amenity.communityId === session.communityId before returning data. Or change the query to: prisma.amenity.findFirst({ where: { id: amenityId, communityId: session.communityId } }).",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-003",
+    "severity": "high",
+    "location": "src/app/api/mobile/groups/route.ts",
+    "title": "Cross-Tenant Group Join/Leave via toggleGroupMembership (IDOR)",
+    "description": "The POST /api/mobile/groups endpoint allows joining/leaving groups by groupId. The toggleGroupMembership(email, groupId) function looks up the group by ID only (prisma.communityGroup.findUnique({ where: { id: groupId } })) without verifying the group belongs to the caller's community. A member from Community A can join or leave groups belonging to Community B by supplying a cross-tenant group ID.",
+    "impact": "Cross-tenant group membership manipulation. An attacker can join private community groups in other tenants, potentially gaining access to that group's posts, discussions, and member lists. They can also disrupt other communities by repeatedly joining/leaving groups (toggling membership), corrupting member counts.",
+    "attack_path": [
+      "1. Attacker authenticates as a member of Community A",
+      "2. Attacker obtains or guesses a groupId belonging to Community B",
+      "3. Attacker sends POST /api/mobile/groups with body { groupId: '<communityB-groupId>' }",
+      "4. toggleGroupMembership() looks up the group by ID alone with no communityId check",
+      "5. Attacker is added as a member of Community B's group",
+      "6. Attacker can now read posts in that group via GET /api/mobile/groups/{groupId}/posts"
+    ],
+    "evidence": [
+      "src/app/api/mobile/groups/route.ts:51 - toggleGroupMembership(session.email, body.groupId) passes no communityId",
+      "src/lib/server/member-api-store.ts:378 - prisma.communityGroup.findUnique({ where: { id: groupId } }) has no communityId filter",
+      "src/lib/server/member-api-store.ts:387 - creates GroupMembership without verifying community match"
+    ],
+    "remediation": "Add communityId verification in toggleGroupMembership: after looking up the group, verify group.communityId matches the caller's communityId. Or change the query to: prisma.communityGroup.findFirst({ where: { id: groupId, communityId } }).",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-004",
+    "severity": "high",
+    "location": "src/app/api/mobile/groups/[groupId]/posts/route.ts",
+    "title": "Cross-Tenant Group Post Access, Creation, and Interaction (IDOR)",
+    "description": "The /api/mobile/groups/[groupId]/posts endpoint allows reading posts, creating posts, liking posts, and commenting on posts using only a groupId path parameter. None of these operations verify that the group belongs to the caller's community. The listGroupPosts(groupId) function queries posts by groupId with no communityId filter. The createGroupPost, toggleGroupPostLike, and addGroupPostComment functions similarly operate on arbitrary IDs without tenant verification.",
+    "impact": "Full cross-tenant group content access. Attackers can read all posts/comments in other communities' groups, create spam posts in foreign groups, like/unlike posts in other communities, and inject comments. This undermines community privacy and content integrity across all tenants.",
+    "attack_path": [
+      "1. Attacker authenticates as member of Community A",
+      "2. Attacker sends GET /api/mobile/groups/{crossTenantGroupId}/posts to read foreign group posts",
+      "3. Attacker sends POST with action=create to inject posts into a foreign community's group",
+      "4. Attacker sends POST with action=like to manipulate like counts on foreign posts",
+      "5. Attacker sends POST with action=comment to inject comments into foreign group discussions"
+    ],
+    "evidence": [
+      "src/app/api/mobile/groups/[groupId]/posts/route.ts:19 - listGroupPosts(groupId, email) with no communityId check",
+      "src/lib/server/project-management.ts:236-237 - prisma.groupPost.findMany({ where: { groupId } }) no communityId filter",
+      "src/lib/server/project-management.ts:274 - createGroupPost inserts with the caller's communityId but doesn't validate groupId ownership",
+      "src/lib/server/project-management.ts:287-302 - toggleGroupPostLike operates on postId with no community check",
+      "src/lib/server/project-management.ts:307-321 - addGroupPostComment operates on postId with no community check"
+    ],
+    "remediation": "Before any operation, verify the group belongs to the caller's community: fetch the group by ID and assert group.communityId === session.communityId. Apply the same check for post-level operations by joining through the post's group.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-005",
+    "severity": "medium",
+    "location": "src/app/api/mobile/bridge/route.ts",
+    "title": "Session Token in URL Query Parameter Exposes Token to Logs and Referrer",
+    "description": "The /api/mobile/bridge endpoint accepts the JWT session token as a query parameter (?token=...). This means the full session token is embedded in the URL and will appear in server access logs, browser history, CDN/proxy logs, and potentially in Referrer headers when the redirect target loads external resources. While there is some redirect path validation (rejecting '//' prefixes), the token exposure in URLs is a security concern for a session credential.",
+    "impact": "Session tokens may be captured in web server logs, CDN logs (e.g. Vercel edge logs), browser history, and HTTP Referrer headers. An attacker with access to any of these log sources could extract valid session tokens and impersonate users. The token has the same validity as a normal session token (same JWT, same signing key).",
+    "attack_path": [
+      "1. Mobile WebView navigates to /api/mobile/bridge?token=<jwt>&next=/member",
+      "2. The JWT token is logged in server access logs and potentially CDN edge logs",
+      "3. The redirect response (302) sets the token as an httpOnly cookie but the original URL remains in logs",
+      "4. An attacker with log access extracts the JWT token",
+      "5. Attacker uses the JWT as a Bearer token against any mobile API endpoint to impersonate the user"
+    ],
+    "evidence": [
+      "src/app/api/mobile/bridge/route.ts:20 - const token = url.searchParams.get('token')",
+      "src/app/api/mobile/bridge/route.ts:48 - response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions)"
+    ],
+    "remediation": "Use a short-lived, single-use opaque exchange token instead of passing the full session JWT in the URL. Create a one-time-use code that maps to the session, exchange it via POST body, and invalidate after first use. Alternatively, transmit the token via POST body or a custom header.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-006",
+    "severity": "medium",
+    "location": "src/app/api/mobile/booking-invites/[id]/route.ts",
+    "title": "Booking Invite Response Without Community Scoping",
+    "description": "The PATCH /api/mobile/booking-invites/[id] endpoint allows responding to booking invites by ID. While the respondBookingInvite() function does verify that invite.memberEmail matches the caller, it does not verify that the booking/invite belongs to the caller's community. The function uses prisma.bookingInvite.findUnique({ where: { id: input.inviteId } }) without communityId scoping. However, the email check provides partial protection since invites are addressed to specific emails.",
+    "impact": "Limited cross-tenant impact due to email verification, but the lack of communityId scoping means if a user has accounts in multiple communities, they could interact with invites from any community context. The architectural gap is that the endpoint relies solely on email for authorization rather than also validating community membership.",
+    "attack_path": [
+      "1. User has accounts in Community A and Community B",
+      "2. User authenticates to Community A's mobile session",
+      "3. User receives a booking invite in Community B",
+      "4. User can accept/decline the Community B invite while authenticated to Community A",
+      "5. This bypasses any community-level access controls on booking invites"
+    ],
+    "evidence": [
+      "src/app/api/mobile/booking-invites/[id]/route.ts:33-36 - respondBookingInvite called with inviteId and email, no communityId",
+      "src/lib/server/records.ts:2049 - findUnique by ID only, email check at line 2052 but no community check"
+    ],
+    "remediation": "Add communityId verification by joining through the booking to its community: verify that the booking associated with the invite belongs to the caller's session community.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-007",
+    "severity": "medium",
+    "location": "src/app/api/mobile/register/route.ts",
+    "title": "Provider Self-Registration Bypasses Enrollment Approval for Communities Requiring It",
+    "description": "The /api/mobile/register endpoint allows users to self-register as providers (mode='provider' or role='provider') using registerServiceProvider(). Unlike member registration which checks communityRequiresEnrollmentApproval() and creates a 'pending' status for approval-required communities, provider registration through registerServiceProvider() does not check enrollment approval requirements. A user can bypass the approval flow by registering as a provider instead of a member.",
+    "impact": "An attacker can bypass community enrollment approval by registering as a service provider instead of a member. While the provider role has different permissions than a member, the attacker gets an active account in the community immediately, bypassing the approval gate that community administrators configured to control membership.",
+    "attack_path": [
+      "1. Attacker identifies a community that requires enrollment approval (e.g. via /api/mobile/communities)",
+      "2. Instead of registering as mode='join' (which would require approval), attacker registers with mode='provider'",
+      "3. POST /api/mobile/register with body { mode: 'provider', email: '...', password: '...', name: '...', communityId: '<approval-required-community>' }",
+      "4. registerServiceProvider() creates the account immediately without checking communityRequiresEnrollmentApproval()",
+      "5. Attacker gets an immediate active session token and bypasses the approval queue"
+    ],
+    "evidence": [
+      "src/app/api/mobile/register/route.ts:67 - mode === 'provider' || body.role === 'provider' branches to registerServiceProvider",
+      "src/app/api/mobile/register/route.ts:74-85 - registerServiceProvider called without approval check",
+      "src/lib/server/provider-enrollment.ts:29-69 - no call to communityRequiresEnrollmentApproval()",
+      "src/lib/server/db.ts:959 - contrast: registerMember checks communityRequiresEnrollmentApproval()"
+    ],
+    "remediation": "Add enrollment approval checking in registerServiceProvider() similar to registerMember(). If the community requires approval, create the provider account in 'pending' status and require admin approval before activation.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-008",
+    "severity": "medium",
+    "location": "src/app/api/mobile/communities/route.ts",
+    "title": "Unauthenticated Community Directory Exposes All Tenant IDs and Invite Codes Setup Status",
+    "description": "The GET /api/mobile/communities endpoint requires no authentication and calls listCommunities() which queries ALL communities in the database including their full membership counts (via 'include: { members: true, providers: true }'). While the endpoint only maps to id/name/location, the underlying query fetches all members and providers. More importantly, the community IDs are exposed publicly, enabling enumeration of all tenants in the platform.",
+    "impact": "Any unauthenticated caller can enumerate all community IDs, names, and locations in the platform. While this is intended for the registration picker, the community IDs serve as tenant identifiers used throughout the system. Combined with MOBILE-003/004, an attacker can use these community IDs to target cross-tenant attacks. The full member/provider includes in listCommunities() also consume unnecessary database resources.",
+    "attack_path": [
+      "1. Attacker calls GET /api/mobile/communities without any authentication",
+      "2. Response lists all communities with their IDs, names, and locations",
+      "3. Attacker uses community IDs as targets for cross-tenant attacks on groups, amenities, etc.",
+      "4. The underlying listCommunities() query also loads full member and provider lists into memory unnecessarily"
+    ],
+    "evidence": [
+      "src/app/api/mobile/communities/route.ts:5 - export async function GET() with no auth check",
+      "src/lib/server/db.ts:450-451 - includes members and providers in query despite only needing id/name/location"
+    ],
+    "remediation": "This endpoint is intentionally public for registration, but listCommunities() should use a leaner query (select only id, name, location) for the public endpoint. Consider whether all communities should be publicly listed or only those marked as discoverable.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-009",
+    "severity": "medium",
+    "location": "src/app/api/mobile/threads/route.ts",
+    "title": "Cross-Community DM Thread Creation Without Recipient Community Validation",
+    "description": "The POST /api/mobile/threads endpoint for DM creation passes session.communityId as the communityId but the body.toEmail is attacker-controlled. While getOrCreateDmThread() calls assertEmailsBelongToCommunity() which should validate the recipient, the communityId used is communityOrDefault(input.communityId) which may fall back to a default community if the session communityId is null/empty, potentially allowing cross-community messaging in edge cases.",
+    "impact": "If a user's session has a null communityId (which is possible for some roles), the communityOrDefault() fallback could allow DM threads to be created in the wrong community context. This is a defense-in-depth concern where the community scoping relies on a fallback mechanism rather than strict enforcement.",
+    "attack_path": [
+      "1. Attacker registers as a provider (which may have different community binding)",
+      "2. Attacker's session may have communityId as null in certain edge cases",
+      "3. communityOrDefault(null) falls back to a default community",
+      "4. assertEmailsBelongToCommunity checks against the default community, not the intended one",
+      "5. Thread is created in wrong community context"
+    ],
+    "evidence": [
+      "src/app/api/mobile/threads/route.ts:35-36 - communityId: session.communityId ?? null",
+      "src/lib/server/local-pros.ts:381 - communityOrDefault(input.communityId) applies fallback",
+      "src/lib/server/local-pros.ts:386 - assertEmailsBelongToCommunity uses the possibly-defaulted community"
+    ],
+    "remediation": "Require a non-null communityId from the session before allowing thread creation. Return an error if session.communityId is null rather than relying on communityOrDefault fallback.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-010",
+    "severity": "medium",
+    "location": "src/app/api/mobile/home/route.ts",
+    "title": "EventInvite Query Without Community Scoping Leaks Cross-Tenant Event Data",
+    "description": "The GET /api/mobile/home endpoint queries eventInvite records for the user's email without filtering by communityId: prisma.eventInvite.findMany({ where: { memberEmail: email, status: 'pending' } }). It then fetches the associated CommunityEvent records by ID. If a user's email exists in multiple communities (multi-community membership), event invites from ALL communities are returned, not just the active session community.",
+    "impact": "Members who belong to multiple communities will see event invites from ALL their communities when accessing one community's home screen. This leaks event titles, dates, times, locations, and host names from other communities into the current session's context. While the user may legitimately be a member of those communities, the data should be scoped to the active community session.",
+    "attack_path": [
+      "1. User registers in Community A and Community B with the same email",
+      "2. User logs into Community A's mobile app",
+      "3. GET /api/mobile/home returns eventInvites from BOTH Community A and Community B",
+      "4. Event details (title, date, time, location, host) from Community B are visible in Community A's context"
+    ],
+    "evidence": [
+      "src/app/api/mobile/home/route.ts:48-51 - prisma.eventInvite.findMany with only email filter, no communityId",
+      "src/app/api/mobile/home/route.ts:114 - prisma.communityEvent.findMany by IDs without community filter"
+    ],
+    "remediation": "Join through communityEvent to filter eventInvites by the session's communityId. Add a communityId filter to the eventInvite query by joining with the event table.",
+    "verified_by_code_trace": true
+  },
+  {
+    "id": "MOBILE-011",
+    "severity": "medium",
+    "location": "src/app/api/mobile/invites/route.ts",
+    "title": "EventInvite List Without Community Scoping",
+    "description": "The GET /api/mobile/invites endpoint queries pending event invites for the user's email without communityId filtering, similar to MOBILE-010. The prisma.eventInvite.findMany query uses only { memberEmail: email, status: 'pending' }, returning invites from all communities the user may be part of.",
+    "impact": "Same as MOBILE-010: event invite data from other communities leaks into the current community session. Event titles, dates, locations, and payment requirements from foreign communities are exposed.",
+    "attack_path": [
+      "1. User has accounts in multiple communities with the same email",
+      "2. User authenticates to Community A",
+      "3. GET /api/mobile/invites returns event invites from all communities",
+      "4. Foreign community event details are leaked"
+    ],
+    "evidence": [
+      "src/app/api/mobile/invites/route.ts:15-19 - prisma.eventInvite.findMany with email only, no communityId",
+      "src/app/api/mobile/invites/route.ts:24-26 - communityEvent lookup by IDs without community filter"
+    ],
+    "remediation": "Filter eventInvites by joining through communityEvent.communityId === session.communityId.",
+    "verified_by_code_trace": true
+  }
+]
