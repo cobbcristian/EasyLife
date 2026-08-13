@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/server/prisma";
 import type { AuthRole } from "@/lib/types";
+export { sessionClaimsForCommunitySwitch } from "@/lib/membership-session";
 
 export type MembershipRow = {
   id: string;
@@ -157,12 +158,14 @@ export async function switchActiveCommunity(input: {
     where: { id: membership.id },
     data: { isPrimary: true },
   });
+  const role = membership.role as AuthRole;
+  // Keep legacy User.communityId + User.role aligned with the active membership.
   await prisma.user.update({
     where: { id: input.userId },
-    data: { communityId: input.communityId },
+    data: { communityId: input.communityId, role },
   });
 
-  return { ok: true, role: membership.role as AuthRole };
+  return { ok: true, role };
 }
 
 /**
