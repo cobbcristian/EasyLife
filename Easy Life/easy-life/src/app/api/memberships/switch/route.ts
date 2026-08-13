@@ -6,7 +6,10 @@ import {
   sessionCookieOptions,
 } from "@/lib/server/auth";
 import { ACTIVE_COMMUNITY_COOKIE } from "@/lib/tenant";
-import { switchActiveCommunity } from "@/lib/server/memberships";
+import {
+  sessionRoleAfterCommunitySwitch,
+  switchActiveCommunity,
+} from "@/lib/server/memberships";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -34,20 +37,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error }, { status: 403 });
   }
 
+  const communityId = body.communityId.trim();
+  const role = sessionRoleAfterCommunitySwitch(result.role);
   const token = await createSessionToken({
     sub: session.sub,
     email: session.email,
-    role: session.role,
+    role,
     name: session.name,
-    communityId: body.communityId.trim(),
+    communityId,
   });
 
   const response = NextResponse.json({
     ok: true,
-    communityId: body.communityId.trim(),
+    communityId,
+    role,
   });
   response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
-  response.cookies.set(ACTIVE_COMMUNITY_COOKIE, body.communityId.trim(), {
+  response.cookies.set(ACTIVE_COMMUNITY_COOKIE, communityId, {
     httpOnly: false,
     sameSite: "lax",
     path: "/",
