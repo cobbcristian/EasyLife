@@ -1,0 +1,214 @@
+[
+  {
+    "id": "VULN-B2-001",
+    "severity": "high",
+    "location": "src/lib/server/project-management.ts",
+    "title": "IDOR in Provider Offering Update — Missing Ownership Check",
+    "description": "The upsertProviderOffering function updates a ProviderOffering record by id alone (prisma.providerOffering.update({ where: { id } })) without verifying that the providerEmail matches the authenticated user. While the route passes session.email as providerEmail, the function ignores it during updates. Any provider can modify another provider's offerings by guessing or enumerating offering IDs.",
+    "impact": "A malicious provider can alter competitors' service names, descriptions, and pricing displayed to community members, leading to defamation, incorrect billing, or service sabotage across the platform.",
+    "attack_path": [
+      "1. Attacker authenticates as any provider (role=provider)",
+      "2. Attacker calls POST /api/provider/offerings with body { id: '<target-offering-id>', name: 'Hacked', priceCents: 0 }",
+      "3. upsertProviderOffering sees input.id is truthy, executes prisma.providerOffering.update({ where: { id: input.id } }) without checking providerEmail",
+      "4. The victim provider's offering is now modified with attacker-controlled data"
+    ],
+    "evidence": [
+      "src/lib/server/project-management.ts:347-358 — update branch uses only { where: { id } }, providerEmail is computed but never used in the where clause",
+      "src/app/api/provider/offerings/route.ts:59-68 — route passes session.email as providerEmail but the function ignores it on update",
+      "src/lib/server/project-management.ts:373-379 — contrast with deleteProviderOffering which correctly checks { id, providerEmail }"
+    ],
+    "remediation": "Add providerEmail to the update where clause: prisma.providerOffering.update({ where: { id: input.id, providerEmail: email } }) or use findFirst + ownership check before updating.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-002",
+    "severity": "high",
+    "location": "src/app/api/provider/bookings/route.ts",
+    "title": "TOCTOU Race in Booking Status Update — Write Before Ownership Check",
+    "description": "The PATCH handler calls updateCommunityBookingStatus(id, status) which mutates the booking's status in memory before checking whether the updated booking belongs to the current provider (updated.provider !== session.name). The mutation is applied regardless of ownership; the ownership check only determines the HTTP response. Since bookings are stored in module-level arrays (in-memory state), the status change persists even when the endpoint returns 404.",
+    "impact": "Any authenticated provider can change the status of any booking (across all communities) to pending, accepted, upcoming, completed, or cancelled. This can disrupt service scheduling, cancel legitimate bookings, or fraudulently mark bookings as completed.",
+    "attack_path": [
+      "1. Attacker authenticates as any provider (role=provider)",
+      "2. Attacker sends PATCH /api/provider/bookings with body { id: '<any-booking-id>', status: 'cancelled' }",
+      "3. updateCommunityBookingStatus mutates the booking object's status field (communities-data.ts:1311)",
+      "4. The ownership check on line 138 fires AFTER mutation — even if it returns 404, the booking is already cancelled",
+      "5. The victim provider's booking is now cancelled in the in-memory store"
+    ],
+    "evidence": [
+      "src/app/api/provider/bookings/route.ts:137-139 — updateCommunityBookingStatus called before ownership check",
+      "src/lib/communities-data.ts:1305-1313 — underlyingBooking finds booking by ID across ALL communities, mutates row.status directly",
+      "src/lib/communities-data.ts:1225-1240 — underlyingBooking searches all booking arrays globally"
+    ],
+    "remediation": "Retrieve the booking first, verify ownership (booking.provider === session.name AND booking communityId matches session.communityId), then apply the status update only if authorized.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-003",
+    "severity": "high",
+    "location": "src/app/api/checkins/route.ts",
+    "title": "Cross-Tenant Check-in Status Manipulation via IDOR",
+    "description": "The PATCH handler for check-ins calls updateCheckinStatus(body.id, body.status) which executes prisma.checkin.update({ where: { id }, data: { status } }) without any communityId scoping. Any pm/admin user can update the status of check-in records belonging to other communities by supplying their IDs.",
+    "impact": "A property manager from Community A can modify check-in records in Community B, marking visitors as checked-in or checked-out, manipulating gate access audit trails, and potentially facilitating unauthorized physical access to gated communities.",
+    "attack_path": [
+      "1. Attacker authenticates as pm or admin role in Community A",
+      "2. Attacker obtains or guesses a check-in ID from Community B (IDs are often predictable UUIDs or sequential)",
+      "3. Attacker sends PATCH /api/checkins with body { id: '<community-b-checkin-id>', status: 'checked_in' }",
+      "4. updateCheckinStatus updates the record with prisma.checkin.update({ where: { id } }) — no communityId filter",
+      "5. Community B's check-in record is modified by Community A's admin"
+    ],
+    "evidence": [
+      "src/app/api/checkins/route.ts:135 — updateCheckinStatus(body.id, body.status) called without communityId",
+      "src/lib/server/records.ts:2843-2844 — updateCheckinStatus does prisma.checkin.update({ where: { id }, data: { status } }) with no tenant scoping"
+    ],
+    "remediation": "Add communityId to the update where clause: prisma.checkin.update({ where: { id, communityId: scope(session.communityId) }, data: { status } }).",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-004",
+    "severity": "high",
+    "location": "src/lib/server/member-api-store.ts",
+    "title": "Cross-Tenant Data Leak in Newsletters and Real Estate Listings",
+    "description": "The listNewsletters and listRealEstate functions in member-api-store.ts use a conditional where clause: when communityId is null/undefined, they pass where: undefined to Prisma, which returns ALL records from ALL communities. Unlike the scope() function in records.ts (which defaults to '__missing_community__'), these functions have no fallback. Any authenticated user without a communityId will receive all tenants' newsletters and real estate listings.",
+    "impact": "Sensitive community newsletters (containing financial reports, member communications, board decisions) and real estate listings (with pricing, unit numbers, member details) from all communities are exposed to any authenticated user without a communityId, or users whose communityId is null.",
+    "attack_path": [
+      "1. Attacker registers or obtains an account with no communityId (e.g., provider account created without community association)",
+      "2. Attacker calls GET /api/newsletters",
+      "3. The route passes session.communityId (null) to listNewsletters()",
+      "4. listNewsletters passes where: undefined to Prisma, returning all newsletters across all tenants",
+      "5. Same attack works for GET /api/real-estate via listRealEstate()"
+    ],
+    "evidence": [
+      "src/lib/server/member-api-store.ts:140-146 — listNewsletters: where: communityId ? { communityId } : undefined",
+      "src/lib/server/member-api-store.ts:148-154 — listRealEstate: where: communityId ? { communityId } : undefined",
+      "src/app/api/newsletters/route.ts:242 — passes session.communityId directly",
+      "src/app/api/real-estate/route.ts:272 — passes session.communityId directly"
+    ],
+    "remediation": "Apply the same scope() pattern used in records.ts: when communityId is null, default to a sentinel value like '__missing_community__' that matches no records, instead of returning all records.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-005",
+    "severity": "medium",
+    "location": "src/app/api/blog/route.ts",
+    "title": "Missing Role Authorization on Blog Post Creation",
+    "description": "The POST handler for /api/blog only checks for an authenticated session (getSession()) but does not enforce any role restriction. Any authenticated user (member, provider, sales, etc.) can create blog posts. In contrast, announcements require admin/board/pm role, and documents require admin/board/pm role.",
+    "impact": "Any authenticated user including regular members and external providers can publish blog posts visible to the entire community, potentially spreading misinformation, phishing links, or inappropriate content under the community's blog.",
+    "attack_path": [
+      "1. Attacker authenticates as any user (e.g., role=member or role=provider)",
+      "2. Attacker sends POST /api/blog with body { title: 'Official Notice', excerpt: 'Urgent: click here...', body: '<phishing content>' }",
+      "3. The handler only checks if (session) exists, not the user's role",
+      "4. createBlogPost creates the post associated with the community",
+      "5. The post appears on the community blog alongside legitimate admin content"
+    ],
+    "evidence": [
+      "src/app/api/blog/route.ts:14-15 — POST handler only checks if (!session) return 401",
+      "src/app/api/announcements/route.ts:25 — compare: announcements require ['admin', 'board', 'pm'] role",
+      "src/app/api/documents/route.ts:40 — compare: documents require ['admin', 'board', 'pm'] role"
+    ],
+    "remediation": "Add role authorization to the POST handler: if (!session || !['admin', 'board', 'pm'].includes(session.role)).",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-006",
+    "severity": "medium",
+    "location": "src/app/api/reviews/route.ts",
+    "title": "Cross-Tenant Provider Discovery via Review Submission",
+    "description": "The POST /api/reviews endpoint allows looking up providers by email (providerEmail field) using prisma.provider.findFirst with no communityId filter. This enables any authenticated user to discover whether a provider exists in any community and submit reviews for providers in other tenants.",
+    "impact": "An attacker can enumerate provider existence across all communities by submitting review requests with different email addresses. They can also submit fake reviews for providers in communities they don't belong to, manipulating provider ratings cross-tenant.",
+    "attack_path": [
+      "1. Attacker authenticates as any user in Community A",
+      "2. Attacker sends POST /api/reviews with body { providerEmail: 'target@provider.com', rating: 1, comment: 'Terrible' }",
+      "3. prisma.provider.findFirst({ where: { email: 'target@provider.com' } }) searches across ALL communities",
+      "4. If found, upsertProviderReview creates/updates a review for that provider regardless of community boundaries",
+      "5. The provider's rating in Community B is now affected by a user from Community A"
+    ],
+    "evidence": [
+      "src/app/api/reviews/route.ts:31-37 — prisma.provider.findFirst with no communityId in where clause",
+      "src/lib/server/local-pros.ts:211 — upsertProviderReview: prisma.provider.findUnique by id, no tenant check"
+    ],
+    "remediation": "Add communityId to the provider lookup: prisma.provider.findFirst({ where: { email: body.providerEmail.trim(), communityId: session.communityId } }).",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-007",
+    "severity": "medium",
+    "location": "src/app/api/cron/reminders/route.ts",
+    "title": "Unauthenticated Cron Endpoint in Non-Production Environments",
+    "description": "The cron reminders endpoint uses authorizeCronRequest() which allows unauthenticated access when CRON_SECRET is not set and NODE_ENV is not 'production'. In preview/staging deployments (common with Vercel), this endpoint is publicly accessible without any authentication, allowing anyone to trigger reminder processing, dependent membership aging, and rejoin reminders.",
+    "impact": "An attacker can trigger bulk email/notification processing on preview or staging deployments, potentially causing spam to real users if production email credentials are shared, and manipulating membership aging and rejoin reminder states.",
+    "attack_path": [
+      "1. Attacker discovers a preview deployment URL (e.g., from Vercel preview deployments which are often publicly accessible)",
+      "2. Attacker sends GET /api/cron/reminders with no authentication",
+      "3. authorizeCronRequest checks: CRON_SECRET is not set + NODE_ENV !== 'production' → returns { ok: true, secured: false }",
+      "4. processDueReminders, processDependentMembershipAging, and processRejoinReminders execute without any auth",
+      "5. If the preview environment shares the production database or email service, real data is affected"
+    ],
+    "evidence": [
+      "src/app/api/cron/reminders/route.ts:10-11 — authorizeCronRequest(request) with no fallback auth",
+      "src/lib/server/cron-auth.ts:12-21 — allows unauthenticated access when !secret && nodeEnv !== 'production'"
+    ],
+    "remediation": "Always require authentication for cron endpoints. Remove the dev/preview bypass or require a separate authentication mechanism (e.g., require CRON_SECRET in all deployed environments, or add IP allowlisting for Vercel's cron IP ranges).",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-008",
+    "severity": "medium",
+    "location": "src/app/api/provider/messages/route.ts",
+    "title": "Provider Message Inbox Has No Community Scoping",
+    "description": "The listContactMessagesForProviderInbox function queries contact messages by provider email only (OR: [{ recipient: email }, { senderEmail: email }]) without any communityId filter. If a provider operates across multiple communities, they see all messages from all communities in a single inbox. More critically, the POST handler for sending messages uses session.communityId but the GET inbox view has no such restriction.",
+    "impact": "A provider's inbox exposes all cross-community communications. If provider email addresses overlap or are reused across tenants, messages from unrelated communities are mixed together, leaking member names, booking details, and private communications across tenant boundaries.",
+    "attack_path": [
+      "1. A provider is registered in Community A and Community B with the same email",
+      "2. Provider logs into Community A and calls GET /api/provider/messages",
+      "3. listContactMessagesForProviderInbox queries by email only, returning messages from both communities",
+      "4. Messages from Community B members (including their names, emails, and message content) are visible to the provider's Community A inbox"
+    ],
+    "evidence": [
+      "src/lib/server/records.ts:3132-3142 — listContactMessagesForProviderInbox queries by email only, no communityId",
+      "src/app/api/provider/messages/route.ts:48 — passes session.email directly with no community filter"
+    ],
+    "remediation": "Add communityId to the query: prisma.contactMessage.findMany({ where: { communityId: session.communityId, OR: [...] } }).",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-009",
+    "severity": "medium",
+    "location": "src/app/api/real-estate/route.ts",
+    "title": "Missing Role Authorization on Real Estate Listing Creation",
+    "description": "The POST handler for /api/real-estate only checks for an authenticated session but does not enforce any role restriction. Any authenticated user (provider, sales, etc.) can create real estate listings in any community they are associated with. Real estate listings typically should be restricted to members, admins, or designated agents.",
+    "impact": "External providers or sales users can inject fake real estate listings into community property pages, potentially scamming members with fraudulent property listings or manipulating the community's real estate market view.",
+    "attack_path": [
+      "1. Attacker authenticates as any user (e.g., role=provider or role=sales)",
+      "2. Attacker sends POST /api/real-estate with body { title: 'Luxury Condo - Below Market!', type: 'sale', price: 100000 }",
+      "3. The handler only checks if (session) exists, not the user's role",
+      "4. addRealEstateListing creates the listing associated with the community",
+      "5. The fraudulent listing appears on the community real estate page"
+    ],
+    "evidence": [
+      "src/app/api/real-estate/route.ts:277-278 — POST handler only checks if (!session)",
+      "src/app/api/announcements/route.ts:25 — compare: announcements require admin/board/pm role"
+    ],
+    "remediation": "Add role authorization to the POST handler to restrict listing creation to appropriate roles (e.g., member, admin, or a designated real-estate role).",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-B2-010",
+    "severity": "medium",
+    "location": "src/app/api/reservations/route.ts",
+    "title": "Reservation Listing Without Community Scoping",
+    "description": "The GET handler for /api/reservations calls listReservationsForMember(session.email) which queries by memberEmail only without communityId scoping. If a member has accounts in multiple communities, they see reservations from all communities. While this is less severe (users see their own data), it can leak information about which communities a user belongs to and their dining patterns across tenants.",
+    "impact": "Leaks cross-community reservation data to users with accounts in multiple communities, revealing dining patterns, restaurant names, and booking details from other tenants.",
+    "attack_path": [
+      "1. User has accounts in Community A and Community B with the same email",
+      "2. User logs into Community A and calls GET /api/reservations",
+      "3. listReservationsForMember queries by email only, returning reservations from both communities",
+      "4. Reservation details from Community B (restaurant names, dates, times) are visible in Community A"
+    ],
+    "evidence": [
+      "src/lib/server/records.ts:3441-3446 — listReservationsForMember queries by email only: prisma.restaurantReservation.findMany({ where: { memberEmail: email } })",
+      "src/app/api/reservations/route.ts:13 — passes session.email with no communityId filter"
+    ],
+    "remediation": "Add communityId to the query: prisma.restaurantReservation.findMany({ where: { memberEmail: email, communityId: scope(communityId) } }).",
+    "verified_by_code_tracing": true
+  }
+]
