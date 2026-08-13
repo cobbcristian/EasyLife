@@ -2,9 +2,11 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/server/prisma";
 import type { SessionPayload } from "@/lib/types";
 import { ACTIVE_COMMUNITY_COOKIE } from "@/lib/tenant";
-import { userHasActiveMembership } from "@/lib/server/memberships";
+import { getActiveMembershipRole } from "@/lib/server/memberships";
+import { canUseActiveCommunityCookie } from "@/lib/server/community-scope";
 
 export { ACTIVE_COMMUNITY_COOKIE };
+export { canUseActiveCommunityCookie } from "@/lib/server/community-scope";
 export const DEFAULT_COMMUNITY = "__missing_community__";
 
 export function isSuperAdmin(session: SessionPayload): boolean {
@@ -23,17 +25,31 @@ export async function getActiveCommunityCookie(): Promise<string | null> {
   return exists ? value : null;
 }
 
+async function communityIdFromActiveCookie(
+  session: SessionPayload,
+): Promise<string | null> {
+  const active = await getActiveCommunityCookie();
+  if (!active) return null;
+  if (isSuperAdmin(session)) return active;
+  if (!session.sub) return null;
+  const membershipRole = await getActiveMembershipRole(session.sub, active);
+  if (
+    canUseActiveCommunityCookie({
+      sessionRole: session.role,
+      membershipRole,
+    })
+  ) {
+    return active;
+  }
+  return null;
+}
+
 /** Effective community for admin API calls and pages. */
 export async function resolveScopedCommunityId(
   session: SessionPayload,
 ): Promise<string> {
-  const active = await getActiveCommunityCookie();
-  if (active) {
-    if (isSuperAdmin(session)) return active;
-    if (session.sub && (await userHasActiveMembership(session.sub, active))) {
-      return active;
-    }
-  }
+  const fromCookie = await communityIdFromActiveCookie(session);
+  if (fromCookie) return fromCookie;
   if (session.communityId) return session.communityId;
   const first = await prisma.community.findFirst({
     orderBy: { name: "asc" },
@@ -45,13 +61,8 @@ export async function resolveScopedCommunityId(
 export async function getActiveCommunityId(
   session: SessionPayload,
 ): Promise<string | null> {
-  const active = await getActiveCommunityCookie();
-  if (active) {
-    if (isSuperAdmin(session)) return active;
-    if (session.sub && (await userHasActiveMembership(session.sub, active))) {
-      return active;
-    }
-  }
+  const fromCookie = await communityIdFromActiveCookie(session);
+  if (fromCookie) return fromCookie;
   if (session.communityId) return session.communityId;
   return null;
 }
