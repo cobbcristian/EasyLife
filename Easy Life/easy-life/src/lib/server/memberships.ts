@@ -157,9 +157,14 @@ export async function switchActiveCommunity(input: {
     where: { id: membership.id },
     data: { isPrimary: true },
   });
+  // Keep cached User.role in sync with the membership being activated so the
+  // next login cannot mint an elevated JWT for a club where the user is only a member.
   await prisma.user.update({
     where: { id: input.userId },
-    data: { communityId: input.communityId },
+    data: {
+      communityId: input.communityId,
+      role: membership.role,
+    },
   });
 
   return { ok: true, role: membership.role as AuthRole };
@@ -190,11 +195,12 @@ export async function joinAdditionalCommunity(input: {
 
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { role: true },
+    select: { id: true },
   });
   if (!user) return { error: "User not found" };
 
-  const role = input.role ?? (user.role as AuthRole);
+  // Invite join must never copy a global admin/pm/board role into another club.
+  const role = roleForAdditionalCommunityJoin(input.role);
   await upsertMembership({
     userId: input.userId,
     communityId: community.id,
@@ -204,4 +210,21 @@ export async function joinAdditionalCommunity(input: {
   });
 
   return { ok: true };
+}
+
+/** Role granted when attaching an extra club via invite (defaults to member). */
+export function roleForAdditionalCommunityJoin(
+  requestedRole?: AuthRole,
+): AuthRole {
+  return requestedRole ?? "member";
+}
+
+/**
+ * Session role after a successful club switch — must come from the target
+ * membership, never from the previous JWT.
+ */
+export function sessionRoleAfterCommunitySwitch(
+  membershipRole: AuthRole,
+): AuthRole {
+  return membershipRole;
 }
