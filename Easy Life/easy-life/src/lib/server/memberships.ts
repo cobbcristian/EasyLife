@@ -1,3 +1,4 @@
+import { communityIsResidentialHoa } from "@/lib/community-features";
 import { prisma } from "@/lib/server/prisma";
 import type { AuthRole } from "@/lib/types";
 
@@ -129,6 +130,21 @@ export async function userHasActiveMembership(
   return row?.status === "active";
 }
 
+/** Active membership role in a community, or null if none. */
+export async function getActiveMembershipRole(
+  userId: string,
+  communityId: string,
+): Promise<string | null> {
+  const row = await prisma.userCommunity.findUnique({
+    where: {
+      userId_communityId: { userId, communityId },
+    },
+    select: { status: true, role: true },
+  });
+  if (!row || row.status !== "active") return null;
+  return row.role;
+}
+
 /**
  * Switch active community: validates membership, updates cached User.communityId
  * and primary flag. Caller refreshes the session JWT + cookie.
@@ -167,12 +183,13 @@ export async function switchActiveCommunity(input: {
 
 /**
  * Attach a second club to an existing account (invite join without new user).
+ * Always creates a member seat — invite codes must never copy admin/pm/board
+ * privileges from the user's primary club.
  */
 export async function joinAdditionalCommunity(input: {
   userId: string;
   communityId: string;
   inviteCode?: string;
-  role?: AuthRole;
 }): Promise<{ ok: true } | { error: string }> {
   const community = await prisma.community.findUnique({
     where: { id: input.communityId },
@@ -188,17 +205,24 @@ export async function joinAdditionalCommunity(input: {
     }
   }
 
+  // Residential HOAs require staff approval — do not grant active access via invite.
+  if (communityIsResidentialHoa(community.id)) {
+    return {
+      error:
+        "This community requires management approval to join. Ask property management to add you.",
+    };
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { role: true },
+    select: { id: true },
   });
   if (!user) return { error: "User not found" };
 
-  const role = input.role ?? (user.role as AuthRole);
   await upsertMembership({
     userId: input.userId,
     communityId: community.id,
-    role,
+    role: "member",
     status: "active",
     isPrimary: false,
   });

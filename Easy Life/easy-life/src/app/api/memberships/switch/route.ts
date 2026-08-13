@@ -34,10 +34,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.error }, { status: 403 });
   }
 
+  // Use the per-community membership role, not the previous JWT role.
+  // Otherwise club admins keep admin powers after switching into a club
+  // where they only hold a member seat.
   const token = await createSessionToken({
     sub: session.sub,
     email: session.email,
-    role: session.role,
+    role: result.role,
     name: session.name,
     communityId: body.communityId.trim(),
   });
