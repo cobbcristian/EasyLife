@@ -1,5 +1,23 @@
 import { prisma } from "@/lib/server/prisma";
-import type { AuthRole } from "@/lib/types";
+import type { AuthRole, SessionPayload } from "@/lib/types";
+
+/**
+ * JWT claims after a successful club switch.
+ * Role must come from the target membership — never reuse the prior session role,
+ * or a PM/board user who is only a member at another club keeps elevated privileges.
+ */
+export function sessionClaimsForCommunitySwitch(
+  session: Pick<SessionPayload, "sub" | "email" | "name">,
+  switched: { communityId: string; role: AuthRole },
+): SessionPayload {
+  return {
+    sub: session.sub,
+    email: session.email,
+    name: session.name,
+    role: switched.role,
+    communityId: switched.communityId,
+  };
+}
 
 export type MembershipRow = {
   id: string;
@@ -157,12 +175,14 @@ export async function switchActiveCommunity(input: {
     where: { id: membership.id },
     data: { isPrimary: true },
   });
+  const role = membership.role as AuthRole;
+  // Keep legacy User.communityId + User.role aligned with the active membership.
   await prisma.user.update({
     where: { id: input.userId },
-    data: { communityId: input.communityId },
+    data: { communityId: input.communityId, role },
   });
 
-  return { ok: true, role: membership.role as AuthRole };
+  return { ok: true, role };
 }
 
 /**
