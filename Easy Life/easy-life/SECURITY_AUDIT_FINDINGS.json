@@ -1,0 +1,168 @@
+[
+  {
+    "id": "VULN-001",
+    "severity": "high",
+    "location": "src/app/api/pos/sync/route.ts",
+    "title": "Cross-tenant privilege escalation via active community cookie in POS sync",
+    "description": "The POS sync endpoint checks session.role === 'admin' but resolves the target community via resolveScopedCommunityId(), which respects the el_active_community cookie. This cookie is set with httpOnly: false, meaning client-side JavaScript can modify it. An admin of Community A who also holds a regular membership in Community B can set the cookie to Community B's ID, then call POST /api/pos/sync. The role check passes (they're admin of A), but the community resolves to B. The POS sync then modifies Community B's menu items and posLastSyncAt timestamp without authorization.",
+    "impact": "A club admin with membership in another community can manipulate that community's POS menu data (create/update/overwrite menu items, update sync timestamps). This could corrupt dining menus, change prices, or disrupt food service operations for a community they do not administer.",
+    "attack_path": [
+      "1. Attacker is admin of Community A and a regular member of Community B",
+      "2. Attacker sets document.cookie = 'el_active_community=community-b-id; path=/' in browser console",
+      "3. Attacker sends POST /api/pos/sync",
+      "4. Route checks session.role !== 'admin' — passes because attacker is admin of Community A",
+      "5. resolveScopedCommunityId() reads the cookie, checks userHasActiveMembership(userId, community-b-id) — passes because attacker is a member",
+      "6. syncPosMenu runs with communityId=community-b-id, modifying Community B's menu items and posLastSyncAt",
+      "7. Community B's POS data is now corrupted by an unauthorized admin"
+    ],
+    "evidence": [
+      "src/app/api/pos/sync/route.ts:10-11 — role check only verifies 'admin', not community-scoped admin",
+      "src/app/api/pos/sync/route.ts:46 — communityId resolved from cookie via resolveScopedCommunityId",
+      "src/lib/server/community-context.ts:27-43 — resolveScopedCommunityId checks membership but not admin role in target community",
+      "src/app/api/admin/active-community/route.ts:36 — cookie set with httpOnly: false, allowing client-side modification",
+      "src/lib/server/pos/micros.ts:90-101 — syncPosMenu creates/updates menu items without community ownership validation",
+      "src/lib/server/pos/micros.ts:104-106 — updates community.posLastSyncAt for the target community"
+    ],
+    "remediation": "Add a cross-community authorization check after resolving the scoped community: verify that session.communityId matches the resolved communityId (similar to canStaffBookInCommunity in admin/bookings). Alternatively, use session.communityId directly instead of resolveScopedCommunityId for admin-only routes that modify community data. Also set httpOnly: true on the active community cookie.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-002",
+    "severity": "high",
+    "location": "src/app/api/admin/users/[id]/route.ts",
+    "title": "TOCTOU race in admin user status change allows cross-tenant modification",
+    "description": "The PATCH handler performs a community ownership check on the fetched user (line 49), then calls setUserStatus(id, body.status) which writes the status change to the database (line 80), and only afterward re-checks community ownership on the updated record (line 85). If the target user's communityId changes between the initial check and the write (e.g., via concurrent community switch), the status modification applies to a user now in a different community. The post-write check returns 403 but the database mutation has already been committed.",
+    "impact": "An admin of Community A could freeze/unfreeze a user who has concurrently switched to Community B. The status change persists even though the response is 403. This enables cross-tenant account manipulation affecting user access in communities the admin does not control.",
+    "attack_path": [
+      "1. Admin of Community A sends PATCH /api/admin/users/{userId} with {status: 'frozen'}",
+      "2. Pre-check on line 49 passes: user is currently in Community A",
+      "3. Concurrently, the target user switches their active community to Community B (via membership switch)",
+      "4. setUserStatus(id, 'frozen') executes on line 80, changing the user's status in the database",
+      "5. Post-check on line 85: updated.communityId is now Community B, which !== session.communityId (A)",
+      "6. Response is 403 Forbidden, but the status was ALREADY changed to 'frozen' in the database",
+      "7. The user in Community B is now frozen by an admin who has no jurisdiction over Community B"
+    ],
+    "evidence": [
+      "src/app/api/admin/users/[id]/route.ts:45-51 — pre-check reads user and verifies communityId",
+      "src/app/api/admin/users/[id]/route.ts:80 — setUserStatus writes to DB before post-check",
+      "src/app/api/admin/users/[id]/route.ts:85-87 — post-write community check returns 403 but write already committed",
+      "src/lib/server/db.ts:777-802 — setUserStatus has no communityId parameter or check"
+    ],
+    "remediation": "Pass communityId to setUserStatus and use an atomic WHERE clause: prisma.user.update({ where: { id, communityId: session.communityId }, data: { status } }). If the update affects 0 rows, return 403. This eliminates the race window entirely. Alternatively, re-fetch and re-check the user's communityId immediately before the write within a transaction.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-003",
+    "severity": "medium",
+    "location": "src/app/api/bookings/route.ts",
+    "title": "Cross-tenant booking data leak — no communityId filter on member booking list",
+    "description": "GET /api/bookings calls listBookingsForMember(session.email) which queries the booking table filtered only by memberEmail, without any communityId constraint. In a multi-tenant deployment where a user's email exists across multiple communities, this returns bookings from ALL communities in a single response, leaking booking details (amenity names, dates, times, co-participants) from communities the user is not currently operating within.",
+    "impact": "A user with the same email registered in multiple communities sees booking data from all communities in a single API response. This leaks community-specific amenity names, booking schedules, and participant information across tenant boundaries. While the data is the user's own, it violates tenant isolation and could reveal confidential community amenity configurations.",
+    "attack_path": [
+      "1. User registers with the same email in Community A and Community B",
+      "2. User logs into Community A",
+      "3. User calls GET /api/bookings",
+      "4. listBookingsForMember(email) runs: SELECT * FROM Booking WHERE memberEmail = email",
+      "5. Response includes bookings from BOTH Community A and Community B",
+      "6. User sees Community B's amenity names, booking schedules, and participant details while operating within Community A"
+    ],
+    "evidence": [
+      "src/app/api/bookings/route.ts:12 — calls listBookingsForMember(session.email) with no communityId",
+      "src/lib/server/records.ts:158-163 — listBookingsForMember queries only by memberEmail, no communityId WHERE clause"
+    ],
+    "remediation": "Add communityId to the listBookingsForMember query: prisma.booking.findMany({ where: { memberEmail: email, communityId: session.communityId, status: { not: 'cancelled' } } }). Pass session.communityId from the route handler.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-004",
+    "severity": "medium",
+    "location": "src/app/api/bookings/[id]/route.ts",
+    "title": "Cross-tenant booking detail access — reservation lookup has no communityId filter",
+    "description": "GET /api/bookings/[id] calls getBookingReservationDetail(id, session.email) which looks up the booking by primary key (id) without any communityId constraint. The function checks if the requester's email matches the host or an invitee, but does not verify the booking belongs to the user's current community. A user who is a host or invitee on a booking in Community B can access full reservation details (including all guest names, emails, amenity details, and community location) while logged into Community A.",
+    "impact": "Cross-tenant information disclosure of booking reservation details including participant names, email addresses, amenity configurations, and community location data. While exploitation requires the user's email to be associated with the booking, the lack of community scoping violates multi-tenant isolation.",
+    "attack_path": [
+      "1. User has same email in Community A and Community B",
+      "2. User has a booking (as host or invitee) in Community B",
+      "3. User logs into Community A and obtains a booking ID from Community B (e.g., from the cross-tenant booking list in VULN-003)",
+      "4. User calls GET /api/bookings/{community-b-booking-id}",
+      "5. getBookingReservationDetail looks up by id (no communityId filter), finds the Community B booking",
+      "6. Email check passes (user's email matches), full reservation details returned",
+      "7. User sees Community B's reservation details including all participants and community info"
+    ],
+    "evidence": [
+      "src/app/api/bookings/[id]/route.ts:14 — calls getBookingReservationDetail(id, session.email) without communityId",
+      "src/lib/server/records.ts:224-239 — getBookingReservationDetail looks up by id only, checks email but not communityId"
+    ],
+    "remediation": "Add communityId parameter to getBookingReservationDetail and filter by it: const booking = await prisma.booking.findFirst({ where: { id: bookingId, communityId } }). Pass session.communityId from the route handler.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-005",
+    "severity": "medium",
+    "location": "src/app/api/guest-fees/route.ts",
+    "title": "Client-controlled guest fee amount bypasses server-side rate presets",
+    "description": "POST /api/guest-fees accepts an optional 'amount' field in the request body that overrides the server-side fee preset. Any authorized staff member (pm, admin, board) can set an arbitrary positive amount for a guest fee invoice. This amount flows directly into a Stripe Checkout session or demo payment, creating real financial charges at manipulated rates. There is no validation that the amount matches the community's configured rates, no upper/lower bound enforcement, and no audit trail distinguishing preset vs. custom amounts.",
+    "impact": "A compromised or malicious staff account could create guest fee invoices at manipulated amounts — either trivially small ($0.01) to grant free access, or excessively large to overcharge guests. The manipulated amount is used directly in Stripe payment intents, resulting in real financial impact. No audit distinguishes intentional custom amounts from manipulated ones.",
+    "attack_path": [
+      "1. Attacker has board/pm/admin role in a community",
+      "2. Attacker sends POST /api/guest-fees with body: {guestName: 'Target', guestEmail: 'guest@example.com', feeKind: 'accompanied', amount: 0.01}",
+      "3. Server accepts amount=0.01 because it's a positive number (line 101-103)",
+      "4. createMemberCharge creates an invoice for $0.01 instead of the $25 preset",
+      "5. A pay link is generated; guest pays $0.01 via Stripe",
+      "6. Alternatively, attacker sets amount: 5000 to overcharge the guest",
+      "7. Guest receives a Stripe checkout for $5000 for a $25 court fee"
+    ],
+    "evidence": [
+      "src/app/api/guest-fees/route.ts:101-103 — amount override: body.amount > 0 bypasses preset",
+      "src/app/api/guest-fees/route.ts:121-132 — amount passed directly to createMemberCharge",
+      "src/app/api/pay/guest/[token]/route.ts:76 — charge.amount used in Stripe unit_amount calculation"
+    ],
+    "remediation": "Remove client-controlled amount override or add strict bounds validation: ensure the amount is within an acceptable range (e.g., 50%-200% of preset) or restrict to exact preset values. Log when a custom amount differs from the preset for audit purposes. Consider requiring additional confirmation for non-standard amounts.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-006",
+    "severity": "medium",
+    "location": "src/app/api/pos/sync/route.ts",
+    "title": "Unvalidated providerEmail parameter enables cross-tenant menu item manipulation",
+    "description": "POST /api/pos/sync accepts an optional 'providerEmail' parameter in the request body without validating that the email belongs to a provider in the admin's own community. The syncPosMenu function uses this email to create or update menu items (keyed by providerEmail + posExternalId). An admin can supply a providerEmail from another community, causing menu items to be created/updated under that provider's namespace, potentially polluting another community's dining menu.",
+    "impact": "An admin can manipulate menu items associated with providers from other communities by supplying their email address. This could corrupt another community's dining menu, change item prices, or create phantom menu items that appear in another community's food ordering system.",
+    "attack_path": [
+      "1. Admin of Community A knows the providerEmail for Community B's dining provider (e.g., chef@community-b.com)",
+      "2. Admin sends POST /api/pos/sync with body: {providerEmail: 'chef@community-b.com'}",
+      "3. syncPosMenu runs with communityId=A but providerEmail=chef@community-b.com",
+      "4. Menu items are created/updated in the database with providerEmail='chef@community-b.com'",
+      "5. When Community B's members browse the menu, they see items created/modified by Community A's admin",
+      "6. Prices and availability can be manipulated across tenant boundaries"
+    ],
+    "evidence": [
+      "src/app/api/pos/sync/route.ts:52 — providerEmail taken directly from request body without validation",
+      "src/lib/server/pos/micros.ts:76 — providerEmail used in findFirst without communityId constraint",
+      "src/lib/server/pos/micros.ts:90-101 — menu items created with unvalidated providerEmail"
+    ],
+    "remediation": "Validate that the providerEmail belongs to a provider registered in the admin's community: await prisma.user.findFirst({ where: { email: providerEmail, communityId, role: 'provider' } }). Reject the request if no matching provider is found.",
+    "verified_by_code_tracing": true
+  },
+  {
+    "id": "VULN-007",
+    "severity": "medium",
+    "location": "src/app/api/admin/active-community/route.ts",
+    "title": "Active community cookie set without httpOnly flag enables client-side community scope manipulation",
+    "description": "The el_active_community cookie is set with httpOnly: false, making it readable and writable by client-side JavaScript. This cookie is used by resolveScopedCommunityId() to determine which community's data an admin API call operates on. While server-side membership checks prevent completely unauthorized access, the non-httpOnly flag combined with any XSS vulnerability would allow an attacker to manipulate the community scope for admin operations. The cookie is also directly modifiable via browser DevTools without needing the super-admin-only API endpoint.",
+    "impact": "Any XSS vulnerability in the application would allow attackers to read the active community cookie (learning which community the user is managing) and write arbitrary community IDs to it. Combined with the POS sync privilege escalation (VULN-001), this amplifies the attack surface. Users can also manipulate this cookie directly via browser DevTools to bypass the super-admin restriction on the /api/admin/active-community endpoint.",
+    "attack_path": [
+      "1. Attacker finds or injects XSS payload on any page of the application",
+      "2. JavaScript reads document.cookie to discover the el_active_community value",
+      "3. JavaScript sets document.cookie = 'el_active_community=target-community-id; path=/'",
+      "4. Subsequent admin API calls use the manipulated community scope",
+      "5. Operations execute against the target community if membership check passes"
+    ],
+    "evidence": [
+      "src/app/api/admin/active-community/route.ts:36 — httpOnly: false on cookie set",
+      "src/lib/server/community-context.ts:18-24 — getActiveCommunityCookie reads the cookie value",
+      "src/lib/server/community-context.ts:27-43 — resolveScopedCommunityId uses cookie value for community resolution"
+    ],
+    "remediation": "Set httpOnly: true on the ACTIVE_COMMUNITY_COOKIE. This prevents client-side JavaScript from reading or modifying the cookie. The cookie should only be set through the authenticated /api/admin/active-community endpoint (which already requires super-admin). Also consider adding SameSite: 'strict' for additional CSRF protection.",
+    "verified_by_code_tracing": true
+  }
+]
