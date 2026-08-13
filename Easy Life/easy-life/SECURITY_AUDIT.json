@@ -1,0 +1,229 @@
+{
+  "audit_metadata": {
+    "date": "2026-08-13",
+    "scope": "API route security review — authentication, authorization, cross-tenant isolation, IDOR, input validation, sensitive data exposure",
+    "files_analyzed": 17
+  },
+  "findings": [
+    {
+      "id": "VULN-001",
+      "severity": "HIGH",
+      "location": "src/lib/server/auth.ts",
+      "title": "Hardcoded fallback JWT secret in non-production environments",
+      "description": "When AUTH_SECRET is not set and NODE_ENV is not 'production', a hardcoded fallback secret ('easy-life-dev-secret-change-in-production') is used to sign and verify JWTs. If a staging or preview deployment does not set AUTH_SECRET and does not run with NODE_ENV=production, any attacker who knows this string can forge arbitrary session tokens for any user, including super-admins.",
+      "attack_path": "Attacker discovers the hardcoded secret (it is in the source code). If a non-production deployment is internet-accessible, the attacker crafts a JWT with {sub:'u-admin', role:'admin', communityId:null} signed with the fallback key, sets the el_session cookie, and gains super-admin access.",
+      "evidence": [
+        "src/lib/server/auth.ts:11-17 — fallback secret used when AUTH_SECRET unset in non-production"
+      ]
+    },
+    {
+      "id": "VULN-002",
+      "severity": "CRITICAL",
+      "location": "src/lib/server/db.ts",
+      "title": "Hardcoded plaintext passwords for all seed/demo users",
+      "description": "The seed data file contains over 80 user accounts with predictable plaintext passwords (most are 'password'). If the demo seed runs in a reachable environment (isDemoSeedAllowed() returns true), all these accounts are live and exploitable. The super-admin account (superadmin@gmail.com) also uses 'password'. Combined with VULN-001, this is a critical credential exposure.",
+      "attack_path": "Attacker logs in as superadmin@gmail.com / password, gaining full platform admin access. Alternatively, attacker logs in as any community PM/board/member account with 'password'.",
+      "evidence": [
+        "src/lib/server/db.ts:26 — superadmin password is 'password'",
+        "src/lib/server/db.ts:27-124 — all demo users have 'password' or 'password1!'"
+      ]
+    },
+    {
+      "id": "VULN-003",
+      "severity": "MEDIUM",
+      "location": "src/app/api/vehicles/route.ts",
+      "title": "No community-scoped isolation on vehicle listing",
+      "description": "The GET handler lists all vehicles for session.sub (user ID). There is no communityId check, so a user who is a member of community A but somehow obtains a session for community B (or whose communityId is null) can still list their vehicles. This is a minor cross-tenant concern because vehicles are user-scoped, but if the platform ever allows admin views of vehicles, the lack of community scoping becomes a data leak.",
+      "attack_path": "Minimal risk in current form because listVehicles filters by userId. However, if admin/PM dashboards enumerate vehicles, no communityId filter exists to prevent cross-tenant visibility.",
+      "evidence": [
+        "src/app/api/vehicles/route.ts:8-11 — no communityId filter",
+        "src/lib/server/records.ts:1685-1686 — listVehicles only uses userId"
+      ]
+    },
+    {
+      "id": "VULN-004",
+      "severity": "LOW",
+      "location": "src/app/api/vehicles/route.ts",
+      "title": "No role check on vehicle registration — any authenticated user can register vehicles",
+      "description": "The POST handler only checks that a session exists, but does not verify role === 'member'. Providers, admins, PMs, board members, and sales users can all register vehicles. This may be intentional but violates the principle of least privilege.",
+      "attack_path": "A provider-role user calls POST /api/vehicles to register a vehicle in a community they don't belong to as a resident.",
+      "evidence": [
+        "src/app/api/vehicles/route.ts:14-16 — only checks session existence, no role guard"
+      ]
+    },
+    {
+      "id": "VULN-005",
+      "severity": "LOW",
+      "location": "src/app/api/vehicles/route.ts",
+      "title": "Missing file size / type validation on document uploads",
+      "description": "Registration, insurance, and government ID files are accepted without any file size or MIME type validation before being passed to saveDocumentUpload. An attacker could upload extremely large files or non-document files (e.g., executable binaries) to exhaust storage or serve as a staging area for malicious payloads.",
+      "attack_path": "Attacker uploads multi-GB files via the registration/insurance fields, causing storage exhaustion or high cloud costs.",
+      "evidence": [
+        "src/app/api/vehicles/route.ts:39-44 — files accepted without size/type checks",
+        "src/app/api/vehicles/route.ts:80-85 — files uploaded directly"
+      ]
+    },
+    {
+      "id": "VULN-006",
+      "severity": "MEDIUM",
+      "location": "src/app/api/bookings/route.ts",
+      "title": "Booking creation uses session.communityId without verifying membership",
+      "description": "When creating a booking, session.communityId is passed to createBooking and used to scope the amenity lookup. However, the session JWT communityId is set at login time and is never re-verified against the user's current memberships. If a user's membership is revoked or they are removed from a community, their JWT still contains the old communityId until it expires (7 days), allowing them to continue booking amenities.",
+      "attack_path": "User is removed from community. Within the 7-day JWT validity window, user calls POST /api/bookings with their still-valid token to book amenities at the community they were removed from.",
+      "evidence": [
+        "src/app/api/bookings/route.ts:30-31 — session.communityId passed to createBooking without re-validation",
+        "src/lib/server/auth.ts:6 — JWT valid for 7 days"
+      ]
+    },
+    {
+      "id": "VULN-007",
+      "severity": "MEDIUM",
+      "location": "src/app/api/bookings/[id]/route.ts",
+      "title": "Booking detail accessible to any community member who knows the booking ID",
+      "description": "The GET handler checks whether the requesting user is the host or an invitee, which is correct. However, there is no communityId check on the booking itself, so a member in community A could probe booking IDs from community B. The downstream function (getBookingReservationDetail) does filter by email, limiting the actual data leak, but the probing itself reveals whether a booking ID exists across tenants via timing differences.",
+      "attack_path": "An attacker with a valid session iterates over booking IDs. While they won't see booking details (email check prevents it), 404 vs timing differences could reveal the existence of bookings across communities.",
+      "evidence": [
+        "src/app/api/bookings/[id]/route.ts:13-14 — no communityId check before querying"
+      ]
+    },
+    {
+      "id": "VULN-008",
+      "severity": "MEDIUM",
+      "location": "src/app/api/bookings/[id]/invites/route.ts",
+      "title": "No community-scoped validation on booking invites — cross-community invites possible",
+      "description": "When a host sends invites, the booking is looked up by ID without any communityId filter. The ownership check (booking.memberEmail === session.email) prevents unauthorized users from inviting, but there is no validation that the invitees belong to the same community. A host can invite email addresses from any community, potentially leaking booking details cross-tenant via push notifications.",
+      "attack_path": "Host in community A invites member@communityB.com. The invitee receives a push notification revealing amenity name, date, and time from community A.",
+      "evidence": [
+        "src/app/api/bookings/[id]/invites/route.ts:35 — booking looked up by ID only, no communityId check",
+        "src/app/api/bookings/[id]/invites/route.ts:21-26 — invitee emails not validated against community membership"
+      ]
+    },
+    {
+      "id": "VULN-009",
+      "severity": "LOW",
+      "location": "src/app/api/bookings/[id]/cancel/route.ts",
+      "title": "Booking cancellation uses case-sensitive email comparison",
+      "description": "The cancelBooking function in records.ts compares booking.memberEmail !== memberEmail without normalizing case. If the email was stored with different casing than the session email, the owner could be unable to cancel, or a differently-cased email could bypass the ownership check. The getBookingReservationDetail function correctly normalizes to lowercase, but cancelBooking does not.",
+      "attack_path": "Edge case: if booking was created with email 'User@Example.com' but session has 'user@example.com', cancellation fails. Inconsistent behavior across endpoints.",
+      "evidence": [
+        "src/lib/server/records.ts:847-848 — cancelBooking uses strict equality without toLowerCase()",
+        "src/lib/server/records.ts:228-235 — getBookingReservationDetail correctly normalizes"
+      ]
+    },
+    {
+      "id": "VULN-010",
+      "severity": "LOW",
+      "location": "src/app/api/member/profile/route.ts",
+      "title": "Profile PATCH accepts arbitrary fields without allowlist enforcement at API level",
+      "description": "The PATCH handler accepts a body with name, phone, unit, directoryVisible, and commsPush, then passes the entire body to updateMemberProfile. While the downstream function only applies known fields, the API route does not strip unknown properties before passing them. If updateMemberProfile ever adds destructive fields (e.g., role, communityId), this becomes a mass assignment vulnerability.",
+      "attack_path": "Attacker sends {\"role\":\"admin\"} in the PATCH body. Currently safe because updateMemberProfile ignores unknown fields, but fragile against future changes.",
+      "evidence": [
+        "src/app/api/member/profile/route.ts:37-42 — raw body passed to updateMemberProfile without property stripping"
+      ]
+    },
+    {
+      "id": "VULN-011",
+      "severity": "LOW",
+      "location": "src/app/api/member/payment-methods/route.ts",
+      "title": "No rate limiting on payment method operations",
+      "description": "Payment method creation (both Stripe setup and demo cards) and sync operations have no rate limiting. An attacker could create unlimited demo payment methods or trigger unlimited Stripe API calls.",
+      "attack_path": "Attacker loops POST /api/member/payment-methods with action='add_demo' to create thousands of fake payment methods, or action='setup_stripe' to generate excessive Stripe Checkout sessions.",
+      "evidence": [
+        "src/app/api/member/payment-methods/route.ts:18-83 — no rate limiting on POST"
+      ]
+    },
+    {
+      "id": "VULN-012",
+      "severity": "HIGH",
+      "location": "src/app/api/auth/oauth/[provider]/callback/route.ts",
+      "title": "JWT session token exposed in deep link URL for mobile OAuth",
+      "description": "When the mobile OAuth flow completes (oauth_mobile === 'plaza'), the JWT session token is passed as a query parameter in a deep link URL (plaza-oceanside://oauth?token=...). Deep link URLs can be logged by intermediary apps, appear in device logs, and are interceptable by other apps registered for the same URL scheme. This exposes the full session token.",
+      "attack_path": "Malicious app registers for the 'plaza-oceanside://' URL scheme. When SSO completes, the malicious app intercepts the deep link containing the JWT, gaining full session access as the victim user.",
+      "evidence": [
+        "src/app/api/auth/oauth/[provider]/callback/route.ts:122-129 — JWT passed in deep link query parameter"
+      ]
+    },
+    {
+      "id": "VULN-013",
+      "severity": "MEDIUM",
+      "location": "src/app/api/auth/oauth/[provider]/callback/route.ts",
+      "title": "OAuth callback leaks email and name to registration page via URL parameters",
+      "description": "When an OAuth user is not found in the database, they are redirected to /register with their email and name as URL query parameters. These appear in browser history, server logs, referrer headers, and can be cached by proxies.",
+      "attack_path": "Attacker reviews browser history, proxy logs, or referrer headers from a user who attempted SSO registration, obtaining their email and name.",
+      "evidence": [
+        "src/app/api/auth/oauth/[provider]/callback/route.ts:72-76 — email and name passed in redirect URL"
+      ]
+    },
+    {
+      "id": "VULN-014",
+      "severity": "MEDIUM",
+      "location": "src/app/api/communities/[id]/import/members/route.ts",
+      "title": "No file size limit on CSV member import",
+      "description": "The member import endpoint accepts multipart file uploads or JSON bodies containing CSV data without any size limit. An attacker with admin access could upload an extremely large CSV file to cause memory exhaustion or denial of service, as the entire file is read into memory.",
+      "attack_path": "Admin-level attacker uploads a multi-GB CSV file, causing the Node.js process to run out of memory.",
+      "evidence": [
+        "src/app/api/communities/[id]/import/members/route.ts:24-31 — file read into memory without size check"
+      ]
+    },
+    {
+      "id": "VULN-015",
+      "severity": "MEDIUM",
+      "location": "src/app/api/communities/[id]/import/documents/route.ts",
+      "title": "Document import accepts arbitrary URLs without validation",
+      "description": "The document import endpoint accepts URLs from the parsed text input and stores them via createDocument without validating that the URLs are well-formed, use HTTPS, or point to allowed domains. This could be used to store malicious URLs (e.g., javascript: URIs, data: URIs, or phishing links) that are later rendered to members.",
+      "attack_path": "Admin imports a document with url='javascript:alert(document.cookie)' or a phishing URL. When rendered in the member UI, this could lead to XSS or credential phishing.",
+      "evidence": [
+        "src/app/api/communities/[id]/import/documents/route.ts:29-45 — URLs stored without scheme/domain validation"
+      ]
+    },
+    {
+      "id": "VULN-016",
+      "severity": "HIGH",
+      "location": "src/lib/server/db.ts",
+      "title": "Temporary OTP/password for provider onboarding sent via email and stored as user password",
+      "description": "When a provider is added to a community with an email, a random 8-hex-char OTP is generated and set as the user's password. This OTP is returned to the caller in the API response (the 'otp' field) and also emailed. If the email is intercepted or the API response is logged, the OTP (which IS the user's password) is compromised. The OTP has only 32 bits of entropy (8 hex chars), making it brute-forceable.",
+      "attack_path": "Attacker intercepts the API response from addProviderToCommunity or the invitation email, obtains the OTP, and uses it to log in as the provider user. The OTP has only 4 billion possible values.",
+      "evidence": [
+        "src/lib/server/db.ts:559 — otp = randomBytes(4).toString('hex') — only 32 bits of entropy",
+        "src/lib/server/db.ts:566-568 — OTP set as actual user password",
+        "src/lib/server/db.ts:598 — OTP returned in API response"
+      ]
+    },
+    {
+      "id": "VULN-017",
+      "severity": "LOW",
+      "location": "src/lib/server/db.ts",
+      "title": "Case-insensitive email lookup falls back to full table scan",
+      "description": "The findUserByEmail function first tries a case-sensitive lookup, then falls back to loading ALL users and doing a case-insensitive scan. This is both a performance issue (O(n) for every login attempt with non-matching case) and a potential timing side channel that reveals whether the database has many users.",
+      "attack_path": "Attacker times login attempts with various email casings. Slower responses indicate a larger user base. At scale, this becomes a denial of service vector as each login attempt loads all users into memory.",
+      "evidence": [
+        "src/lib/server/db.ts:648-649 — 'fall back to case-insensitive scan' loads all users"
+      ]
+    },
+    {
+      "id": "VULN-018",
+      "severity": "MEDIUM",
+      "location": "src/lib/server/db.ts",
+      "title": "Provider onboarding overwrites existing user's password and role without consent",
+      "description": "When addProviderToCommunity is called with an email that matches an existing user, the existing user's password, role, name, communityId, and status are all overwritten with the new provider values. This means an admin adding a provider can silently hijack any existing user account by specifying their email.",
+      "attack_path": "Club admin calls addProviderToCommunity with a victim member's email address. The victim's account is overwritten: their password changes to the OTP, their role changes to 'provider', and their communityId changes. The admin receives the OTP and can now log in as the victim.",
+      "evidence": [
+        "src/lib/server/db.ts:576-586 — existing user's password, role, name, communityId, and status all overwritten"
+      ]
+    }
+  ],
+  "files_with_no_issues": [],
+  "summary": {
+    "critical": 1,
+    "high": 3,
+    "medium": 7,
+    "low": 7,
+    "total": 18,
+    "top_risks": [
+      "Hardcoded demo credentials (VULN-002) combined with fallback JWT secret (VULN-001) allow full platform takeover on any non-production deployment",
+      "Provider onboarding can hijack existing user accounts (VULN-018) — any club admin can take over any user account by adding them as a provider",
+      "JWT token exposed in mobile deep link URLs (VULN-012) enables session hijacking on mobile",
+      "Low-entropy OTP used as actual password for provider accounts (VULN-016)"
+    ]
+  }
+}
