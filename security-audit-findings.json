@@ -1,0 +1,137 @@
+[
+  {
+    "severity": "HIGH",
+    "location": "src/app/api/blog/[id]/comments/route.ts",
+    "title": "Missing community-scoping on blog comments (cross-tenant IDOR)",
+    "description": "Both GET and POST handlers for blog comments accept an arbitrary blog post ID from the URL path but never verify that the blog post belongs to the authenticated user's community. The listBlogComments() function in member-api-store.ts queries only by postId with no communityId filter. Any authenticated user from Community A can read and write comments on blog posts belonging to Community B by guessing or enumerating post IDs.",
+    "attack_path": "1. Authenticate as user in Community A. 2. Enumerate or guess blog post IDs from Community B. 3. GET /api/blog/<communityB-postId>/comments to read comments. 4. POST /api/blog/<communityB-postId>/comments with a body to inject a comment into another community's blog post.",
+    "evidence": [
+      "src/app/api/blog/[id]/comments/route.ts:16 — listBlogComments(id) called with raw path param, no communityId check",
+      "src/app/api/blog/[id]/comments/route.ts:38-42 — addBlogComment({blogId: id, ...}) called with raw path param, no communityId check",
+      "src/lib/server/member-api-store.ts:433-437 — listBlogComments queries only by postId, no community filter",
+      "src/lib/server/member-api-store.ts:440-444 — addBlogComment creates with only postId, no community filter"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "src/app/api/blog/route.ts",
+    "title": "No role-based authorization on blog post creation",
+    "description": "The POST handler for creating blog posts checks only that the user is authenticated (session exists) but does not enforce any role restriction. Any authenticated user — including regular members — can create blog posts. Compare this to the documents and bids routes which restrict POST to admin/board/pm roles. Depending on business intent, this could allow members to publish official-looking community blog posts.",
+    "attack_path": "1. Authenticate as a regular member. 2. POST /api/blog with title, excerpt, and body. 3. Blog post is created under the community, appearing as official content.",
+    "evidence": [
+      "src/app/api/blog/route.ts:14-15 — POST handler only checks session existence, no role check",
+      "src/app/api/documents/route.ts:40 — Documents POST checks role (admin/board/pm), blog does not",
+      "src/app/api/bids/route.ts:16-17 — Bids POST checks role (board/admin/pm), blog does not"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "src/app/api/marketplace/route.ts",
+    "title": "No price validation in JSON body path allows negative or extreme prices",
+    "description": "The multipart/form-data code path correctly validates price (NaN check, negative check at line 65-67), but the JSON body code path at line 126-136 passes Number(body.price) directly to createListing without any validation. A negative, NaN, or extremely large price value could be stored. While NaN would be blocked by the database, negative prices and absurdly large values would not.",
+    "attack_path": "1. Authenticate as any user. 2. POST /api/marketplace with JSON body: {\"title\":\"test\",\"price\":-100}. 3. A listing with a negative price is created in the marketplace.",
+    "evidence": [
+      "src/app/api/marketplace/route.ts:64-67 — multipart path validates price (NaN and negative)",
+      "src/app/api/marketplace/route.ts:126-130 — JSON path passes Number(body.price) without validation"
+    ]
+  },
+  {
+    "severity": "MEDIUM",
+    "location": "src/app/api/marketplace/route.ts",
+    "title": "Content moderation bypass via JSON path — no video moderation",
+    "description": "The moderation check (moderateUpload) only inspects title, caption/description, and fileName metadata. It does not inspect the actual content of uploaded images or videos. Additionally, the JSON body path allows setting arbitrary imageUrl and videoUrl values (including external URLs) that bypass the validateMediaUpload checks applied to file uploads in the multipart path.",
+    "attack_path": "1. Authenticate as any user. 2. POST /api/marketplace with JSON body containing imageUrl pointing to an external malicious or inappropriate image. 3. The URL is stored without the file validation that the multipart path enforces.",
+    "evidence": [
+      "src/app/api/marketplace/route.ts:72-81 — multipart path validates file uploads with validateMediaUpload",
+      "src/app/api/marketplace/route.ts:126-136 — JSON path accepts arbitrary imageUrl/videoUrl strings without file validation"
+    ]
+  },
+  {
+    "severity": "LOW",
+    "location": "src/app/api/messages/threads/[id]/route.ts",
+    "title": "Empty message body accepted in POST handler",
+    "description": "The POST handler for posting a chat message falls back to an empty string if body.body is not provided (line 51: body.body ?? ''). The downstream postChatMessage function may handle this, returning null which is then caught (line 53), but the validation is pushed deeper than it should be. An attacker could spam empty messages to a thread.",
+    "attack_path": "1. Authenticate. 2. POST /api/messages/threads/<threadId> with empty body field or omit it. 3. Either an empty message is stored or a vague error is returned.",
+    "evidence": [
+      "src/app/api/messages/threads/[id]/route.ts:51 — body: body.body ?? '' allows empty strings"
+    ]
+  },
+  {
+    "severity": "LOW",
+    "location": "src/app/api/messages/route.ts",
+    "title": "Channel name not validated against CHANNEL_ROLES keys (enumeration)",
+    "description": "The channel parameter is taken from the query string (GET) or request body (POST) and checked against CHANNEL_ROLES which has only 'board' and 'pm'. An unrecognized channel value returns Unauthorized (401) because the lookup returns undefined. This is correct behavior but the error message is misleading — it should be 'Invalid channel' (400), not 'Unauthorized' (401). This is a minor information-leaking issue where users cannot distinguish between having no permission and providing an invalid channel.",
+    "attack_path": "N/A — this is a defense-in-depth observation, not an exploitable vulnerability.",
+    "evidence": [
+      "src/app/api/messages/route.ts:22-24 — channel lookup defaults to 'board', unrecognized channels return 401"
+    ]
+  },
+  {
+    "severity": "INFO",
+    "location": "src/lib/server/auth.ts",
+    "title": "Hardcoded fallback secret in non-production environments",
+    "description": "When AUTH_SECRET is not set and NODE_ENV is not 'production', a hardcoded fallback key 'easy-life-dev-secret-change-in-production' is used to sign/verify JWTs. This is acceptable for local development but should be documented as a risk if staging environments also run with NODE_ENV !== 'production'. Anyone who knows this default can forge session tokens in non-production environments.",
+    "attack_path": "1. Know the hardcoded secret. 2. Craft a JWT with arbitrary sub, email, role, name, communityId. 3. Set the el_session cookie. 4. Access any API route as any user in any community.",
+    "evidence": [
+      "src/lib/server/auth.ts:9-21 — getKey() falls back to hardcoded secret when AUTH_SECRET is unset and not production"
+    ]
+  },
+  {
+    "severity": "INFO",
+    "location": "src/app/api/calendar/feed/[token]/route.ts",
+    "title": "Calendar feed uses JWT-based bearer token in URL — no additional access controls",
+    "description": "The calendar feed endpoint is intentionally unauthenticated (no session check) and relies solely on a JWT token embedded in the URL path. This is standard for ICS feeds (Google Calendar, Apple Calendar require a URL). However, URL tokens can be leaked via browser history, Referer headers, or server logs. The token contains email, name, and communityId. The endpoint correctly validates the JWT, so this is by design, but worth noting.",
+    "attack_path": "If a calendar feed URL leaks (via Referer header, shared screenshot, browser history), an attacker can access the user's community calendar data.",
+    "evidence": [
+      "src/app/api/calendar/feed/[token]/route.ts:20-26 — No session check, relies on JWT in URL path"
+    ]
+  },
+  {
+    "severity": "NO_ISSUE",
+    "location": "src/app/api/messages/route.ts",
+    "title": "No issues found — properly secured",
+    "description": "Authentication is checked. Role-based channel authorization is enforced. Community scoping is applied via session.communityId passed to listPrivateMessages and createPrivateMessage. The scope() helper in records.ts ensures communityId is always used in the database query.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "NO_ISSUE",
+    "location": "src/app/api/messages/threads/route.ts",
+    "title": "No issues found — properly secured",
+    "description": "Authentication is checked. Community scoping is passed through session.communityId to both listChatThreadsForUser and createGroupChat/getOrCreateDmThread. The ChatCommunityScopeError is properly caught for cross-community DM attempts.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "NO_ISSUE",
+    "location": "src/app/api/messages/threads/[id]/route.ts",
+    "title": "No issues found — properly secured",
+    "description": "Authentication is checked. assertChatParticipantInCommunity verifies both thread membership AND community scope, preventing cross-tenant access. Both GET and POST handlers use this check.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "NO_ISSUE",
+    "location": "src/app/api/messages/recipients/route.ts",
+    "title": "No issues found — properly secured",
+    "description": "Authentication is checked. communityId is required (400 if missing). listStaffMessageRecipients is scoped to the user's community.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "NO_ISSUE",
+    "location": "src/app/api/documents/route.ts",
+    "title": "No issues found — properly secured",
+    "description": "Authentication is checked. POST requires elevated role (admin/board/pm). Community scoping via session.communityId. Members are restricted to 'member' audience documents. Role-based audience filtering is applied server-side.",
+    "attack_path": "N/A",
+    "evidence": []
+  },
+  {
+    "severity": "NO_ISSUE",
+    "location": "src/app/api/bids/route.ts",
+    "title": "No issues found — properly secured",
+    "description": "Authentication is checked. Both GET and POST require elevated roles (board/admin/pm). Community scoping via session.communityId passed to listBids and createBid.",
+    "attack_path": "N/A",
+    "evidence": []
+  }
+]
