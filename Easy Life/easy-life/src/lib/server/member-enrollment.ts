@@ -202,6 +202,17 @@ export async function listPendingMembers(communityId: string) {
 }
 
 /**
+ * Whether rejecting a pending registration may remove the CommunityMember
+ * directory row for that display name. When another user still shares the name,
+ * the row must be kept (pending create skips duplicate-name inserts).
+ */
+export function shouldDeleteDirectoryRowOnReject(opts: {
+  otherUsersWithSameName: boolean;
+}): boolean {
+  return !opts.otherUsersWithSameName;
+}
+
+/**
  * Reject a pending self-registration: remove the login + profile so they can
  * re-apply later. Only deletes when status is still pending.
  */
@@ -233,13 +244,25 @@ export async function rejectPendingMember(opts: {
 
   await prisma.memberProfileExt.deleteMany({ where: { userEmail: user.email } });
   if (user.communityId) {
-    await prisma.communityMember.deleteMany({
+    // CommunityMember rows are keyed by display name only. Pending signup skips
+    // insert when that name already exists — never delete the shared directory
+    // row if another account in this community still uses the same name.
+    const otherWithSameName = await prisma.user.count({
       where: {
         communityId: user.communityId,
         name: user.name,
-        isManagement: false,
+        id: { not: user.id },
       },
     });
+    if (shouldDeleteDirectoryRowOnReject({ otherUsersWithSameName: otherWithSameName > 0 })) {
+      await prisma.communityMember.deleteMany({
+        where: {
+          communityId: user.communityId,
+          name: user.name,
+          isManagement: false,
+        },
+      });
+    }
   }
   await prisma.user.delete({ where: { id: user.id } });
 
