@@ -6,10 +6,8 @@ import {
   sessionCookieOptions,
 } from "@/lib/server/auth";
 import { ACTIVE_COMMUNITY_COOKIE } from "@/lib/tenant";
-import {
-  sessionClaimsForCommunitySwitch,
-  switchActiveCommunity,
-} from "@/lib/server/memberships";
+import { sessionClaimsForCommunitySwitch } from "@/lib/membership-session";
+import { switchActiveCommunity } from "@/lib/server/memberships";
 
 export async function POST(request: Request) {
   const session = await getSession();

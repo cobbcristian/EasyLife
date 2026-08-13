@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sessionClaimsForCommunitySwitch } from "@/lib/server/memberships";
+import { sessionClaimsForCommunitySwitch } from "./membership-session";
 
 describe("sessionClaimsForCommunitySwitch", () => {
   it("uses the target membership role, not the prior session role", () => {
