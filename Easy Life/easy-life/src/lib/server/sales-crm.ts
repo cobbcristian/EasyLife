@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/server/prisma";
 import { hashPassword } from "@/lib/server/password";
+import { existingAccountBlocksSalesHire } from "@/lib/server/sales-hire-policy";
 import type { AuthUser } from "@/lib/types";
 
 export type SalespersonRow = {
@@ -84,12 +85,16 @@ export async function createSalesperson(input: {
   await ensureSalesSeed();
   const email = input.email.trim().toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    const already = await prisma.salesperson.findUnique({
-      where: { userId: existing.id },
-    });
-    if (already) return { error: "This user is already a salesperson" };
-  }
+  const already = existing
+    ? await prisma.salesperson.findUnique({
+        where: { userId: existing.id },
+      })
+    : null;
+  const block = existingAccountBlocksSalesHire({
+    userExists: Boolean(existing),
+    alreadySalesperson: Boolean(already),
+  });
+  if (block) return { error: block };
 
   if (input.parentId) {
     const parent = await prisma.salesperson.findUnique({
@@ -103,26 +108,17 @@ export async function createSalesperson(input: {
     }
   }
 
-  let userId: string;
-  if (existing) {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { role: "sales", name: input.name.trim() || existing.name },
-    });
-    userId = existing.id;
-  } else {
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashPassword(input.password),
-        role: "sales",
-        name: input.name.trim(),
-        communityId: null,
-        status: "active",
-      },
-    });
-    userId = user.id;
-  }
+  const user = await prisma.user.create({
+    data: {
+      email,
+      password: hashPassword(input.password),
+      role: "sales",
+      name: input.name.trim(),
+      communityId: null,
+      status: "active",
+    },
+  });
+  const userId = user.id;
 
   const created = await prisma.salesperson.create({
     data: {
