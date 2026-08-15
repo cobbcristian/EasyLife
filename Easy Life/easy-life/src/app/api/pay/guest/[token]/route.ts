@@ -89,6 +89,7 @@ export async function POST(request: Request, { params }: Params) {
       chargeId: charge.id,
       payToken: token,
       kind: charge.referenceType,
+      amountCents: String(Math.round(charge.amount * 100)),
     },
     success_url: `${origin}/pay/guest/${token}?payment=success`,
     cancel_url: `${origin}/pay/guest/${token}?payment=cancelled`,

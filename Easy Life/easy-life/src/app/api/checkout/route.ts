@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { resolveCheckoutAmount } from "@/lib/server/charge-payment";
 import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
@@ -8,6 +9,7 @@ import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
 } from "@/lib/server/payment-methods";
+import { prisma } from "@/lib/server/prisma";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
@@ -39,14 +41,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const amount = Number(body.amount);
-  if (!amount || amount <= 0) {
-    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  const chargeId = body.chargeId?.trim() || undefined;
+  const charge = chargeId
+    ? await prisma.memberCharge.findUnique({ where: { id: chargeId } })
+    : null;
+
+  const resolved = resolveCheckoutAmount({
+    charge,
+    chargeId,
+    clientAmount: body.amount,
+    clientDescription: body.description,
+    memberEmail: session.email,
+    communityId: session.communityId,
+  });
+  if (!resolved.ok) {
+    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   }
 
+  const { amount, amountCents, description } = resolved;
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
   const returnPath = body.returnPath ?? "/member/payments";
-  const description = body.description ?? "Club payment";
 
   const settings = await getPaymentSettings(session.email);
   const useStored =
@@ -78,8 +92,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ url: result.url, mode: "stored" });
       }
 
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (chargeId) {
+        await afterChargePaid(chargeId);
       }
 
       return NextResponse.json({
@@ -98,8 +112,8 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
     if (isDemoPaymentAllowed()) {
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (chargeId) {
+        await afterChargePaid(chargeId);
       }
       return NextResponse.json({
         ok: true,
@@ -125,14 +139,20 @@ export async function POST(request: Request) {
           price_data: {
             currency: "usd",
             product_data: { name: description },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: amountCents,
           },
           quantity: 1,
         },
       ],
-      success_url: `${origin}${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
+      success_url: `${origin}${returnPath}?payment=success${chargeId ? `&chargeId=${chargeId}` : ""}`,
       cancel_url: `${origin}${returnPath}?payment=cancelled`,
-      metadata: body.chargeId ? { chargeId: body.chargeId, userEmail: session.email } : undefined,
+      metadata: chargeId
+        ? {
+            chargeId,
+            userEmail: session.email,
+            amountCents: String(amountCents),
+          }
+        : undefined,
     });
     return NextResponse.json({ url: checkout.url, mode: "checkout" });
   } catch {
