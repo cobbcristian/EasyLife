@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { webhookPaymentMatchesCharge } from "@/lib/server/charge-payment";
 import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
@@ -11,8 +12,9 @@ export const runtime = "nodejs";
 
 /**
  * Stripe webhook — confirms Checkout payment and marks the linked charge paid.
- * Requires STRIPE_WEBHOOK_SECRET. Amount was set server-side at session create;
- * residents cannot alter it on the Stripe hosted page.
+ * Requires STRIPE_WEBHOOK_SECRET. Amount is set server-side at session create
+ * from the DB charge (when chargeId is present); metadata.amountCents is checked
+ * against amount_total before settling.
  */
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -41,6 +43,20 @@ export async function POST(request: Request) {
     const session = event.data.object;
     const chargeId = session.metadata?.chargeId;
     if (chargeId) {
+      if (
+        !webhookPaymentMatchesCharge({
+          amountTotal: session.amount_total,
+          metadataAmountCents: session.metadata?.amountCents,
+        })
+      ) {
+        console.error("Stripe webhook amount mismatch; refusing to settle charge", {
+          chargeId,
+          amountTotal: session.amount_total,
+          metadataAmountCents: session.metadata?.amountCents,
+        });
+        return NextResponse.json({ received: true, settled: false });
+      }
+
       if (session.metadata?.type === "hoa") {
         await markHoaChargePaid(chargeId);
       } else {
