@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { sendSms, isSmsConfigured } from "@/lib/server/sms";
+import {
+  driverBearerToken,
+  verifyDriverSessionToken,
+} from "@/lib/server/driver-session";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; requestId: string }> }
 ) {
   const { id, requestId } = await params;
-  const body = await req.json();
+
+  const authorized = await verifyDriverSessionToken(
+    driverBearerToken(req),
+    id,
+  );
+  if (!authorized) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: { status?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
 
   // Verify driver exists
   const driver = await prisma.tramDriver.findUnique({

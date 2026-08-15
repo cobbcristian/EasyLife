@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/server/mobile-auth";
 import { prisma } from "@/lib/server/prisma";
 import { upsertProviderReview } from "@/lib/server/local-pros";
+import { canCompleteServiceRequestPayment } from "@/lib/service-request-payment";
 
 /** Payment confirmation + optional review after a service request. */
 export async function POST(request: Request) {
@@ -41,14 +42,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, reviewed: true });
   }
 
-  // Demo payment — mark related service request completed when possible.
+  // Demo payment — mark related service request completed when the caller owns it.
   if (body.serviceRequestId) {
-    await prisma.serviceRequest
-      .update({
-        where: { id: body.serviceRequestId },
-        data: { status: "completed" },
+    const existing = await prisma.serviceRequest.findUnique({
+      where: { id: body.serviceRequestId },
+      select: { id: true, memberEmail: true, communityId: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Service request not found" }, { status: 404 });
+    }
+    if (
+      !canCompleteServiceRequestPayment({
+        requestMemberEmail: existing.memberEmail,
+        sessionEmail: session.email,
+        requestCommunityId: existing.communityId,
+        sessionCommunityId: session.communityId,
       })
-      .catch(() => null);
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    await prisma.serviceRequest.update({
+      where: { id: existing.id },
+      data: { status: "completed" },
+    });
   }
 
   return NextResponse.json({

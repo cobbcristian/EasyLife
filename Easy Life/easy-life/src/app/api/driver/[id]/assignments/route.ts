@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
+import {
+  driverBearerToken,
+  verifyDriverSessionToken,
+} from "@/lib/server/driver-session";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const authorized = await verifyDriverSessionToken(
+    driverBearerToken(req),
+    id,
+  );
+  if (!authorized) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const driver = await prisma.tramDriver.findUnique({
     where: { id },

@@ -54,13 +54,19 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
 
+  function driverAuthHeaders(): HeadersInit {
+    const token = sessionStorage.getItem(`driver_token_${id}`);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   useEffect(() => {
-    // Check if already authenticated (session storage)
-    const storedAuth = sessionStorage.getItem(`driver_auth_${id}`);
-    if (storedAuth === "true") {
+    // Check if already authenticated (session storage holds signed driver JWT)
+    const storedToken = sessionStorage.getItem(`driver_token_${id}`);
+    if (storedToken) {
       setAuthenticated(true);
-      fetchData();
+      void fetchData();
     } else {
+      sessionStorage.removeItem(`driver_auth_${id}`);
       setLoading(false);
     }
   }, [id]);
@@ -69,13 +75,23 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
     if (!authenticated) return;
     
     // Refresh every 30 seconds
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(() => {
+      void fetchData();
+    }, 30000);
     return () => clearInterval(interval);
   }, [authenticated]);
 
   async function fetchData() {
     try {
-      const res = await fetch(`/api/driver/${id}/assignments`);
+      const res = await fetch(`/api/driver/${id}/assignments`, {
+        headers: driverAuthHeaders(),
+      });
+      if (res.status === 401) {
+        sessionStorage.removeItem(`driver_token_${id}`);
+        sessionStorage.removeItem(`driver_auth_${id}`);
+        setAuthenticated(false);
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setDriver(data.driver);
@@ -100,9 +116,15 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
       });
 
       if (res.ok) {
-        sessionStorage.setItem(`driver_auth_${id}`, "true");
+        const data = (await res.json()) as { token?: string };
+        if (!data.token) {
+          setPinError("Connection error");
+          return;
+        }
+        sessionStorage.setItem(`driver_token_${id}`, data.token);
+        sessionStorage.removeItem(`driver_auth_${id}`);
         setAuthenticated(true);
-        fetchData();
+        void fetchData();
       } else {
         setPinError("Invalid PIN");
       }
@@ -115,12 +137,20 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
     try {
       const res = await fetch(`/api/driver/${id}/assignments/${requestId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...driverAuthHeaders(),
+        },
         body: JSON.stringify({ status: newStatus }),
       });
 
+      if (res.status === 401) {
+        sessionStorage.removeItem(`driver_token_${id}`);
+        setAuthenticated(false);
+        return;
+      }
       if (res.ok) {
-        fetchData();
+        void fetchData();
       }
     } catch (error) {
       console.error("Failed to update:", error);
