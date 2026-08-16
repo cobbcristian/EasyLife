@@ -1,8 +1,14 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/server/prisma";
 import { recordFbSpend } from "@/lib/server/membership";
 import { matchProductHeuristic } from "@/lib/server/ai/grab-go-vision";
 import { isOpenAiConfigured, openAiMatchProduct } from "@/lib/server/ai/openai";
+
+function unlockTokenSecret(): string {
+  return (
+    process.env.AUTH_SECRET ?? "easy-life-dev-secret-change-in-production"
+  );
+}
 
 export type UnlockMethod =
   | "member_id"
@@ -222,18 +228,42 @@ async function resolveMember(input: {
   throw new GrabGoError("Provide a member ID, RFID, app unlock, or signed-in account.");
 }
 
+/**
+ * Short-lived HMAC-signed unlock proof for app QR / remote open.
+ * Format: base64url(email:ts:nonce).base64url(hmac-sha256)
+ * Unsigned base64 payloads are rejected — do not treat client email as proof.
+ */
 export function createAppUnlockToken(email: string): string {
   const payload = `${email.toLowerCase()}:${Date.now()}:${randomBytes(8).toString("hex")}`;
-  return Buffer.from(payload).toString("base64url");
+  const body = Buffer.from(payload).toString("base64url");
+  const sig = createHmac("sha256", unlockTokenSecret())
+    .update(payload)
+    .digest("base64url");
+  return `${body}.${sig}`;
 }
 
 export function parseAppUnlockToken(token: string): { email: string } | null {
   try {
-    const raw = Buffer.from(token, "base64url").toString("utf8");
+    const dot = token.indexOf(".");
+    if (dot <= 0 || dot === token.length - 1) return null;
+    const body = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+    const raw = Buffer.from(body, "base64url").toString("utf8");
+    const expected = createHmac("sha256", unlockTokenSecret())
+      .update(raw)
+      .digest("base64url");
+    const sigBuf = Buffer.from(sig);
+    const expectedBuf = Buffer.from(expected);
+    if (
+      sigBuf.length !== expectedBuf.length ||
+      !timingSafeEqual(sigBuf, expectedBuf)
+    ) {
+      return null;
+    }
     const [email, ts] = raw.split(":");
     if (!email || !ts) return null;
     const age = Date.now() - Number(ts);
-    if (!Number.isFinite(age) || age > 15 * 60 * 1000) return null; // 15 min
+    if (!Number.isFinite(age) || age < 0 || age > 15 * 60 * 1000) return null;
     return { email: email.toLowerCase() };
   } catch {
     return null;
@@ -262,15 +292,16 @@ export async function openGrabGoSession(input: {
 
   let member: { email: string; name: string; memberNumber: string };
   if (input.unlockMethod === "app_qr" || input.unlockMethod === "app_remote") {
-    if (input.unlockToken) {
-      const parsed = parseAppUnlockToken(input.unlockToken);
-      if (!parsed) throw new GrabGoError("Unlock code expired. Refresh in the app.");
-      member = await resolveMember({ memberEmail: parsed.email });
-    } else if (input.memberEmail) {
-      member = await resolveMember({ memberEmail: input.memberEmail });
-    } else {
+    // App unlock must present a server-signed token. Never trust client email alone —
+    // that let anyone open a session (and charge) as an arbitrary member.
+    if (!input.unlockToken) {
       throw new GrabGoError("App unlock required.");
     }
+    const parsed = parseAppUnlockToken(input.unlockToken);
+    if (!parsed) {
+      throw new GrabGoError("Unlock code expired. Refresh in the app.");
+    }
+    member = await resolveMember({ memberEmail: parsed.email });
   } else if (input.unlockMethod === "member_id") {
     member = await resolveMember({ memberNumber: input.memberNumber });
   } else if (input.unlockMethod === "rfid") {

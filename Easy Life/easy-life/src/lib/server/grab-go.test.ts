@@ -3,7 +3,7 @@ import {
   createAppUnlockToken,
   memberNumberFromEmail,
   parseAppUnlockToken,
-} from "@/lib/server/grab-go";
+} from "./grab-go";
 
 describe("grab-and-go unlock", () => {
   it("derives a stable 6-digit member number", () => {
@@ -13,8 +13,24 @@ describe("grab-and-go unlock", () => {
     expect(a).toMatch(/^\d{6}$/);
   });
 
-  it("round-trips a short-lived app unlock token", () => {
+  it("round-trips a short-lived HMAC-signed app unlock token", () => {
     const token = createAppUnlockToken("sarah.mitchell@oceanside.com");
-    expect(parseAppUnlockToken(token)?.email).toBe("sarah.mitchell@oceanside.com");
+    expect(token).toContain(".");
+    expect(parseAppUnlockToken(token)?.email).toBe(
+      "sarah.mitchell@oceanside.com",
+    );
+  });
+
+  it("rejects unsigned base64 forge of another member email", () => {
+    const forged = Buffer.from(
+      `victim@club.com:${Date.now()}:deadbeef`,
+    ).toString("base64url");
+    expect(parseAppUnlockToken(forged)).toBeNull();
+  });
+
+  it("rejects tampered signature", () => {
+    const token = createAppUnlockToken("sarah.mitchell@oceanside.com");
+    const [body] = token.split(".");
+    expect(parseAppUnlockToken(`${body}.AAAAAAAAAAAAAAAAAAAAAA`)).toBeNull();
   });
 });
