@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { resolveCheckoutSettlementKind } from "@/lib/server/checkout-settlement";
+import { markClinicGuestPaidAndRsvp } from "@/lib/server/clinics";
 import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
+import { prisma } from "@/lib/server/prisma";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
@@ -13,6 +16,9 @@ export const runtime = "nodejs";
  * Stripe webhook — confirms Checkout payment and marks the linked charge paid.
  * Requires STRIPE_WEBHOOK_SECRET. Amount was set server-side at session create;
  * residents cannot alter it on the Stripe hosted page.
+ *
+ * Clinic guest fees also create the event RSVP / accept the invite — payment alone
+ * is not enough for the guest to appear on the clinic roster.
  */
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -41,8 +47,20 @@ export async function POST(request: Request) {
     const session = event.data.object;
     const chargeId = session.metadata?.chargeId;
     if (chargeId) {
-      if (session.metadata?.type === "hoa") {
+      const charge = await prisma.memberCharge.findUnique({
+        where: { id: chargeId },
+        select: { referenceType: true },
+      });
+      const kind = resolveCheckoutSettlementKind({
+        metadataType: session.metadata?.type,
+        metadataKind: session.metadata?.kind,
+        referenceType: charge?.referenceType,
+      });
+
+      if (kind === "hoa") {
         await markHoaChargePaid(chargeId);
+      } else if (kind === "clinic_guest") {
+        await markClinicGuestPaidAndRsvp(chargeId);
       } else {
         await updateMemberChargeStatus(chargeId, "paid");
         await activateSharedCalendarByCharge(chargeId);
