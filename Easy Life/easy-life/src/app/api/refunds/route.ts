@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { canActorResolveRefund } from "@/lib/server/refund-auth";
 import {
   createRefundRequest,
+  getRefundRequestById,
   listRefundRequestsForMember,
   listRefundRequestsForProvider,
   resolveRefundRequest,
@@ -118,6 +120,27 @@ export async function PATCH(request: Request) {
 
   if (nextStatus === "pending") {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  const existing = await getRefundRequestById(body.id);
+  if (!existing) {
+    return NextResponse.json({ error: "Refund not found" }, { status: 404 });
+  }
+
+  if (
+    !canActorResolveRefund(
+      {
+        role: session.role,
+        email: session.email,
+        communityId: session.communityId,
+      },
+      {
+        providerEmail: existing.providerEmail,
+        communityId: existing.communityId,
+      },
+    )
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const refund = await resolveRefundRequest({

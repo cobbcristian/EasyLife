@@ -51,11 +51,20 @@ export async function GET(
   if (!community) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // Invite codes gate club join — never expose them on the public GET.
+  // Staff who can manage the community still receive the code for sharing.
+  const session = await getSession();
+  const includeInvite =
+    !!session &&
+    (session.role === "admin" || session.role === "pm") &&
+    canManageCommunity(session, id);
+
   return NextResponse.json({
     community: {
       id: community.id,
       name: community.name,
-      inviteCode: community.inviteCode,
+      ...(includeInvite ? { inviteCode: community.inviteCode } : {}),
       logoUrl: community.logoUrl,
       primaryColor: community.primaryColor,
       appDisplayName: community.appDisplayName,

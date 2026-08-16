@@ -587,23 +587,6 @@ export async function createBooking(input: {
     }
   }
 
-  const memberBookings = await prisma.booking.findMany({
-    where: {
-      memberEmail: input.memberEmail,
-      date: input.date,
-      status: { not: "cancelled" },
-    },
-  });
-  if (
-    memberBookings.some((b) =>
-      timeRangesOverlap(input.startTime, input.endTime, b.startTime, b.endTime),
-    )
-  ) {
-    throw new BookingConflictError(
-      "This member already has a booking during this time.",
-    );
-  }
-
   const amenityName = amenityRecord?.name ?? input.amenity;
   const unitCount = amenityRecord?.unitCount ?? 1;
   const inviteCapacity =
@@ -611,63 +594,14 @@ export async function createBooking(input: {
       ? Math.floor(input.inviteCapacity)
       : null;
 
-  const amenityBookings = await prisma.booking.findMany({
-    where: {
-      communityId,
-      date: input.date,
-      status: { not: "cancelled" },
-      OR: amenityRecord
-        ? [{ amenityId: amenityRecord.id }, { amenity: amenityName, amenityId: null }]
-        : [{ amenity: amenityName }],
-    },
-  });
-
-  const overlapping = countOverlappingBookings(
-    amenityBookings,
-    input.startTime,
-    input.endTime,
-  );
-  const kind = amenityRecord?.kind ?? "facility";
-  const noun = unitNoun(kind).toLowerCase();
-  if (overlapping >= unitCount) {
-    throw new BookingConflictError(
-      unitCount === 1
-        ? "That time slot is already booked."
-        : `All ${unitCount} ${noun}s are booked for this time.`,
-    );
-  }
-
   const preferred =
     input.unitNumber != null && Number.isFinite(input.unitNumber)
       ? Math.floor(input.unitNumber)
       : null;
   if (preferred != null && (preferred < 1 || preferred > unitCount)) {
     throw new BookingConflictError(
-      `${unitNoun(kind)} ${preferred} is not available at this facility.`,
+      `${unitNoun(amenityRecord?.kind ?? "facility")} ${preferred} is not available at this facility.`,
     );
-  }
-
-  const bookingSnapshots = amenityBookings.map((b) => ({
-    startTime: b.startTime,
-    endTime: b.endTime,
-    status: b.status,
-    unitNumber: b.unitNumber,
-  }));
-
-  const unitNumber = assignUnitNumber(
-    unitCount,
-    bookingSnapshots,
-    input.startTime,
-    input.endTime,
-    preferred,
-  );
-  if (unitNumber == null) {
-    if (preferred != null) {
-      throw new BookingConflictError(
-        `${unitNoun(kind)} ${preferred} is already booked for this time.`,
-      );
-    }
-    throw new BookingConflictError("That time slot is already booked.");
   }
 
   const addons =
@@ -677,42 +611,115 @@ export async function createBooking(input: {
 
   // Slot is free (checked above). Auto-confirm unless this room needs staff approval.
   const status = initialBookingStatus(amenityName);
+  const kind = amenityRecord?.kind ?? "facility";
+  const noun = unitNoun(kind).toLowerCase();
 
-  return prisma.booking.create({
-    data: {
-      communityId,
-      amenityId: amenityRecord?.id ?? null,
-      unitNumber,
-      memberEmail: input.memberEmail,
-      memberName: input.memberName,
+  // Conflict check + insert must be atomic. Auto-confirm made the old
+  // check-then-insert race double-book confirmed slots under concurrency.
+  const booking = await prisma.$transaction(
+    async (tx) => {
+      const memberBookings = await tx.booking.findMany({
+        where: {
+          memberEmail: input.memberEmail,
+          date: input.date,
+          status: { not: "cancelled" },
+        },
+      });
+      if (
+        memberBookings.some((b) =>
+          timeRangesOverlap(input.startTime, input.endTime, b.startTime, b.endTime),
+        )
+      ) {
+        throw new BookingConflictError(
+          "This member already has a booking during this time.",
+        );
+      }
+
+      const amenityBookings = await tx.booking.findMany({
+        where: {
+          communityId,
+          date: input.date,
+          status: { not: "cancelled" },
+          OR: amenityRecord
+            ? [{ amenityId: amenityRecord.id }, { amenity: amenityName, amenityId: null }]
+            : [{ amenity: amenityName }],
+        },
+      });
+
+      const overlapping = countOverlappingBookings(
+        amenityBookings,
+        input.startTime,
+        input.endTime,
+      );
+      if (overlapping >= unitCount) {
+        throw new BookingConflictError(
+          unitCount === 1
+            ? "That time slot is already booked."
+            : `All ${unitCount} ${noun}s are booked for this time.`,
+        );
+      }
+
+      const bookingSnapshots = amenityBookings.map((b) => ({
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: b.status,
+        unitNumber: b.unitNumber,
+      }));
+
+      const unitNumber = assignUnitNumber(
+        unitCount,
+        bookingSnapshots,
+        input.startTime,
+        input.endTime,
+        preferred,
+      );
+      if (unitNumber == null) {
+        if (preferred != null) {
+          throw new BookingConflictError(
+            `${unitNoun(kind)} ${preferred} is already booked for this time.`,
+          );
+        }
+        throw new BookingConflictError("That time slot is already booked.");
+      }
+
+      return tx.booking.create({
+        data: {
+          communityId,
+          amenityId: amenityRecord?.id ?? null,
+          unitNumber,
+          memberEmail: input.memberEmail,
+          memberName: input.memberName,
+          amenity: amenityName,
+          date: input.date,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          status,
+          inviteCapacity,
+          addonsJson: JSON.stringify(addons),
+        },
+      });
+    },
+    { isolationLevel: "Serializable" },
+  );
+
+  await scheduleBookingReminder(booking);
+  const hostEmail = input.memberEmail.trim().toLowerCase();
+  const invitees = (input.invites ?? []).filter(
+    (i) => i.email.trim().toLowerCase() !== hostEmail,
+  );
+  if (invitees.length > 0) {
+    await createBookingInvites({
+      bookingId: booking.id,
       amenity: amenityName,
       date: input.date,
       startTime: input.startTime,
       endTime: input.endTime,
-      status,
+      hostName: input.memberName,
       inviteCapacity,
-      addonsJson: JSON.stringify(addons),
-    },
-  }).then(async (booking) => {
-    await scheduleBookingReminder(booking);
-    const hostEmail = input.memberEmail.trim().toLowerCase();
-    const invitees = (input.invites ?? []).filter(
-      (i) => i.email.trim().toLowerCase() !== hostEmail,
-    );
-    if (invitees.length > 0) {
-      await createBookingInvites({
-        bookingId: booking.id,
-        amenity: amenityName,
-        date: input.date,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        hostName: input.memberName,
-        inviteCapacity,
-        invites: invitees,
-      });
-    }
-    return booking;
-  });
+      invites: invitees,
+    });
+  }
+  return booking;
 }
 
 export async function createBookingInvites(input: {
