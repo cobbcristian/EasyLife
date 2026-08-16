@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       communityId: session.communityId,
       machineCode: body.machineCode,
       unlockMethod: "app_remote",
-      memberEmail: session.email,
+      unlockToken: createAppUnlockToken(session.email),
     });
     return NextResponse.json({
       ok: true,

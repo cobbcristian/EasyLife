@@ -1,3 +1,4 @@
+import { createHash, randomInt } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { SessionPayload } from "@/lib/types";
@@ -67,7 +68,62 @@ export async function verifySessionToken(
 }
 
 const RESET_MAX_AGE = 60 * 60; // 1 hour
+const RESET_CHALLENGE_MAX_AGE = 60 * 15; // 15 minutes
+const RESET_OTP_DIGITS = 6;
 
+/** Random 6-digit OTP for the email-code reset step (~1e6 space). */
+export function generatePasswordResetCode(): string {
+  const max = 10 ** RESET_OTP_DIGITS;
+  const min = 10 ** (RESET_OTP_DIGITS - 1);
+  return String(randomInt(min, max));
+}
+
+export function hashPasswordResetCode(code: string): string {
+  const normalized = code.replace(/\D/g, "").slice(0, RESET_OTP_DIGITS);
+  const secret = process.env.AUTH_SECRET ?? "easy-life-dev-secret-change-in-production";
+  return createHash("sha256")
+    .update(`${normalized}:${secret}`)
+    .digest("hex");
+}
+
+/**
+ * Challenge JWT proves the client started a reset for this email.
+ * The plaintext OTP is emailed (or shown only in non-production when mail is off).
+ * Possession of this token alone cannot reset a password.
+ */
+export async function createPasswordResetChallenge(
+  email: string,
+  code: string,
+): Promise<string> {
+  return new SignJWT({
+    purpose: "password-reset-challenge",
+    email: email.toLowerCase(),
+    codeHash: hashPasswordResetCode(code),
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${RESET_CHALLENGE_MAX_AGE}s`)
+    .sign(getKey());
+}
+
+export async function verifyPasswordResetChallenge(
+  challengeToken: string,
+  code: string,
+): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(challengeToken, getKey());
+    if (payload.purpose !== "password-reset-challenge") return null;
+    const email = typeof payload.email === "string" ? payload.email : null;
+    const codeHash = typeof payload.codeHash === "string" ? payload.codeHash : null;
+    if (!email || !codeHash) return null;
+    if (codeHash !== hashPasswordResetCode(code)) return null;
+    return email;
+  } catch {
+    return null;
+  }
+}
+
+/** Short-lived token accepted by /api/auth/reset-password after OTP verification. */
 export async function createPasswordResetToken(email: string): Promise<string> {
   return new SignJWT({ purpose: "password-reset", email: email.toLowerCase() })
     .setProtectedHeader({ alg: "HS256" })
