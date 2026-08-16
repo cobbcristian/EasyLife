@@ -13,52 +13,79 @@ function EmailCodeForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
-  const token = searchParams.get("token") ?? "";
-  const expectedCode = searchParams.get("code") ?? "";
+  const challengeToken = searchParams.get("challenge") ?? "";
+  const email = searchParams.get("email") ?? "";
   const [code, setCode] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
 
   const canSubmit = useMemo(() => code.replace(/\D/g, "").length >= 5, [code]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const digits = code.replace(/\D/g, "").slice(0, 5);
-    if (!token || token === "pending" || !expectedCode || digits !== expectedCode) {
-      setError(true);
+    if (!challengeToken || digits.length < 5) {
+      setError(t("The code entered does not match the one sent to your email."));
       return;
     }
-    setError(false);
-    router.push(`/reset-password?token=${encodeURIComponent(token)}`);
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-reset-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeToken, code: digits }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.token) {
+        setError(
+          data.error ??
+            t("The code entered does not match the one sent to your email."),
+        );
+        setLoading(false);
+        return;
+      }
+      router.push(`/reset-password?token=${encodeURIComponent(String(data.token))}`);
+    } catch {
+      setError(t("Something went wrong. Please try again."));
+      setLoading(false);
+    }
   }
 
   async function sendAgain() {
     setResending(true);
-    setError(false);
-    // Re-hit forgot with email from query if present; otherwise just clear.
-    const email = searchParams.get("email");
-    if (email) {
-      try {
-        const res = await fetch("/api/auth/forgot-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+    setError(null);
+    if (!email) {
+      setResending(false);
+      return;
+    }
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.ok && data.challengeToken) {
+        const params = new URLSearchParams({
+          challenge: String(data.challengeToken),
+          email,
         });
-        const data = await res.json();
-        if (res.ok && data.resetPath && data.code) {
-          const params = new URLSearchParams({
-            token: String(data.token ?? token),
-            code: String(data.code),
-            email,
-          });
-          router.replace(`/email-code?${params.toString()}`);
+        if (data.code) {
+          params.set("devCode", String(data.code));
         }
-      } catch {
-        // ignore
+        router.replace(`/email-code?${params.toString()}`);
+      } else if (!res.ok) {
+        setError(data.error ?? t("Something went wrong. Please try again."));
       }
+    } catch {
+      setError(t("Something went wrong. Please try again."));
     }
     setResending(false);
   }
+
+  const devCode = searchParams.get("devCode");
 
   return (
     <div className="w-full max-w-[514px] font-[family-name:var(--font-poppins)]">
@@ -68,6 +95,11 @@ function EmailCodeForm() {
       <p className="mt-2 text-sm text-ink">
         {t("Check your mailbox & enter the code we just sent to you.")}
       </p>
+      {devCode ? (
+        <p className="mt-2 text-xs text-grey">
+          {t("Dev OTP")}: {devCode}
+        </p>
+      ) : null}
       <button
         type="button"
         onClick={sendAgain}
@@ -87,7 +119,7 @@ function EmailCodeForm() {
             onChange={(e) => {
               const next = e.target.value.replace(/[^\d\s]/g, "").slice(0, 9);
               setCode(next);
-              setError(false);
+              setError(null);
             }}
             className={cn(
               "h-[57px] w-full rounded-lg border bg-white px-8 text-[16px] tracking-[0.2em] text-ink placeholder:tracking-[0.2em] placeholder:text-grey focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mvp-blue)]",
@@ -95,17 +127,15 @@ function EmailCodeForm() {
             )}
           />
           {error ? (
-            <p className="mt-2 text-sm text-[#ff3b30]">
-              {t("The code entered does not match the one sent to your email.")}
-            </p>
+            <p className="mt-2 text-sm text-[#ff3b30]">{error}</p>
           ) : null}
         </div>
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!canSubmit || loading}
           className="flex h-[50px] w-full items-center justify-center rounded-lg bg-[var(--mvp-blue)] text-base font-semibold text-white disabled:bg-[#e5e5ea] disabled:text-white/80"
         >
-          {t("Reset Password")}
+          {loading ? t("Checking…") : t("Reset Password")}
         </button>
       </form>
     </div>

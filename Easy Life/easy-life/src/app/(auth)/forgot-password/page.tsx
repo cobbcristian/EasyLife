@@ -31,22 +31,16 @@ export default function ForgotPasswordPage() {
         setLoading(false);
         return;
       }
-      if (data.token && data.code) {
-        const params = new URLSearchParams({
-          token: String(data.token),
-          code: String(data.code),
-          email: email.trim(),
-        });
-        router.push(`/email-code?${params.toString()}`);
-        return;
-      }
-      // Unknown email — still advance to code screen with a dummy mismatch path
-      // so the UI matches Figma without leaking account existence.
       const params = new URLSearchParams({
-        token: "pending",
-        code: "00000",
         email: email.trim(),
       });
+      if (data.challengeToken) {
+        params.set("challenge", String(data.challengeToken));
+      }
+      // Local-only: OTP is returned when email delivery is not configured.
+      if (data.code) {
+        params.set("devCode", String(data.code));
+      }
       router.push(`/email-code?${params.toString()}`);
     } catch {
       setError(t("Something went wrong. Please try again."));
