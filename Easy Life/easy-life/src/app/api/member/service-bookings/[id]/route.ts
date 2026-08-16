@@ -5,6 +5,7 @@ import {
   getCommunityBookingById,
   updateCommunityBookingStatus,
 } from "@/lib/communities-data";
+import { canMemberActOnServiceBooking } from "@/lib/service-booking-auth";
 import { logEvent } from "@/lib/server/records";
 import type { ServiceBookingStatus } from "@/lib/types";
 
@@ -39,6 +40,15 @@ export async function PATCH(
   const existing = getCommunityBookingById(id);
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (
+    !canMemberActOnServiceBooking({
+      sessionName: session.name,
+      bookingResident: existing.resident,
+    })
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const updated = updateCommunityBookingStatus(id, status);
