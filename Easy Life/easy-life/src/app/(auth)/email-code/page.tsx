@@ -20,12 +20,12 @@ function EmailCodeForm() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
 
-  const canSubmit = useMemo(() => code.replace(/\D/g, "").length >= 5, [code]);
+  const canSubmit = useMemo(() => code.replace(/\D/g, "").length >= 6, [code]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const digits = code.replace(/\D/g, "").slice(0, 5);
-    if (!challengeToken || digits.length < 5) {
+    const digits = code.replace(/\D/g, "").slice(0, 6);
+    if (!challengeToken || digits.length < 6) {
       setError(t("The code entered does not match the one sent to your email."));
       return;
     }
@@ -114,10 +114,10 @@ function EmailCodeForm() {
           <input
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="- - - - -"
+            placeholder="- - - - - -"
             value={code}
             onChange={(e) => {
-              const next = e.target.value.replace(/[^\d\s]/g, "").slice(0, 9);
+              const next = e.target.value.replace(/[^\d\s]/g, "").slice(0, 11);
               setCode(next);
               setError(null);
             }}

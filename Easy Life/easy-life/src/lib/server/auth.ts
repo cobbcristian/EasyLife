@@ -69,14 +69,17 @@ export async function verifySessionToken(
 
 const RESET_MAX_AGE = 60 * 60; // 1 hour
 const RESET_CHALLENGE_MAX_AGE = 60 * 15; // 15 minutes
+const RESET_OTP_DIGITS = 6;
 
-/** Random 5-digit OTP for the email-code reset step. */
+/** Random 6-digit OTP for the email-code reset step (~1e6 space). */
 export function generatePasswordResetCode(): string {
-  return String(randomInt(10000, 100000));
+  const max = 10 ** RESET_OTP_DIGITS;
+  const min = 10 ** (RESET_OTP_DIGITS - 1);
+  return String(randomInt(min, max));
 }
 
 export function hashPasswordResetCode(code: string): string {
-  const normalized = code.replace(/\D/g, "").slice(0, 5);
+  const normalized = code.replace(/\D/g, "").slice(0, RESET_OTP_DIGITS);
   const secret = process.env.AUTH_SECRET ?? "easy-life-dev-secret-change-in-production";
   return createHash("sha256")
     .update(`${normalized}:${secret}`)
