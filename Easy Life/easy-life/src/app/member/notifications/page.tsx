@@ -148,6 +148,7 @@ export default function MemberNotificationsPage() {
           body: JSON.stringify({
             amount: probeData.amount,
             description: probeData.description ?? `Clinic: ${invite.title}`,
+            chargeId: probeData.chargeId,
             returnPath: "/member/notifications",
           }),
         });
@@ -157,10 +158,11 @@ export default function MemberNotificationsPage() {
           redirectExternally(data.url);
           return;
         }
+        // Settlement marks the charge paid and RSVPs; acceptInvite re-confirms.
         await fetch(`/api/events/${invite.eventId}/rsvp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paid: true, acceptInvite: true }),
+          body: JSON.stringify({ acceptInvite: true }),
         });
         setMessage("Paid — you’re going!");
         setInvites((prev) => prev.filter((i) => i.id !== invite.id));

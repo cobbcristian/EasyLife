@@ -2,6 +2,15 @@ import { NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/server/mobile-auth";
 import { logEvent, toggleEventRsvp } from "@/lib/server/records";
 import { prisma } from "@/lib/server/prisma";
+import {
+  clinicFeeCents,
+  isClinicCategory,
+  isClubMemberEmail,
+} from "@/lib/server/clinics";
+import {
+  ensureMemberEventFeeCharge,
+  memberHasPaidEventFee,
+} from "@/lib/server/event-rsvp-payment";
 
 export async function POST(
   request: Request,
@@ -13,12 +22,11 @@ export async function POST(
   }
 
   const { id } = await params;
-  let paid = false;
   let acceptInvite = false;
   let decline = false;
   try {
     const body = await request.json();
-    paid = Boolean(body?.paid);
+    // Ignore body.paid — payment must be proven via a settled MemberCharge.
     acceptInvite = Boolean(body?.acceptInvite);
     decline = Boolean(body?.decline);
   } catch {
@@ -30,11 +38,13 @@ export async function POST(
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
+  const email = session.email.trim().toLowerCase();
+
   if (decline) {
     await prisma.eventInvite.updateMany({
       where: {
         eventId: id,
-        memberEmail: session.email.trim().toLowerCase(),
+        memberEmail: email,
       },
       data: { status: "declined" },
     });
@@ -42,7 +52,7 @@ export async function POST(
       where: {
         eventId_memberEmail: {
           eventId: id,
-          memberEmail: session.email.trim().toLowerCase(),
+          memberEmail: email,
         },
       },
     });
@@ -62,19 +72,44 @@ export async function POST(
     where: {
       eventId_memberEmail: {
         eventId: id,
-        memberEmail: session.email.trim().toLowerCase(),
+        memberEmail: email,
       },
     },
   });
 
-  if (!existing && event.requirePayment && event.feeCents > 0 && !paid) {
-    return NextResponse.json({
-      ok: false,
-      needsPayment: true,
-      amount: event.feeCents / 100,
-      description: `Event fee: ${event.title}`,
-      eventId: event.id,
+  if (!existing && event.requirePayment && event.feeCents > 0) {
+    const isMember = await isClubMemberEmail(email, event.communityId);
+    const clinic = isClinicCategory(event.category);
+    const feeCents = clinicFeeCents({
+      memberFeeCents: event.feeCents,
+      isMember: clinic ? isMember : true,
     });
+    const amountDollars = feeCents / 100;
+    const alreadyPaid = await memberHasPaidEventFee({
+      eventId: event.id,
+      memberEmail: email,
+      minAmountDollars: amountDollars,
+    });
+    if (!alreadyPaid) {
+      const description = `Event fee: ${event.title}`;
+      const charge = await ensureMemberEventFeeCharge({
+        communityId: event.communityId,
+        eventId: event.id,
+        eventTitle: event.title,
+        memberName: session.name,
+        memberEmail: email,
+        amountDollars,
+        description,
+      });
+      return NextResponse.json({
+        ok: false,
+        needsPayment: true,
+        amount: amountDollars,
+        description,
+        eventId: event.id,
+        chargeId: charge.id,
+      });
+    }
   }
 
   const result = await toggleEventRsvp({
@@ -87,7 +122,7 @@ export async function POST(
     await prisma.eventInvite.updateMany({
       where: {
         eventId: id,
-        memberEmail: session.email.trim().toLowerCase(),
+        memberEmail: email,
       },
       data: { status: result.rsvped ? "accepted" : "declined" },
     });

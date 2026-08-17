@@ -357,6 +357,7 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
         body: JSON.stringify({
           amount: data.amount,
           description: data.description ?? `Event fee: ${event.title}`,
+          chargeId: data.chargeId,
           returnPath: `/member/calendar?paidEvent=${event.id}`,
         }),
       });
@@ -374,10 +375,11 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
         return;
       }
       if (payData.paid) {
+        // Checkout settles the event_fee charge and creates the RSVP server-side.
         await fetch(`/api/events/${event.id}/rsvp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paid: true }),
+          body: JSON.stringify({ acceptInvite: true }),
         });
         toast({ variant: "success", title: t("You're going!") });
         router.refresh();

@@ -11,6 +11,10 @@ import {
   isClinicCategory,
   isClubMemberEmail,
 } from "@/lib/server/clinics";
+import {
+  ensureMemberEventFeeCharge,
+  memberHasPaidEventFee,
+} from "@/lib/server/event-rsvp-payment";
 
 export async function POST(
   request: Request,
@@ -20,12 +24,12 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  let paid = false;
   let decline = false;
   let acceptInvite = false;
   try {
     const body = await request.json();
-    paid = Boolean(body?.paid);
+    // Intentionally ignore body.paid — clients previously could RSVP for free by
+    // posting `{ paid: true }` with no Stripe / charge settlement.
     decline = Boolean(body?.decline);
     acceptInvite = Boolean(body?.acceptInvite);
   } catch {
@@ -67,8 +71,9 @@ export async function POST(
     },
   });
 
-  // Calendar toggle off when already going (and not an explicit accept/paid join)
-  if (existing && !acceptInvite && !paid) {
+  // Calendar toggle off when already going (unless explicitly accepting an invite
+  // / re-confirming after payment settlement).
+  if (existing && !acceptInvite) {
     await prisma.eventRsvp.delete({ where: { id: existing.id } });
     await prisma.eventInvite.updateMany({
       where: { eventId: id, memberEmail: email },
@@ -105,35 +110,55 @@ export async function POST(
           isMember: clinic ? isMember : true,
         })
       : 0;
+  const amountDollars = feeCents / 100;
 
-  if (feeCents > 0 && !paid) {
-    if (clinic && !isMember) {
-      const { payUrl, payToken } = await createClinicGuestInvoice({
+  if (feeCents > 0) {
+    const alreadyPaid = await memberHasPaidEventFee({
+      eventId: event.id,
+      memberEmail: email,
+      minAmountDollars: amountDollars,
+    });
+    if (!alreadyPaid) {
+      if (clinic && !isMember) {
+        const { payUrl, payToken } = await createClinicGuestInvoice({
+          communityId: event.communityId,
+          eventId: event.id,
+          eventTitle: event.title,
+          guestName: session.name,
+          guestEmail: email,
+          amountDollars,
+        });
+        return NextResponse.json({
+          ok: false,
+          needsPayment: true,
+          guest: true,
+          amount: amountDollars,
+          description: `Guest clinic fee (2× member rate): ${event.title}`,
+          eventId: event.id,
+          payUrl,
+          payToken,
+        });
+      }
+
+      const description = `${clinic ? "Clinic" : "Event"} fee: ${event.title}`;
+      const charge = await ensureMemberEventFeeCharge({
         communityId: event.communityId,
         eventId: event.id,
         eventTitle: event.title,
-        guestName: session.name,
-        guestEmail: email,
-        amountDollars: feeCents / 100,
+        memberName: session.name,
+        memberEmail: email,
+        amountDollars,
+        description,
       });
       return NextResponse.json({
         ok: false,
         needsPayment: true,
-        guest: true,
-        amount: feeCents / 100,
-        description: `Guest clinic fee (2× member rate): ${event.title}`,
+        amount: amountDollars,
+        description,
         eventId: event.id,
-        payUrl,
-        payToken,
+        chargeId: charge.id,
       });
     }
-    return NextResponse.json({
-      ok: false,
-      needsPayment: true,
-      amount: feeCents / 100,
-      description: `${clinic ? "Clinic" : "Event"} fee: ${event.title}`,
-      eventId: event.id,
-    });
   }
 
   await prisma.eventRsvp.create({
