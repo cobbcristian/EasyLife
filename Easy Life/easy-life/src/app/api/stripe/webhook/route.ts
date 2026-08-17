@@ -4,7 +4,13 @@ import {
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
+import {
+  EVENT_FEE_REFERENCE,
+  markEventFeePaidAndRsvp,
+} from "@/lib/server/event-rsvp-payment";
+import { markClinicGuestPaidAndRsvp } from "@/lib/server/clinics";
 import { updateMemberChargeStatus } from "@/lib/server/records";
+import { prisma } from "@/lib/server/prisma";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
@@ -44,7 +50,16 @@ export async function POST(request: Request) {
       if (session.metadata?.type === "hoa") {
         await markHoaChargePaid(chargeId);
       } else {
-        await updateMemberChargeStatus(chargeId, "paid");
+        const charge = await prisma.memberCharge.findUnique({
+          where: { id: chargeId },
+        });
+        if (charge?.referenceType === EVENT_FEE_REFERENCE) {
+          await markEventFeePaidAndRsvp(chargeId);
+        } else if (charge?.referenceType === "clinic_guest_fee") {
+          await markClinicGuestPaidAndRsvp(chargeId);
+        } else {
+          await updateMemberChargeStatus(chargeId, "paid");
+        }
         await activateSharedCalendarByCharge(chargeId);
         await markEscrowHeldByCharge(chargeId);
       }

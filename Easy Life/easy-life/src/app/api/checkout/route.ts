@@ -8,13 +8,23 @@ import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
 } from "@/lib/server/payment-methods";
+import {
+  EVENT_FEE_REFERENCE,
+  markEventFeePaidAndRsvp,
+} from "@/lib/server/event-rsvp-payment";
 import { updateMemberChargeStatus } from "@/lib/server/records";
+import { prisma } from "@/lib/server/prisma";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 
 async function afterChargePaid(chargeId: string | undefined) {
   if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
+  const charge = await prisma.memberCharge.findUnique({ where: { id: chargeId } });
+  if (charge?.referenceType === EVENT_FEE_REFERENCE) {
+    await markEventFeePaidAndRsvp(chargeId);
+  } else {
+    await updateMemberChargeStatus(chargeId, "paid");
+  }
   await activateSharedCalendarByCharge(chargeId);
   await markEscrowHeldByCharge(chargeId);
 }
@@ -39,14 +49,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const amount = Number(body.amount);
+  const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+  const returnPath = body.returnPath ?? "/member/payments";
+  let description = body.description ?? "Club payment";
+  let amount = Number(body.amount);
+
+  // When settling a known charge (e.g. event fee), bill the server amount only.
+  if (body.chargeId) {
+    const charge = await prisma.memberCharge.findUnique({
+      where: { id: body.chargeId },
+    });
+    if (!charge) {
+      return NextResponse.json({ error: "Charge not found" }, { status: 404 });
+    }
+    const owner = (charge.memberEmail ?? "").trim().toLowerCase();
+    if (owner && owner !== session.email.trim().toLowerCase()) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+    amount = charge.amount;
+    description = charge.description || description;
+  }
+
   if (!amount || amount <= 0) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
-
-  const origin = request.headers.get("origin") ?? new URL(request.url).origin;
-  const returnPath = body.returnPath ?? "/member/payments";
-  const description = body.description ?? "Club payment";
 
   const settings = await getPaymentSettings(session.email);
   const useStored =
