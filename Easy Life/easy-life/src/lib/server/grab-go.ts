@@ -34,13 +34,24 @@ function parseItems(raw: string): GrabGoLine[] {
   }
 }
 
+/**
+ * Legacy email→member-number mapping. Never issue new IDs this way —
+ * knowing a directory email was enough to forge kiosk unlocks.
+ */
 export function memberNumberFromEmail(email: string): string {
   const hash = createHash("sha256").update(email.toLowerCase()).digest("hex");
   const n = parseInt(hash.slice(0, 8), 16) % 900000;
   return String(100000 + n);
 }
 
-/** Stable demo RFID UID derived from email (keyboard-wedge readers type hex). */
+export function isLegacyEmailDerivedMemberNumber(
+  email: string,
+  memberNumber: string,
+): boolean {
+  return memberNumber === memberNumberFromEmail(email);
+}
+
+/** Legacy email→RFID mapping (same forgeability problem). */
 export function rfidUidFromEmail(email: string): string {
   const hash = createHash("sha256")
     .update(`rfid:${email.toLowerCase()}`)
@@ -50,14 +61,78 @@ export function rfidUidFromEmail(email: string): string {
   return `CL-${hash}`;
 }
 
+export function isLegacyEmailDerivedRfidUid(email: string, rfidUid: string): boolean {
+  return rfidUid.trim().toUpperCase() === rfidUidFromEmail(email);
+}
+
+function randomMemberNumber(): string {
+  const n = randomBytes(4).readUInt32BE(0) % 900000;
+  return String(100000 + n);
+}
+
+function randomRfidUid(): string {
+  return `CL-${randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
+/**
+ * Kiosk / edge-device auth. Demo may omit the key; production must set
+ * GRAB_GO_MACHINE_KEY (mirrors CRON_SECRET hardening).
+ */
+export function authorizeGrabGoMachine(
+  request: { headers: { get(name: string): string | null } },
+  env: { machineKey?: string; nodeEnv?: string } = {
+    machineKey: process.env.GRAB_GO_MACHINE_KEY,
+    nodeEnv: process.env.NODE_ENV,
+  },
+): { ok: true; secured: boolean } | { ok: false; status: number; error: string } {
+  const key = env.machineKey?.trim();
+  if (!key) {
+    if (env.nodeEnv === "production") {
+      return {
+        ok: false,
+        status: 503,
+        error: "GRAB_GO_MACHINE_KEY is required in production",
+      };
+    }
+    return { ok: true, secured: false };
+  }
+  if (request.headers.get("x-grab-go-key") !== key) {
+    return { ok: false, status: 401, error: "Unauthorized" };
+  }
+  return { ok: true, secured: true };
+}
+
+async function allocateUniqueMemberNumber(excludeEmail?: string): Promise<string> {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = randomMemberNumber();
+    const clash = await prisma.memberProfileExt.findFirst({
+      where: {
+        memberNumber: candidate,
+        ...(excludeEmail
+          ? { NOT: { userEmail: excludeEmail.toLowerCase() } }
+          : {}),
+      },
+      select: { userEmail: true },
+    });
+    if (!clash) return candidate;
+  }
+  throw new GrabGoError("Could not allocate a member ID. Try again.");
+}
+
 export async function ensureMemberNumber(email: string): Promise<string> {
   const key = email.toLowerCase();
   const existing = await prisma.memberProfileExt.findUnique({
     where: { userEmail: key },
     select: { memberNumber: true },
   });
-  if (existing?.memberNumber) return existing.memberNumber;
-  const memberNumber = memberNumberFromEmail(key);
+  if (
+    existing?.memberNumber &&
+    !isLegacyEmailDerivedMemberNumber(key, existing.memberNumber)
+  ) {
+    return existing.memberNumber;
+  }
+
+  const memberNumber = await allocateUniqueMemberNumber(key);
   await prisma.memberProfileExt.upsert({
     where: { userEmail: key },
     create: { userEmail: key, memberNumber },
@@ -67,11 +142,20 @@ export async function ensureMemberNumber(email: string): Promise<string> {
 }
 
 export async function getMemberRfidUid(email: string): Promise<string | null> {
+  const key = email.toLowerCase();
   const row = await prisma.memberProfileExt.findUnique({
-    where: { userEmail: email.toLowerCase() },
+    where: { userEmail: key },
     select: { rfidUid: true },
   });
-  return row?.rfidUid ?? null;
+  if (!row?.rfidUid) return null;
+  if (isLegacyEmailDerivedRfidUid(key, row.rfidUid)) {
+    await prisma.memberProfileExt.update({
+      where: { userEmail: key },
+      data: { rfidUid: null },
+    });
+    return null;
+  }
+  return row.rfidUid;
 }
 
 /** Issue or replace the member's RFID fob / wristband UID. */
@@ -80,8 +164,15 @@ export async function linkMemberRfid(input: {
   rfidUid?: string | null;
 }): Promise<string> {
   const key = input.email.toLowerCase();
-  await ensureMemberNumber(key);
-  const rfidUid = (input.rfidUid?.trim() || rfidUidFromEmail(key)).toUpperCase();
+  const memberNumber = await ensureMemberNumber(key);
+  const requested = input.rfidUid?.trim().toUpperCase() || null;
+  // Never fall back to email-derived UIDs — those were forgeable from directory emails.
+  if (requested && isLegacyEmailDerivedRfidUid(key, requested)) {
+    throw new GrabGoError(
+      "That RFID value is not allowed. Leave blank to issue a new tag, or enter the physical reader UID.",
+    );
+  }
+  const rfidUid = requested || randomRfidUid();
 
   const clash = await prisma.memberProfileExt.findFirst({
     where: { rfidUid, NOT: { userEmail: key } },
@@ -95,7 +186,7 @@ export async function linkMemberRfid(input: {
     where: { userEmail: key },
     create: {
       userEmail: key,
-      memberNumber: memberNumberFromEmail(key),
+      memberNumber,
       rfidUid,
     },
     update: { rfidUid },
@@ -188,9 +279,17 @@ async function resolveMember(input: {
     if (!profile) {
       throw new GrabGoError("RFID tag not recognized. Link it in Grab & Go → Your RFID.");
     }
+    if (isLegacyEmailDerivedRfidUid(profile.userEmail, uid)) {
+      throw new GrabGoError(
+        "This RFID tag needs to be re-issued in the club app (Grab & Go → Your RFID).",
+      );
+    }
     const user = await prisma.user.findUnique({ where: { email: profile.userEmail } });
     const memberNumber =
-      profile.memberNumber ?? (await ensureMemberNumber(profile.userEmail));
+      profile.memberNumber &&
+      !isLegacyEmailDerivedMemberNumber(profile.userEmail, profile.memberNumber)
+        ? profile.memberNumber
+        : await ensureMemberNumber(profile.userEmail);
     return {
       email: profile.userEmail,
       name: user?.name ?? profile.userEmail.split("@")[0],
@@ -211,12 +310,18 @@ async function resolveMember(input: {
     const profile = await prisma.memberProfileExt.findFirst({
       where: { memberNumber: input.memberNumber.trim() },
     });
-    if (!profile) throw new GrabGoError("Member ID not recognized.");
+    if (!profile?.memberNumber) throw new GrabGoError("Member ID not recognized.");
+    // Reject email-derived IDs so directory emails cannot forge kiosk unlocks.
+    if (isLegacyEmailDerivedMemberNumber(profile.userEmail, profile.memberNumber)) {
+      throw new GrabGoError(
+        "Member ID expired. Open Grab & Go in the club app to get a new ID.",
+      );
+    }
     const user = await prisma.user.findUnique({ where: { email: profile.userEmail } });
     return {
       email: profile.userEmail,
       name: user?.name ?? profile.userEmail.split("@")[0],
-      memberNumber: profile.memberNumber!,
+      memberNumber: profile.memberNumber,
     };
   }
   throw new GrabGoError("Provide a member ID, RFID, app unlock, or signed-in account.");
