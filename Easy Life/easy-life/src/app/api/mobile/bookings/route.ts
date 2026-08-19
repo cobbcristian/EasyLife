@@ -87,5 +87,8 @@ export async function POST(request: Request) {
       time: `${booking.startTime} – ${booking.endTime}`,
       status: booking.status,
     },
+    chargeId: booking.chargeId ?? null,
+    feeAmount: booking.feeAmount ?? 0,
+    paymentRequired: Boolean(booking.chargeId && (booking.feeAmount ?? 0) > 0),
   });
 }

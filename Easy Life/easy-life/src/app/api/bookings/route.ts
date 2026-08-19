@@ -56,10 +56,13 @@ export async function POST(request: Request) {
     action: "Booking",
     detail: `${booking.amenity} — ${parsed.data.date}`,
   });
+  const needsPayment = Boolean(booking.chargeId && (booking.feeAmount ?? 0) > 0);
   try {
     await sendPushToUser(session.email, {
-      title: "Booking confirmed",
-      body: `${booking.amenity} on ${parsed.data.date} at ${parsed.data.startTime}`,
+      title: needsPayment ? "Booking reserved — payment due" : "Booking confirmed",
+      body: needsPayment
+        ? `${booking.amenity} on ${parsed.data.date} at ${parsed.data.startTime} — complete payment to confirm`
+        : `${booking.amenity} on ${parsed.data.date} at ${parsed.data.startTime}`,
       url: `/member/reservations/${booking.id}?added=1`,
     });
   } catch {
@@ -68,5 +71,11 @@ export async function POST(request: Request) {
   revalidatePath("/member/bookings");
   revalidatePath("/member/calendar");
   revalidatePath(`/member/reservations/${booking.id}`);
-  return NextResponse.json({ ok: true, booking });
+  return NextResponse.json({
+    ok: true,
+    booking,
+    chargeId: booking.chargeId ?? null,
+    feeAmount: booking.feeAmount ?? 0,
+    paymentRequired: needsPayment,
+  });
 }

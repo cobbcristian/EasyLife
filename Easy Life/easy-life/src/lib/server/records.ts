@@ -19,7 +19,11 @@ import { sendPushToUser } from "@/lib/server/push";
 import { sendEmail } from "@/lib/server/notify";
 import { addMemberInboxItem } from "@/lib/server/project-management";
 import { appPath } from "@/lib/server/app-url";
-import { initialBookingStatus } from "@/lib/amenity-booking-policy";
+import {
+  AMENITY_BOOKING_CHARGE_REF,
+  bookingStatusAfterAmenityFeePaid,
+  initialBookingStatus,
+} from "@/lib/amenity-booking-policy";
 import { serializeTiebreakers, DEFAULT_TIEBREAKERS } from "@/lib/tournament-tiebreakers";
 import { DEFAULT_NO_START_POLICY } from "@/lib/tournament-no-start";
 import type { TiebreakerCriterion } from "@/lib/tournament-tiebreakers";
@@ -525,6 +529,13 @@ async function loadCommunityWeather(
   return parseWeatherJson(row?.weatherJson);
 }
 
+export type CreatedBooking = Awaited<
+  ReturnType<typeof prisma.booking.create>
+> & {
+  chargeId?: string | null;
+  feeAmount?: number;
+};
+
 export async function createBooking(input: {
   communityId?: string | null;
   memberEmail: string;
@@ -540,7 +551,12 @@ export async function createBooking(input: {
   invites?: Array<{ email: string; name: string }>;
   /** Court add-ons stored on Booking.addonsJson */
   addons?: string[];
-}) {
+  /**
+   * Staff/admin bookings may waive the amenity fee and confirm immediately
+   * (when the amenity does not also require management approval).
+   */
+  waiveFee?: boolean;
+}): Promise<CreatedBooking> {
   const communityId = scope(input.communityId);
 
   const amenityRecord = input.amenityId
@@ -675,44 +691,110 @@ export async function createBooking(input: {
       ? normalizeCourtAddons(input.addons)
       : [];
 
-  // Slot is free (checked above). Auto-confirm unless this room needs staff approval.
-  const status = initialBookingStatus(amenityName);
+  const feeUsd = Number(amenityRecord?.fee ?? 0);
+  const billableFee = !input.waiveFee && feeUsd > 0 ? feeUsd : 0;
+  // Slot is free (checked above). Auto-confirm only when free + no staff gate.
+  const status = initialBookingStatus(amenityName, billableFee);
 
-  return prisma.booking.create({
-    data: {
-      communityId,
-      amenityId: amenityRecord?.id ?? null,
-      unitNumber,
-      memberEmail: input.memberEmail,
-      memberName: input.memberName,
-      amenity: amenityName,
-      date: input.date,
-      startTime: input.startTime,
-      endTime: input.endTime,
-      status,
-      inviteCapacity,
-      addonsJson: JSON.stringify(addons),
-    },
-  }).then(async (booking) => {
-    await scheduleBookingReminder(booking);
-    const hostEmail = input.memberEmail.trim().toLowerCase();
-    const invitees = (input.invites ?? []).filter(
-      (i) => i.email.trim().toLowerCase() !== hostEmail,
-    );
-    if (invitees.length > 0) {
-      await createBookingInvites({
-        bookingId: booking.id,
+  return prisma.booking
+    .create({
+      data: {
+        communityId,
+        amenityId: amenityRecord?.id ?? null,
+        unitNumber,
+        memberEmail: input.memberEmail,
+        memberName: input.memberName,
         amenity: amenityName,
         date: input.date,
         startTime: input.startTime,
         endTime: input.endTime,
-        hostName: input.memberName,
+        status,
         inviteCapacity,
-        invites: invitees,
+        addonsJson: JSON.stringify(addons),
+      },
+    })
+    .then(async (booking) => {
+      // Reminders only for confirmed holds — unpaid/pending should not notify yet.
+      if (booking.status === "confirmed") {
+        await scheduleBookingReminder(booking);
+      }
+      const hostEmail = input.memberEmail.trim().toLowerCase();
+      const invitees = (input.invites ?? []).filter(
+        (i) => i.email.trim().toLowerCase() !== hostEmail,
+      );
+      if (invitees.length > 0) {
+        await createBookingInvites({
+          bookingId: booking.id,
+          amenity: amenityName,
+          date: input.date,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          hostName: input.memberName,
+          inviteCapacity,
+          invites: invitees,
+        });
+      }
+
+      if (billableFee <= 0) {
+        return { ...booking, chargeId: null, feeAmount: 0 };
+      }
+
+      const charge = await createMemberCharge({
+        communityId,
+        memberEmail: input.memberEmail,
+        memberName: input.memberName,
+        category: "amenity",
+        description: `${amenityName} booking — ${input.date} ${input.startTime}–${input.endTime}`,
+        amount: billableFee,
+        status: "due",
+        referenceType: AMENITY_BOOKING_CHARGE_REF,
+        referenceId: booking.id,
       });
-    }
-    return booking;
+
+      return {
+        ...booking,
+        chargeId: charge.id,
+        feeAmount: billableFee,
+      };
+    });
+}
+
+/**
+ * When an amenity booking fee MemberCharge is paid, confirm the hold
+ * (unless the amenity still needs management approval).
+ */
+export async function confirmAmenityBookingByCharge(chargeId: string) {
+  const charge = await prisma.memberCharge.findUnique({
+    where: { id: chargeId },
   });
+  if (
+    !charge ||
+    charge.referenceType !== AMENITY_BOOKING_CHARGE_REF ||
+    !charge.referenceId
+  ) {
+    return null;
+  }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: charge.referenceId },
+  });
+  if (!booking || booking.status === "cancelled") {
+    return null;
+  }
+
+  const nextStatus = bookingStatusAfterAmenityFeePaid(booking.amenity);
+  if (booking.status === nextStatus) {
+    return booking;
+  }
+
+  const updated = await prisma.booking.update({
+    where: { id: booking.id },
+    data: { status: nextStatus },
+  });
+  if (updated.status === "confirmed") {
+    await scheduleBookingReminder(updated);
+  }
+  return updated;
 }
 
 export async function createBookingInvites(input: {

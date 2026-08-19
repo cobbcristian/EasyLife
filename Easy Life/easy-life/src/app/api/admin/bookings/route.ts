@@ -141,6 +141,8 @@ export async function POST(request: Request) {
       inviteCapacity: parsed.data.inviteCapacity,
       invites: parsed.data.invites,
       addons: parsed.data.addons,
+      // Front-desk / PM bookings are staff-initiated — do not hold for payment.
+      waiveFee: true,
     });
   } catch (err) {
     if (err instanceof BookingConflictError) {

@@ -13,10 +13,33 @@ export function amenityRequiresManagementApproval(amenityName: string): boolean 
 
 /**
  * Initial booking status after a successful create.
- * Free-slot amenities → confirmed; approval rooms → pending.
+ * - Management-approval rooms → pending (staff)
+ * - Paid amenities (fee > 0) → pending until MemberCharge is settled
+ * - Otherwise → confirmed when the slot is free
  */
-export function initialBookingStatus(amenityName: string): "confirmed" | "pending" {
+export function initialBookingStatus(
+  amenityName: string,
+  feeUsd = 0,
+): "confirmed" | "pending" {
+  if (amenityRequiresManagementApproval(amenityName)) {
+    return "pending";
+  }
+  if (Number(feeUsd) > 0) {
+    return "pending";
+  }
+  return "confirmed";
+}
+
+/**
+ * Status after an amenity booking fee charge is marked paid.
+ * Management-approval rooms stay pending for staff; others confirm.
+ */
+export function bookingStatusAfterAmenityFeePaid(
+  amenityName: string,
+): "confirmed" | "pending" {
   return amenityRequiresManagementApproval(amenityName)
     ? "pending"
     : "confirmed";
 }
+
+export const AMENITY_BOOKING_CHARGE_REF = "amenity_booking" as const;
