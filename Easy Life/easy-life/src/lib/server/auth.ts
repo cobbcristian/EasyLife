@@ -23,7 +23,7 @@ function getKey(): Uint8Array {
 export async function createSessionToken(
   payload: SessionPayload,
 ): Promise<string> {
-  return new SignJWT({ ...payload })
+  return new SignJWT({ purpose: "session", ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
@@ -54,9 +54,17 @@ export async function verifySessionToken(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getKey());
+    // Reject MFA-pending, password-reset, calendar-feed, and other scoped JWTs.
+    // Legacy session cookies omit purpose; new tokens set purpose: "session".
+    if (payload.purpose != null && payload.purpose !== "session") {
+      return null;
+    }
+    if (typeof payload.sub !== "string" || typeof payload.email !== "string") {
+      return null;
+    }
     return {
-      sub: payload.sub as string,
-      email: payload.email as string,
+      sub: payload.sub,
+      email: payload.email,
       role: payload.role as SessionPayload["role"],
       name: payload.name as string,
       communityId: (payload.communityId as string | null | undefined) ?? null,

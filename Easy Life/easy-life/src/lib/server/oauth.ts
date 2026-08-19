@@ -258,7 +258,8 @@ export async function fetchOAuthProfile(
     providerUserId: sub,
     email,
     name,
-    emailVerified: Boolean(payload.email_verified ?? true),
+    // Email comes from Apple's token endpoint after auth code exchange.
+    emailVerified: true,
   };
 }
 

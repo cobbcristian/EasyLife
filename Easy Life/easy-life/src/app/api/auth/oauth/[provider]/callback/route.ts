@@ -66,6 +66,12 @@ async function completeOAuthLogin(opts: {
     opts.appleUserName,
   );
 
+  if (!profile.emailVerified) {
+    return loginErrorRedirect(
+      "Your SSO email is not verified. Verify it with the provider, then try again.",
+    );
+  }
+
   const user = await findUserByEmail(profile.email);
   if (!user) {
     // Import/register first — don't invent incomplete HOA accounts via SSO.

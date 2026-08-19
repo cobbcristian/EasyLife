@@ -9,6 +9,11 @@ const RECOVERY_CODE_COUNT = 8;
 function authKey(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "AUTH_SECRET must be set in production. Generate a long random string and set it in Vercel env.",
+      );
+    }
     return new TextEncoder().encode(
       "easy-life-dev-secret-change-in-production",
     );
