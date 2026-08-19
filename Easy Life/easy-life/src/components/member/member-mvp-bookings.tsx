@@ -333,13 +333,18 @@ export function MemberMvpBookings({
     }
     const created = await res.json();
     const bookingId = created?.booking?.id as string | undefined;
+    const chargeId = created?.chargeId as string | undefined;
+    const feeAmount = Number(created?.feeAmount ?? 0);
+    const paymentRequired =
+      Boolean(created?.paymentRequired) || Boolean(chargeId && feeAmount > 0);
 
-    if (amenity.fee > 0) {
+    if (paymentRequired && chargeId) {
       const pay = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: amenity.fee,
+          chargeId,
+          amount: feeAmount,
           description: `${amenity.name} booking — ${formatDate(date)}`,
           returnPath: bookingId
             ? `/member/reservations/${bookingId}?added=1`
@@ -362,16 +367,23 @@ export function MemberMvpBookings({
         toast({
           variant: "success",
           title: t("Booking confirmed"),
-          description: `${amenity.name} — ${formatCurrency(amenity.fee)} paid.`,
+          description: `${amenity.name} — ${formatCurrency(feeAmount)} paid.`,
         });
         router.refresh();
         return;
       }
       toast({
         variant: "info",
-        title: t("Booking requested"),
-        description: t("Complete payment from Payments if checkout did not open."),
+        title: t("Booking reserved"),
+        description: t("Complete payment from Payments to confirm this booking."),
       });
+      setBusy(false);
+      setSheetOpen(false);
+      if (bookingId) {
+        router.push(`/member/reservations/${bookingId}?added=1`);
+        router.refresh();
+      }
+      return;
     }
 
     setSelectedInvitees([]);

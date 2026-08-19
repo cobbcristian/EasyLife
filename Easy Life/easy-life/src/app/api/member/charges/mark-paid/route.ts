@@ -4,7 +4,7 @@ import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
-import { listMemberCharges, updateMemberChargeStatus } from "@/lib/server/records";
+import { listMemberCharges, updateMemberChargeStatus, confirmAmenityBookingByCharge } from "@/lib/server/records";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -33,5 +33,6 @@ export async function POST(request: Request) {
   await updateMemberChargeStatus(body.chargeId, "paid");
   await activateSharedCalendarByCharge(body.chargeId);
   await markEscrowHeldByCharge(body.chargeId);
+  await confirmAmenityBookingByCharge(body.chargeId);
   return NextResponse.json({ ok: true });
 }

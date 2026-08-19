@@ -4,7 +4,10 @@ import {
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import {
+  confirmAmenityBookingByCharge,
+  updateMemberChargeStatus,
+} from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
@@ -47,6 +50,7 @@ export async function POST(request: Request) {
         await updateMemberChargeStatus(chargeId, "paid");
         await activateSharedCalendarByCharge(chargeId);
         await markEscrowHeldByCharge(chargeId);
+        await confirmAmenityBookingByCharge(chargeId);
       }
     }
   }

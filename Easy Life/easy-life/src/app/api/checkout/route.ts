@@ -8,15 +8,20 @@ import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
 } from "@/lib/server/payment-methods";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import {
+  confirmAmenityBookingByCharge,
+  updateMemberChargeStatus,
+} from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
+import { prisma } from "@/lib/server/prisma";
 
 async function afterChargePaid(chargeId: string | undefined) {
   if (!chargeId) return;
   await updateMemberChargeStatus(chargeId, "paid");
   await activateSharedCalendarByCharge(chargeId);
   await markEscrowHeldByCharge(chargeId);
+  await confirmAmenityBookingByCharge(chargeId);
 }
 
 export async function POST(request: Request) {
@@ -39,14 +44,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const amount = Number(body.amount);
+  // Prefer server-side charge amount when a chargeId is supplied — never trust
+  // the client for amenity booking / ledger settlements.
+  let amount = Number(body.amount);
+  let description = body.description ?? "Club payment";
+  if (body.chargeId) {
+    const charge = await prisma.memberCharge.findUnique({
+      where: { id: body.chargeId },
+    });
+    if (!charge) {
+      return NextResponse.json({ error: "Charge not found" }, { status: 404 });
+    }
+    if (
+      charge.memberEmail &&
+      charge.memberEmail.toLowerCase() !== session.email.toLowerCase()
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (charge.status === "paid") {
+      await confirmAmenityBookingByCharge(charge.id);
+      return NextResponse.json({
+        ok: true,
+        paid: true,
+        mode: "already_paid",
+        returnPath: `${body.returnPath ?? "/member/payments"}?payment=success&chargeId=${charge.id}`,
+      });
+    }
+    amount = Number(charge.amount);
+    description = charge.description || description;
+  }
+
   if (!amount || amount <= 0) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
   const returnPath = body.returnPath ?? "/member/payments";
-  const description = body.description ?? "Club payment";
 
   const settings = await getPaymentSettings(session.email);
   const useStored =
@@ -87,7 +120,7 @@ export async function POST(request: Request) {
         paid: true,
         mode: "stored",
         method: defaultMethod,
-        returnPath: `${returnPath}?payment=success`,
+        returnPath: `${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Payment failed";
@@ -105,7 +138,7 @@ export async function POST(request: Request) {
         ok: true,
         paid: true,
         mode: "demo",
-        returnPath: `${returnPath}?payment=success`,
+        returnPath: `${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
       });
     }
     return NextResponse.json(
@@ -132,7 +165,9 @@ export async function POST(request: Request) {
       ],
       success_url: `${origin}${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
       cancel_url: `${origin}${returnPath}?payment=cancelled`,
-      metadata: body.chargeId ? { chargeId: body.chargeId, userEmail: session.email } : undefined,
+      metadata: body.chargeId
+        ? { chargeId: body.chargeId, userEmail: session.email }
+        : undefined,
     });
     return NextResponse.json({ url: checkout.url, mode: "checkout" });
   } catch {
