@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
 import { createGroupMessage, ensureRecordsSeeded, listGroupMessages } from "@/lib/server/records";
+import { prisma } from "@/lib/server/prisma";
+
+async function assertGroupAccess(groupId: string, communityId?: string | null) {
+  const group = await prisma.communityGroup.findUnique({ where: { id: groupId } });
+  if (!group) return { ok: false as const, status: 404 as const, error: "Group not found" };
+  if (communityId && group.communityId !== communityId) {
+    return { ok: false as const, status: 403 as const, error: "Forbidden" };
+  }
+  return { ok: true as const, group };
+}
 
 export async function GET(
   _request: Request,
@@ -9,6 +20,12 @@ export async function GET(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { groupId } = await params;
+  if (!isSuperAdmin(session)) {
+    const access = await assertGroupAccess(groupId, session.communityId);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+  }
   await ensureRecordsSeeded();
   const messages = await listGroupMessages(groupId, session.communityId);
   return NextResponse.json({ messages });
@@ -21,6 +38,12 @@ export async function POST(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { groupId } = await params;
+  if (!isSuperAdmin(session)) {
+    const access = await assertGroupAccess(groupId, session.communityId);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+  }
   let body: { body?: string };
   try {
     body = await request.json();

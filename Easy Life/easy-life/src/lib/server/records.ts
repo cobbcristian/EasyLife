@@ -1591,7 +1591,16 @@ export async function createApparelOrder(input: {
   return order;
 }
 
-export async function updateApparelOrderStatus(id: string, status: string) {
+export async function updateApparelOrderStatus(
+  id: string,
+  status: string,
+  communityId?: string | null,
+) {
+  const existing = await prisma.apparelOrder.findUnique({ where: { id } });
+  if (!existing) return null;
+  if (communityId && existing.communityId !== scope(communityId)) {
+    return null;
+  }
   return prisma.apparelOrder.update({ where: { id }, data: { status } });
 }
 
@@ -2840,7 +2849,16 @@ export async function createCheckin(input: {
   });
 }
 
-export async function updateCheckinStatus(id: string, status: string) {
+export async function updateCheckinStatus(
+  id: string,
+  status: string,
+  communityId?: string | null,
+) {
+  const existing = await prisma.checkin.findUnique({ where: { id } });
+  if (!existing) return null;
+  if (communityId && existing.communityId !== scope(communityId)) {
+    return null;
+  }
   return prisma.checkin.update({ where: { id }, data: { status } });
 }
 
@@ -2855,7 +2873,13 @@ export async function updateRegistration(
   id: string,
   field: "vehicle" | "pet" | "fingerprint",
   value: boolean,
+  communityId?: string | null,
 ) {
+  const existing = await prisma.registrationChecklist.findUnique({ where: { id } });
+  if (!existing) return null;
+  if (communityId && existing.communityId !== scope(communityId)) {
+    return null;
+  }
   return prisma.registrationChecklist.update({
     where: { id },
     data: { [field]: value },

@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
+import type { SessionPayload } from "@/lib/types";
+
+function canAccessKnowledgeCommunity(
+  session: SessionPayload,
+  articleCommunityId: string,
+): boolean {
+  if (isSuperAdmin(session)) return true;
+  return !!session.communityId && session.communityId === articleCommunityId;
+}
 
 export async function GET(
   req: NextRequest,
@@ -16,6 +26,10 @@ export async function GET(
 
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
+  if (!canAccessKnowledgeCommunity(session, article.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (!article.published && session.role === "member") {
@@ -48,6 +62,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
+  if (!canAccessKnowledgeCommunity(session, article.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const updated = await prisma.knowledgeArticle.update({
     where: { id },
     data: {
@@ -73,6 +91,15 @@ export async function DELETE(
   }
 
   const { id } = await params;
+
+  const article = await prisma.knowledgeArticle.findUnique({ where: { id } });
+  if (!article) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
+  if (!canAccessKnowledgeCommunity(session, article.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await prisma.knowledgeArticle.delete({ where: { id } });
 

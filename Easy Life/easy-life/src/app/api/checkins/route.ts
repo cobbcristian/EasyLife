@@ -132,7 +132,14 @@ export async function PATCH(request: Request) {
     });
   }
 
-  await updateCheckinStatus(body.id, body.status);
+  const updated = await updateCheckinStatus(
+    body.id,
+    body.status,
+    session.communityId,
+  );
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/pm/front-desk");
   revalidatePath("/pm");
   return NextResponse.json({ ok: true });

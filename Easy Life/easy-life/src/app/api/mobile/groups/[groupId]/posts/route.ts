@@ -6,6 +6,19 @@ import {
   listGroupPosts,
   toggleGroupPostLike,
 } from "@/lib/server/project-management";
+import { prisma } from "@/lib/server/prisma";
+
+async function assertGroupInCommunity(
+  groupId: string,
+  communityId?: string | null,
+) {
+  const group = await prisma.communityGroup.findUnique({ where: { id: groupId } });
+  if (!group) return { ok: false as const, status: 404 as const, error: "Group not found" };
+  if (!communityId || group.communityId !== communityId) {
+    return { ok: false as const, status: 403 as const, error: "Forbidden" };
+  }
+  return { ok: true as const, group };
+}
 
 export async function GET(
   request: Request,
@@ -16,6 +29,10 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { groupId } = await params;
+  const access = await assertGroupInCommunity(groupId, session.communityId);
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
   const posts = await listGroupPosts(groupId, session.email);
   return NextResponse.json({ posts });
 }
@@ -29,6 +46,10 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { groupId } = await params;
+  const access = await assertGroupInCommunity(groupId, session.communityId);
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
   let body: {
     action?: "create" | "like" | "comment";
     text?: string;
