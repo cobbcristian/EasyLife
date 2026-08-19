@@ -335,12 +335,24 @@ export async function chargeStoredPaymentMethod(input: {
     throw new Error("No payment method on file");
   }
 
-  if (!method.stripePaymentMethodId || !isStripeConfigured()) {
-    return { status: "paid" };
+  // Demo cards (no Stripe PM id) may settle only when demo payments are allowed.
+  // Never treat a missing Stripe PM as paid while live Stripe is configured.
+  if (!isStripeConfigured() || !method.stripePaymentMethodId) {
+    if (isDemoPaymentAllowed()) {
+      return { status: "paid" };
+    }
+    throw new Error(
+      method.stripePaymentMethodId
+        ? "Payments are not configured"
+        : "This card is not linked to Stripe. Add a card via Stripe setup.",
+    );
   }
 
   const stripe = getStripe();
-  if (!stripe) return { status: "paid" };
+  if (!stripe) {
+    if (isDemoPaymentAllowed()) return { status: "paid" };
+    throw new Error("Payments are not configured");
+  }
 
   const ext = await ensureProfileExt(key);
   const customerId =

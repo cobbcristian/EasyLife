@@ -99,7 +99,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "ID and status required" }, { status: 400 });
   }
 
-  const updated = await updateApparelOrderStatus(body.id, body.status);
+  const communityId =
+    session.role === "admin"
+      ? await resolveScopedCommunityId(session)
+      : session.communityId;
+  const updated = await updateApparelOrderStatus(
+    body.id,
+    body.status,
+    communityId,
+  );
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/apparel");
   return NextResponse.json({ ok: true, order: updated });
 }

@@ -4,6 +4,7 @@ import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
+import { markLessonPaidAndConfirm } from "@/lib/server/lessons";
 import { listMemberCharges, updateMemberChargeStatus } from "@/lib/server/records";
 
 export async function POST(request: Request) {
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
   }
 
   await updateMemberChargeStatus(body.chargeId, "paid");
+  await markLessonPaidAndConfirm(body.chargeId);
   await activateSharedCalendarByCharge(body.chargeId);
   await markEscrowHeldByCharge(body.chargeId);
   return NextResponse.json({ ok: true });

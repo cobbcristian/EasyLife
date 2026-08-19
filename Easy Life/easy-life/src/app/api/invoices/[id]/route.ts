@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canResolveInvoice } from "@/lib/server/invoice-auth";
+import { prisma } from "@/lib/server/prisma";
 import { updateInvoiceStatus } from "@/lib/server/records";
 
 export async function PATCH(
@@ -21,6 +23,15 @@ export async function PATCH(
   if (body.status !== "approved" && body.status !== "rejected") {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
+
+  const invoice = await prisma.invoice.findUnique({ where: { id } });
+  if (!invoice) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!canResolveInvoice(session, invoice.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   await updateInvoiceStatus(id, body.status);
   revalidatePath("/board/invoices");
   revalidatePath("/pm/invoices");

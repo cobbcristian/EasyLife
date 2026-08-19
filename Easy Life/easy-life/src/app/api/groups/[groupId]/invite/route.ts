@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { inviteToGroup } from "@/lib/server/member-api-store";
 import { prisma } from "@/lib/server/prisma";
+import { isSuperAdmin } from "@/lib/server/community-context";
 
 export async function POST(
   request: Request,
@@ -13,6 +14,13 @@ export async function POST(
   const { groupId } = await params;
   const group = await prisma.communityGroup.findUnique({ where: { id: groupId } });
   if (!group) return NextResponse.json({ error: "Group not found" }, { status: 404 });
+
+  if (
+    !isSuperAdmin(session) &&
+    (!session.communityId || group.communityId !== session.communityId)
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   let body: { email?: string };
   try {

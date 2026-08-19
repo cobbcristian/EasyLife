@@ -4,6 +4,7 @@ import {
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
+import { markLessonPaidAndConfirm } from "@/lib/server/lessons";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
         await markHoaChargePaid(chargeId);
       } else {
         await updateMemberChargeStatus(chargeId, "paid");
+        await markLessonPaidAndConfirm(chargeId);
         await activateSharedCalendarByCharge(chargeId);
         await markEscrowHeldByCharge(chargeId);
       }

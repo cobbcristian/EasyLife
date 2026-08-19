@@ -104,7 +104,15 @@ export async function POST(request: Request) {
       onCourse: body.onCourse,
       notes: body.notes,
     });
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({
+      ok: true,
+      needsPayment: true,
+      chargeId: result.charge.id,
+      amount: result.charge.amount,
+      description: result.charge.description,
+      lesson: result.lesson,
+      amenityBooking: result.amenityBooking,
+    });
   } catch (err) {
     if (err instanceof LessonConflictError || err instanceof MembershipAccessError) {
       return NextResponse.json(

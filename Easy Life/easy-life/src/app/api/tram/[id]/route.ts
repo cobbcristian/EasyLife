@@ -19,6 +19,18 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const isStaff = session.role === "pm" || session.role === "admin";
+  if (!isStaff && tramRequest.memberEmail !== session.email) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (
+    isStaff &&
+    session.communityId &&
+    tramRequest.communityId !== session.communityId
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   return NextResponse.json(tramRequest);
 }
 
@@ -42,6 +54,13 @@ export async function PATCH(
 
   // Members can only cancel their own requests
   if (!isPM && existing.memberEmail !== session.email) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (
+    isPM &&
+    session.communityId &&
+    existing.communityId !== session.communityId
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -144,6 +163,14 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const existing = await prisma.tramRequest.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (session.communityId && existing.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   await prisma.tramRequest.delete({ where: { id } });
 
   return NextResponse.json({ success: true });

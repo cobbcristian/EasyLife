@@ -370,13 +370,20 @@ export async function listGroupsForMember(email: string, communityId?: string | 
   }));
 }
 
-export async function toggleGroupMembership(email: string, groupId: string) {
+export async function toggleGroupMembership(
+  email: string,
+  groupId: string,
+  communityId?: string | null,
+) {
   const key = email.toLowerCase();
+  const group = await prisma.communityGroup.findUnique({ where: { id: groupId } });
+  if (!group) return null;
+  if (communityId && group.communityId !== communityId.trim()) {
+    return null;
+  }
   const existing = await prisma.groupMembership.findFirst({
     where: { groupId, userEmail: key },
   });
-  const group = await prisma.communityGroup.findUnique({ where: { id: groupId } });
-  if (!group) return null;
   if (existing) {
     await prisma.groupMembership.delete({ where: { id: existing.id } });
     await prisma.communityGroup.update({

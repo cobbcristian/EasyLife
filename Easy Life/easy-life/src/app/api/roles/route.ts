@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { getRoleMatrix, saveRoleMatrix } from "@/lib/server/records";
+import { isSuperAdmin } from "@/lib/server/community-context";
 
 export async function GET() {
   const session = await getSession();
@@ -12,7 +13,8 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  // Global permission matrix affects every club — only platform super-admins may write.
+  if (!session || !isSuperAdmin(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: { matrix?: Record<string, string[]> };
