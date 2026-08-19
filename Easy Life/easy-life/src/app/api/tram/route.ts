@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     where.status = status;
   }
   
-  if (myRequests) {
+  if (myRequests || session.role === "member") {
     where.memberEmail = session.email;
   }
 

@@ -4,6 +4,7 @@ import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
+import { markLessonPaidAndConfirm } from "@/lib/server/lessons";
 import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
@@ -15,6 +16,7 @@ import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 async function afterChargePaid(chargeId: string | undefined) {
   if (!chargeId) return;
   await updateMemberChargeStatus(chargeId, "paid");
+  await markLessonPaidAndConfirm(chargeId);
   await activateSharedCalendarByCharge(chargeId);
   await markEscrowHeldByCharge(chargeId);
 }

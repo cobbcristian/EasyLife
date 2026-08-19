@@ -26,6 +26,9 @@ export async function PATCH(
   if (!isStaff && !isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (isStaff && session.communityId && pkg.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const updateData: Record<string, unknown> = {};
 
@@ -62,6 +65,14 @@ export async function DELETE(
   }
 
   const { id } = await params;
+
+  const pkg = await prisma.package.findUnique({ where: { id } });
+  if (!pkg) {
+    return NextResponse.json({ error: "Package not found" }, { status: 404 });
+  }
+  if (session.communityId && pkg.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await prisma.package.delete({ where: { id } });
 

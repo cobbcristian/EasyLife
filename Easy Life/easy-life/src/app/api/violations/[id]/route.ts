@@ -24,6 +24,9 @@ export async function GET(
   if (!isStaff && !isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (isStaff && session.communityId && violation.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   return NextResponse.json(violation);
 }
@@ -51,6 +54,9 @@ export async function PATCH(
 
   if (!isStaff && !isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (isStaff && session.communityId && violation.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const updateData: Record<string, unknown> = {};
@@ -95,6 +101,14 @@ export async function DELETE(
   }
 
   const { id } = await params;
+
+  const violation = await prisma.violation.findUnique({ where: { id } });
+  if (!violation) {
+    return NextResponse.json({ error: "Violation not found" }, { status: 404 });
+  }
+  if (session.communityId && violation.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await prisma.violation.delete({ where: { id } });
 

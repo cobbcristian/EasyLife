@@ -23,6 +23,33 @@ export class LessonConflictError extends Error {
 
 export type LessonSport = "tennis" | "golf" | "pickleball";
 
+/** Server-side lesson price — never trust a client amount. */
+export function lessonFeeDollars(input: {
+  communityId: string;
+  sport: LessonSport;
+  onCourse?: boolean;
+}): number {
+  if (input.communityId === "heritage-bay" && input.sport === "golf") return 110;
+  if (input.sport === "tennis" || input.sport === "pickleball") return 85;
+  return input.onCourse ? 120 : 75;
+}
+
+export function lessonOfferingName(sport: LessonSport, onCourse?: boolean): string {
+  if (sport === "tennis") return "Private Tennis Lesson";
+  if (sport === "pickleball") return "Private Pickleball Lesson";
+  return onCourse
+    ? "Private Golf Lesson (Course)"
+    : "Private Golf Lesson (Range)";
+}
+
+/** Lessons stay pending until the MemberCharge is settled. */
+export function lessonInitialStatuses(): {
+  lesson: "pending_payment";
+  amenityHold: "pending";
+} {
+  return { lesson: "pending_payment", amenityHold: "pending" };
+}
+
 async function findLessonAmenity(input: {
   communityId: string;
   sport: LessonSport;
@@ -383,22 +410,12 @@ export async function createLessonBooking(input: {
     endTime,
   );
 
-  const fee =
-    input.communityId === "heritage-bay" && input.sport === "golf"
-      ? 110
-      : input.sport === "tennis" || input.sport === "pickleball"
-      ? 85
-      : input.onCourse
-        ? 120
-        : 75;
-  const offeringName =
-    input.sport === "tennis"
-      ? "Private Tennis Lesson"
-      : input.sport === "pickleball"
-        ? "Private Pickleball Lesson"
-        : input.onCourse
-          ? "Private Golf Lesson (Course)"
-          : "Private Golf Lesson (Range)";
+  const fee = lessonFeeDollars({
+    communityId: input.communityId,
+    sport: input.sport,
+    onCourse: input.onCourse,
+  });
+  const offeringName = lessonOfferingName(input.sport, input.onCourse);
 
   const charge = await prisma.memberCharge.create({
     data: {
@@ -414,6 +431,8 @@ export async function createLessonBooking(input: {
     },
   });
 
+  // Soft-hold the court/lane as pending until the lesson charge is paid.
+  // Confirmed status (and a usable reservation) only after settlement.
   const lesson = await prisma.lessonBooking.create({
     data: {
       communityId: input.communityId,
@@ -428,7 +447,7 @@ export async function createLessonBooking(input: {
       startTime: input.startTime,
       endTime,
       amenityId: amenity.id,
-      status: "confirmed",
+      status: "pending_payment",
       fee,
       chargeId: charge.id,
       notes: input.notes ?? null,
@@ -446,7 +465,7 @@ export async function createLessonBooking(input: {
       date: input.date,
       startTime: input.startTime,
       endTime,
-      status: "confirmed",
+      status: "pending",
       bookingKind: "lesson_hold",
       providerId: provider.id,
       lessonBookingId: lesson.id,
@@ -463,7 +482,48 @@ export async function createLessonBooking(input: {
     data: { referenceId: lesson.id },
   });
 
-  return { lesson, amenityBooking: hold, charge };
+  return {
+    lesson,
+    amenityBooking: hold,
+    charge,
+    needsPayment: true as const,
+  };
+}
+
+/** Confirm a lesson + amenity hold after the linked MemberCharge is paid. */
+export async function markLessonPaidAndConfirm(chargeId: string) {
+  const charge = await prisma.memberCharge.findUnique({ where: { id: chargeId } });
+  if (!charge || charge.referenceType !== "lesson") {
+    return null;
+  }
+
+  if (charge.status !== "paid") {
+    await prisma.memberCharge.update({
+      where: { id: charge.id },
+      data: { status: "paid" },
+    });
+  }
+
+  const lesson = await prisma.lessonBooking.findFirst({
+    where: { chargeId: charge.id },
+  });
+  if (!lesson) return charge;
+
+  if (lesson.status !== "confirmed") {
+    await prisma.lessonBooking.update({
+      where: { id: lesson.id },
+      data: { status: "confirmed" },
+    });
+  }
+
+  if (lesson.amenityBookingId) {
+    await prisma.booking.update({
+      where: { id: lesson.amenityBookingId },
+      data: { status: "confirmed" },
+    });
+  }
+
+  return charge;
 }
 
 export async function listMemberLessons(memberEmail: string) {

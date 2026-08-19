@@ -146,6 +146,41 @@ export function MemberLessonsClient() {
       toast({ variant: "warning", title: data.error ?? t("Could not book lesson") });
       return;
     }
+    if (data.needsPayment && data.chargeId) {
+      toast({
+        variant: "success",
+        title: t("Lesson reserved — complete payment to confirm"),
+      });
+      try {
+        const payRes = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: data.amount,
+            description: data.description ?? "Lesson",
+            returnPath: "/member/lessons",
+            chargeId: data.chargeId,
+          }),
+        });
+        const pay = await payRes.json().catch(() => ({}));
+        if (payRes.ok && pay.url) {
+          window.location.href = pay.url;
+          return;
+        }
+        if (payRes.ok && pay.paid) {
+          toast({
+            variant: "success",
+            title: t("Lesson booked — court reserved"),
+          });
+          load();
+          return;
+        }
+      } catch {
+        /* fall through to payments list */
+      }
+      window.location.href = "/member/payments";
+      return;
+    }
     const successTitle =
       sport === "tennis" || sport === "pickleball"
         ? t("Lesson booked — court reserved")
