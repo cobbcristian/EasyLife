@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 import { deleteAmenity, setAmenityPlayability } from "@/lib/server/records";
+import { prisma } from "@/lib/server/prisma";
 
 export async function PATCH(
   request: Request,
@@ -26,13 +29,25 @@ export async function PATCH(
   if (typeof body.playable !== "boolean") {
     return NextResponse.json({ error: "playable boolean required" }, { status: 400 });
   }
+
+  const existing = await prisma.amenity.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (
+    !isSuperAdmin(session) &&
+    !canMutateCommunityResource(session.communityId, existing.communityId)
+  ) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const updated = await setAmenityPlayability({
     amenityId: id,
     playable: body.playable,
     reason: body.reason,
     until: body.until,
     authorName: session.name,
-    communityId: session.communityId,
+    communityId: isSuperAdmin(session) ? existing.communityId : session.communityId,
     broadcast: body.broadcast !== false,
   });
   if (!updated) {
@@ -52,7 +67,23 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  await deleteAmenity(id);
+  const existing = await prisma.amenity.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (
+    !isSuperAdmin(session) &&
+    !canMutateCommunityResource(session.communityId, existing.communityId)
+  ) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const ok = await deleteAmenity(
+    id,
+    isSuperAdmin(session) ? null : session.communityId,
+  );
+  if (!ok) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/amenities");
   return NextResponse.json({ ok: true });
 }
