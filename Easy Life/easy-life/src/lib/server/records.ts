@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
+import { canManageCommunityEvent } from "@/lib/server/event-organizer-auth";
 import {
   assignUnitNumber,
   availabilityWindows,
@@ -498,17 +499,51 @@ export async function getEventReservationDetail(
   };
 }
 
+export async function resolveLegacyEventOrganizerEmail(
+  eventId: string,
+  createdBy: string,
+): Promise<string | null> {
+  const organizer = await prisma.eventRsvp.findFirst({
+    where: {
+      eventId,
+      memberName: { equals: createdBy, mode: "insensitive" },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { memberEmail: true },
+  });
+  return organizer?.memberEmail ?? null;
+}
+
 export async function cancelCommunityEvent(
   eventId: string,
-  memberName: string,
+  actor: {
+    email: string;
+    name: string;
+    role: string;
+    communityId?: string | null;
+  },
 ) {
   const event = await prisma.communityEvent.findUnique({ where: { id: eventId } });
   if (!event) return null;
+
+  const legacyOrganizerEmail = event.createdByEmail
+    ? null
+    : await resolveLegacyEventOrganizerEmail(eventId, event.createdBy);
+
   if (
-    event.createdBy.trim().toLowerCase() !== memberName.trim().toLowerCase()
+    !canManageCommunityEvent(
+      {
+        createdBy: event.createdBy,
+        createdByEmail: event.createdByEmail,
+        communityId: event.communityId,
+        legacyOrganizerEmail,
+      },
+      actor,
+    )
   ) {
     return null;
   }
+
   await prisma.eventInvite.deleteMany({ where: { eventId } });
   await prisma.eventRsvp.deleteMany({ where: { eventId } });
   await prisma.communityEvent.delete({ where: { id: eventId } });
@@ -3320,6 +3355,7 @@ export async function createCommunityEvent(input: {
   requirePayment?: boolean;
   feeCents?: number;
   createdBy: string;
+  createdByEmail?: string | null;
 }) {
   return prisma.communityEvent.create({
     data: {
@@ -3336,6 +3372,7 @@ export async function createCommunityEvent(input: {
       requirePayment: input.requirePayment ?? false,
       feeCents: input.feeCents ?? 0,
       createdBy: input.createdBy,
+      createdByEmail: input.createdByEmail?.trim().toLowerCase() || null,
     },
   });
 }

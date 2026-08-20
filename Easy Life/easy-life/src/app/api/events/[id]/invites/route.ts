@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canManageCommunityEvent } from "@/lib/server/event-organizer-auth";
 import { createEventInvites } from "@/lib/server/project-management";
 import { prisma } from "@/lib/server/prisma";
+import { resolveLegacyEventOrganizerEmail } from "@/lib/server/records";
 
 export async function POST(
   request: Request,
@@ -36,8 +38,26 @@ export async function POST(
   if (!event) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  const legacyOrganizerEmail = event.createdByEmail
+    ? null
+    : await resolveLegacyEventOrganizerEmail(id, event.createdBy);
+
   if (
-    event.createdBy.trim().toLowerCase() !== session.name.trim().toLowerCase()
+    !canManageCommunityEvent(
+      {
+        createdBy: event.createdBy,
+        createdByEmail: event.createdByEmail,
+        communityId: event.communityId,
+        legacyOrganizerEmail,
+      },
+      {
+        email: session.email,
+        name: session.name,
+        role: session.role,
+        communityId: session.communityId,
+      },
+    )
   ) {
     return NextResponse.json(
       { error: "Only the organizer can invite" },
