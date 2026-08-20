@@ -1809,9 +1809,22 @@ export async function setAmenityPlayability(input: {
   authorName: string;
   communityId?: string | null;
   broadcast?: boolean;
+  /** When false, skip community ownership check (caller already authorized). Default true. */
+  enforceCommunity?: boolean;
 }) {
   const amenity = await prisma.amenity.findUnique({ where: { id: input.amenityId } });
   if (!amenity) return null;
+
+  // Club-scoped callers must only mutate amenities in their community.
+  // Platform super-admins pass communityId null/undefined and may act globally.
+  if (
+    input.enforceCommunity !== false &&
+    input.communityId != null &&
+    input.communityId !== "" &&
+    amenity.communityId !== input.communityId
+  ) {
+    return null;
+  }
 
   const updated = await prisma.amenity.update({
     where: { id: input.amenityId },
@@ -2107,8 +2120,22 @@ export async function respondBookingInvite(input: {
   return result.invite;
 }
 
-export async function deleteAmenity(id: string) {
-  return prisma.amenity.delete({ where: { id } });
+export async function deleteAmenity(
+  id: string,
+  communityId?: string | null,
+): Promise<boolean> {
+  const amenity = await prisma.amenity.findUnique({ where: { id } });
+  if (!amenity) return false;
+  // Club admins must match; platform super-admin omits communityId.
+  if (
+    communityId != null &&
+    communityId !== "" &&
+    amenity.communityId !== communityId
+  ) {
+    return false;
+  }
+  await prisma.amenity.delete({ where: { id } });
+  return true;
 }
 
 /** Partner / external activities (jet skis, boats) for communities that already have amenity seed. */
