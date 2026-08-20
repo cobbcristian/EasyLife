@@ -624,8 +624,12 @@ model CommunityEvent {
   requirePayment Boolean     @default(false)
   feeCents       Int         @default(0)
   createdBy      String
+  /** Organizer email — required for cancel/invite auth (name alone collides). */
+  createdByEmail String?
   createdAt      DateTime    @default(now())
   rsvps          EventRsvp[]
+
+  @@index([createdByEmail])
 }
 
 /// Member-initiated refund request for a paid booking/activity (Project Management #5).

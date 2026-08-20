@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
+import { canManageCommunityEvent } from "@/lib/server/event-organizer-auth";
 import {
   assignUnitNumber,
   availabilityWindows,
@@ -498,17 +499,51 @@ export async function getEventReservationDetail(
   };
 }
 
+export async function resolveLegacyEventOrganizerEmail(
+  eventId: string,
+  createdBy: string,
+): Promise<string | null> {
+  const organizer = await prisma.eventRsvp.findFirst({
+    where: {
+      eventId,
+      memberName: { equals: createdBy, mode: "insensitive" },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { memberEmail: true },
+  });
+  return organizer?.memberEmail ?? null;
+}
+
 export async function cancelCommunityEvent(
   eventId: string,
-  memberName: string,
+  actor: {
+    email: string;
+    name: string;
+    role: string;
+    communityId?: string | null;
+  },
 ) {
   const event = await prisma.communityEvent.findUnique({ where: { id: eventId } });
   if (!event) return null;
+
+  const legacyOrganizerEmail = event.createdByEmail
+    ? null
+    : await resolveLegacyEventOrganizerEmail(eventId, event.createdBy);
+
   if (
-    event.createdBy.trim().toLowerCase() !== memberName.trim().toLowerCase()
+    !canManageCommunityEvent(
+      {
+        createdBy: event.createdBy,
+        createdByEmail: event.createdByEmail,
+        communityId: event.communityId,
+        legacyOrganizerEmail,
+      },
+      actor,
+    )
   ) {
     return null;
   }
+
   await prisma.eventInvite.deleteMany({ where: { eventId } });
   await prisma.eventRsvp.deleteMany({ where: { eventId } });
   await prisma.communityEvent.delete({ where: { id: eventId } });
@@ -1276,7 +1311,8 @@ export async function createRental(input: {
   memberName: string;
   item: string;
   days: number;
-  total: number;
+  /** @deprecated Ignored — total is always catalog.pricePerDay * days. */
+  total?: number;
   itemId?: string | null;
   flex?: string | null;
   startDate?: string | null;
@@ -1289,7 +1325,13 @@ export async function createRental(input: {
   let flex: string | null = input.flex?.trim() || null;
 
   const catalog = itemId ? findRentalCatalogItem(itemId) : undefined;
-  if (catalog?.flexOptions?.length) {
+  if (!catalog) {
+    throw new RentalConflictError("Unknown rental item.");
+  }
+  // Always bill from catalog — never trust client `total`.
+  const total = catalog.pricePerDay * days;
+
+  if (catalog.flexOptions?.length) {
     if (!flex || !isGolfClubFlex(flex)) {
       throw new RentalConflictError("Please choose a shaft flex for this rental.");
     }
@@ -1315,10 +1357,9 @@ export async function createRental(input: {
     flex = null;
   }
 
-  const displayItem =
-    catalog && flex
-      ? `${catalog.name} — ${flex as GolfClubFlex} flex`
-      : input.item;
+  const displayItem = flex
+    ? `${catalog.name} — ${flex as GolfClubFlex} flex`
+    : catalog.name;
 
   return prisma.rental.create({
     data: {
@@ -1331,7 +1372,7 @@ export async function createRental(input: {
       startDate,
       endDate,
       days,
-      total: input.total,
+      total,
       status: "reserved",
     },
   });
@@ -1803,9 +1844,22 @@ export async function setAmenityPlayability(input: {
   authorName: string;
   communityId?: string | null;
   broadcast?: boolean;
+  /** When false, skip community ownership check (caller already authorized). Default true. */
+  enforceCommunity?: boolean;
 }) {
   const amenity = await prisma.amenity.findUnique({ where: { id: input.amenityId } });
   if (!amenity) return null;
+
+  // Club-scoped callers must only mutate amenities in their community.
+  // Platform super-admins pass communityId null/undefined and may act globally.
+  if (
+    input.enforceCommunity !== false &&
+    input.communityId != null &&
+    input.communityId !== "" &&
+    amenity.communityId !== input.communityId
+  ) {
+    return null;
+  }
 
   const updated = await prisma.amenity.update({
     where: { id: input.amenityId },
@@ -2101,8 +2155,22 @@ export async function respondBookingInvite(input: {
   return result.invite;
 }
 
-export async function deleteAmenity(id: string) {
-  return prisma.amenity.delete({ where: { id } });
+export async function deleteAmenity(
+  id: string,
+  communityId?: string | null,
+): Promise<boolean> {
+  const amenity = await prisma.amenity.findUnique({ where: { id } });
+  if (!amenity) return false;
+  // Club admins must match; platform super-admin omits communityId.
+  if (
+    communityId != null &&
+    communityId !== "" &&
+    amenity.communityId !== communityId
+  ) {
+    return false;
+  }
+  await prisma.amenity.delete({ where: { id } });
+  return true;
 }
 
 /** Partner / external activities (jet skis, boats) for communities that already have amenity seed. */
@@ -3287,6 +3355,7 @@ export async function createCommunityEvent(input: {
   requirePayment?: boolean;
   feeCents?: number;
   createdBy: string;
+  createdByEmail?: string | null;
 }) {
   return prisma.communityEvent.create({
     data: {
@@ -3303,6 +3372,7 @@ export async function createCommunityEvent(input: {
       requirePayment: input.requirePayment ?? false,
       feeCents: input.feeCents ?? 0,
       createdBy: input.createdBy,
+      createdByEmail: input.createdByEmail?.trim().toLowerCase() || null,
     },
   });
 }

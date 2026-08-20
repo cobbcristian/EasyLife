@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canMutateAmenityCommunity } from "@/lib/server/amenity-auth";
+import { prisma } from "@/lib/server/prisma";
 import { deleteAmenity, setAmenityPlayability } from "@/lib/server/records";
 
 export async function PATCH(
@@ -26,6 +28,12 @@ export async function PATCH(
   if (typeof body.playable !== "boolean") {
     return NextResponse.json({ error: "playable boolean required" }, { status: 400 });
   }
+
+  const amenity = await prisma.amenity.findUnique({ where: { id } });
+  if (!amenity || !canMutateAmenityCommunity(session, amenity.communityId)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const updated = await setAmenityPlayability({
     amenityId: id,
     playable: body.playable,
@@ -52,7 +60,16 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  await deleteAmenity(id);
+
+  const amenity = await prisma.amenity.findUnique({ where: { id } });
+  if (!amenity || !canMutateAmenityCommunity(session, amenity.communityId)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const ok = await deleteAmenity(id, session.communityId);
+  if (!ok) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/amenities");
   return NextResponse.json({ ok: true });
 }

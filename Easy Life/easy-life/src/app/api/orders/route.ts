@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { priceDiningOrderForCommunity } from "@/lib/server/dining-order-price";
 import { createOrder, listOrdersForMember } from "@/lib/server/records";
 import { normalizeDiningFulfillment } from "@/lib/dining-order";
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: {
-    items?: { name: string; qty: number }[];
+    items?: { id?: string; name?: string; qty?: number; price?: number }[];
     total?: number;
     fulfillment?: string;
     address?: string;
@@ -30,8 +31,17 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  if (!body.items?.length || body.total == null) {
+  if (!body.items?.length) {
     return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+  }
+
+  const priced = await priceDiningOrderForCommunity({
+    communityId: session.communityId,
+    items: body.items,
+    fulfillment: body.fulfillment,
+  });
+  if (!priced.ok) {
+    return NextResponse.json({ error: priced.error }, { status: 400 });
   }
 
   const fulfillment = normalizeDiningFulfillment(body.fulfillment);
@@ -40,15 +50,17 @@ export async function POST(request: Request) {
       communityId: session.communityId,
       memberEmail: session.email,
       memberName: session.name,
-      items: JSON.stringify(body.items),
-      total: Number(body.total),
+      items: JSON.stringify(
+        priced.lines.map((line) => ({ name: line.name, qty: line.qty })),
+      ),
+      total: priced.total,
       fulfillment,
       address: body.address ?? null,
       restaurant: body.restaurant ?? null,
       arriveDate: body.arriveDate ?? null,
       arriveTime: body.arriveTime ?? null,
       partySize: body.partySize ?? null,
-      itemCount: body.items.reduce((s, i) => s + Math.max(1, i.qty || 1), 0),
+      itemCount: priced.lines.reduce((s, line) => s + line.qty, 0),
     });
     revalidatePath("/member/dining");
     revalidatePath(`/member/orders/${order.id}`);
