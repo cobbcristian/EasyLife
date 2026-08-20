@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { adminOverviewCommunityScope } from "@/lib/server/admin-overview-scope";
 import { isSuperAdmin } from "@/lib/server/community-context";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { prisma } from "@/lib/server/prisma";
@@ -11,14 +12,29 @@ export async function GET() {
   }
   await ensureRecordsSeeded();
 
+  const communityScope = adminOverviewCommunityScope(session);
+  const bookingWhere =
+    communityScope === null
+      ? { status: { not: "cancelled" as const } }
+      : { status: { not: "cancelled" as const }, communityId: communityScope };
+  const userWhere =
+    communityScope === null ? undefined : { communityId: communityScope };
+  const providerWhere =
+    communityScope === null ? undefined : { communityId: communityScope };
+  const contactWhere =
+    communityScope === null
+      ? { status: "unread" as const }
+      : { status: "unread" as const, communityId: communityScope };
+
   const [bookings, users, providers, communities, contactUnread] =
     await Promise.all([
       prisma.booking.findMany({
-        where: { status: { not: "cancelled" } },
+        where: bookingWhere,
         orderBy: { createdAt: "desc" },
         take: 200,
       }),
       prisma.user.findMany({
+        where: userWhere,
         orderBy: { name: "asc" },
         take: 300,
         select: {
@@ -30,6 +46,7 @@ export async function GET() {
         },
       }),
       prisma.provider.findMany({
+        where: providerWhere,
         orderBy: { name: "asc" },
         take: 200,
         select: {
@@ -42,11 +59,16 @@ export async function GET() {
           type: true,
         },
       }),
-      prisma.community.findMany({
-        select: { id: true, name: true },
-      }),
+      communityScope === null
+        ? prisma.community.findMany({
+            select: { id: true, name: true },
+          })
+        : prisma.community.findMany({
+            where: { id: communityScope },
+            select: { id: true, name: true },
+          }),
       prisma.contactMessage.count({
-        where: { status: "unread" },
+        where: contactWhere,
       }),
     ]);
 

@@ -1302,10 +1302,43 @@ export function addCommunityBooking(
   return row;
 }
 
+/**
+ * Resolve which community owns a demo/service booking id.
+ * Golden Ocala sample ids live on golden-ocala; Iron Lake on iron-lake;
+ * remapped demos use `{communityId}-{baseId}`.
+ */
+export function communityIdForServiceBooking(id: string): string | null {
+  if (sampleBookings.some((b) => b.id === id)) return "golden-ocala";
+  if (ironLakeBookings.some((b) => b.id === id)) return "iron-lake";
+
+  for (const [communityId, list] of remappedBookingStore.entries()) {
+    if (list.some((b) => b.id === id)) return communityId;
+  }
+
+  for (const b of sampleBookings) {
+    const suffix = `-${b.id}`;
+    if (id.endsWith(suffix) && id.length > suffix.length) {
+      return id.slice(0, -suffix.length);
+    }
+  }
+  for (const b of ironLakeBookings) {
+    const suffix = `-${b.id}`;
+    if (id.endsWith(suffix) && id.length > suffix.length) {
+      return id.slice(0, -suffix.length);
+    }
+  }
+  return null;
+}
+
 export function updateCommunityBookingStatus(
   id: string,
   status: ServiceBooking["status"],
+  opts?: { communityId?: string | null },
 ): ServiceBooking | null {
+  if (opts?.communityId) {
+    const owner = communityIdForServiceBooking(id);
+    if (!owner || owner !== opts.communityId) return null;
+  }
   const row = underlyingBooking(id);
   if (!row) return null;
   row.status = status;
