@@ -1806,6 +1806,10 @@ export async function setAmenityPlayability(input: {
 }) {
   const amenity = await prisma.amenity.findUnique({ where: { id: input.amenityId } });
   if (!amenity) return null;
+  // Club staff must not mute/delete amenities in another tenant by id.
+  if (input.communityId && amenity.communityId !== input.communityId) {
+    return null;
+  }
 
   const updated = await prisma.amenity.update({
     where: { id: input.amenityId },
@@ -2101,8 +2105,15 @@ export async function respondBookingInvite(input: {
   return result.invite;
 }
 
-export async function deleteAmenity(id: string) {
-  return prisma.amenity.delete({ where: { id } });
+export async function deleteAmenity(
+  id: string,
+  communityId?: string | null,
+): Promise<boolean> {
+  const amenity = await prisma.amenity.findUnique({ where: { id } });
+  if (!amenity) return false;
+  if (communityId && amenity.communityId !== communityId) return false;
+  await prisma.amenity.delete({ where: { id } });
+  return true;
 }
 
 /** Partner / external activities (jet skis, boats) for communities that already have amenity seed. */

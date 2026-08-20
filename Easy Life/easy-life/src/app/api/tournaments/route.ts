@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
-import { resolveScopedCommunityId } from "@/lib/server/community-context";
+import {
+  isSuperAdmin,
+  resolveScopedCommunityId,
+} from "@/lib/server/community-context";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 import {
   createTournament,
   ensureRecordsSeeded,
@@ -12,10 +16,29 @@ import {
 } from "@/lib/server/records";
 import { prisma } from "@/lib/server/prisma";
 import { parseBody, tournamentSchema } from "@/lib/server/validation";
+import type { SessionPayload } from "@/lib/types";
 
 import { parseScoresJson } from "@/lib/tournament-scores";
 import { parseTiebreakersJson } from "@/lib/tournament-tiebreakers";
 import { parseNoStartDefault } from "@/lib/tournament-no-start";
+
+async function loadTournamentInSessionScope(
+  tournamentId: string,
+  session: SessionPayload,
+) {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { id: true, communityId: true },
+  });
+  if (!tournament) return null;
+  if (
+    !isSuperAdmin(session) &&
+    !canMutateCommunityResource(session.communityId, tournament.communityId)
+  ) {
+    return null;
+  }
+  return tournament;
+}
 
 function mapTournament(t: Awaited<ReturnType<typeof listTournaments>>[number]) {
   return {
@@ -118,6 +141,10 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   if (!body.id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+  const scoped = await loadTournamentInSessionScope(body.id, session);
+  if (!scoped) {
+    return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+  }
   const data: {
     seedsJson?: string | null;
     winnersJson?: string;

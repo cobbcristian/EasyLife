@@ -1,13 +1,35 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 import {
   addTournamentPlayer,
   buildBracketFromPlayers,
   listTournamentPlayers,
   removeTournamentPlayer,
 } from "@/lib/server/records";
+import { prisma } from "@/lib/server/prisma";
 import { parseBody, tournamentPlayerSchema } from "@/lib/server/validation";
+import type { SessionPayload } from "@/lib/types";
+
+async function assertTournamentMutable(
+  tournamentId: string,
+  session: SessionPayload,
+) {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { id: true, communityId: true },
+  });
+  if (!tournament) return null;
+  if (
+    !isSuperAdmin(session) &&
+    !canMutateCommunityResource(session.communityId, tournament.communityId)
+  ) {
+    return null;
+  }
+  return tournament;
+}
 
 export async function GET(
   _request: Request,
@@ -16,6 +38,19 @@ export async function GET(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
+  const tournament = await prisma.tournament.findUnique({
+    where: { id },
+    select: { communityId: true },
+  });
+  if (!tournament) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (
+    session.communityId &&
+    tournament.communityId !== session.communityId
+  ) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const players = await listTournamentPlayers(id);
   return NextResponse.json({ players });
 }
@@ -29,6 +64,10 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
+  const scoped = await assertTournamentMutable(id, session);
+  if (!scoped) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   let body: unknown;
   try {
     body = await request.json();
@@ -67,7 +106,11 @@ export async function DELETE(
   if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  await params;
+  const { id: tournamentId } = await params;
+  const scoped = await assertTournamentMutable(tournamentId, session);
+  if (!scoped) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   let body: { playerId?: string };
   try {
     body = await request.json();
@@ -77,6 +120,13 @@ export async function DELETE(
 
   if (!body.playerId) {
     return NextResponse.json({ error: "playerId required" }, { status: 400 });
+  }
+  const player = await prisma.tournamentPlayer.findUnique({
+    where: { id: body.playerId },
+    select: { id: true, tournamentId: true },
+  });
+  if (!player || player.tournamentId !== tournamentId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const ok = await removeTournamentPlayer(body.playerId);
   if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
