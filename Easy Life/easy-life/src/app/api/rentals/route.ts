@@ -47,17 +47,16 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  if (!body.item || body.total == null) {
-    return NextResponse.json({ error: "Item and total required" }, { status: 400 });
+  if (!body.itemId?.trim()) {
+    return NextResponse.json({ error: "itemId required" }, { status: 400 });
   }
   try {
     const rental = await createRental({
       communityId: session.communityId,
       memberEmail: session.email,
       memberName: session.name,
-      item: body.item,
+      item: body.item ?? body.itemId,
       days: body.days ?? 1,
-      total: Number(body.total),
       itemId: body.itemId,
       flex: body.flex,
       startDate: body.startDate,

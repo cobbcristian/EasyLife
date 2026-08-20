@@ -1276,7 +1276,8 @@ export async function createRental(input: {
   memberName: string;
   item: string;
   days: number;
-  total: number;
+  /** @deprecated Ignored — total is always catalog.pricePerDay * days. */
+  total?: number;
   itemId?: string | null;
   flex?: string | null;
   startDate?: string | null;
@@ -1289,7 +1290,13 @@ export async function createRental(input: {
   let flex: string | null = input.flex?.trim() || null;
 
   const catalog = itemId ? findRentalCatalogItem(itemId) : undefined;
-  if (catalog?.flexOptions?.length) {
+  if (!catalog) {
+    throw new RentalConflictError("Unknown rental item.");
+  }
+  // Always bill from catalog — never trust client `total`.
+  const total = catalog.pricePerDay * days;
+
+  if (catalog.flexOptions?.length) {
     if (!flex || !isGolfClubFlex(flex)) {
       throw new RentalConflictError("Please choose a shaft flex for this rental.");
     }
@@ -1315,10 +1322,9 @@ export async function createRental(input: {
     flex = null;
   }
 
-  const displayItem =
-    catalog && flex
-      ? `${catalog.name} — ${flex as GolfClubFlex} flex`
-      : input.item;
+  const displayItem = flex
+    ? `${catalog.name} — ${flex as GolfClubFlex} flex`
+    : catalog.name;
 
   return prisma.rental.create({
     data: {
@@ -1331,7 +1337,7 @@ export async function createRental(input: {
       startDate,
       endDate,
       days,
-      total: input.total,
+      total,
       status: "reserved",
     },
   });

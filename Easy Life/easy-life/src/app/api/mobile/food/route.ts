@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/server/mobile-auth";
 import { diningProviderEmail } from "@/lib/server/dining";
+import { priceDiningOrderForCommunity } from "@/lib/server/dining-order-price";
 import {
   createOrder,
   ensureRecordsSeeded,
   listMenuItems,
   listOrdersForMember,
 } from "@/lib/server/records";
+import { normalizeDiningFulfillment } from "@/lib/dining-order";
 
 export async function GET(request: Request) {
   const session = await getMobileSession(request);
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: {
-    items?: Array<{ name: string; price: number; qty?: number }>;
+    items?: Array<{ id?: string; name?: string; price?: number; qty?: number }>;
     fulfillment?: string;
     address?: string;
     restaurant?: string;
@@ -88,27 +90,30 @@ export async function POST(request: Request) {
   if (!body.items?.length) {
     return NextResponse.json({ error: "Add at least one item" }, { status: 400 });
   }
-  const lines = body.items.map((i) => ({
-    name: i.name,
-    qty: i.qty ?? 1,
-  }));
-  const total = body.items.reduce(
-    (sum, i) => sum + i.price * (i.qty ?? 1),
-    0,
-  );
+  const priced = await priceDiningOrderForCommunity({
+    communityId: session.communityId,
+    items: body.items,
+    fulfillment: body.fulfillment ?? "takeout",
+  });
+  if (!priced.ok) {
+    return NextResponse.json({ error: priced.error }, { status: 400 });
+  }
   try {
     const order = await createOrder({
       communityId: session.communityId,
       memberEmail: session.email,
       memberName: session.name,
-      items: JSON.stringify(lines),
-      total,
-      fulfillment: body.fulfillment ?? "takeout",
+      items: JSON.stringify(
+        priced.lines.map((line) => ({ name: line.name, qty: line.qty })),
+      ),
+      total: priced.total,
+      fulfillment: normalizeDiningFulfillment(body.fulfillment ?? "takeout"),
       address: body.address,
       restaurant: body.restaurant ?? "Club restaurant",
       arriveDate: body.arriveDate ?? new Date().toISOString().slice(0, 10),
       arriveTime: body.arriveTime ?? "18:00",
       partySize: body.partySize,
+      itemCount: priced.lines.reduce((s, line) => s + line.qty, 0),
     });
     return NextResponse.json({
       ok: true,
