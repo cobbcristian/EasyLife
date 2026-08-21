@@ -266,15 +266,19 @@ export function AssistantClient() {
 
     const recognition = new Ctor();
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = "en-US";
     recognition.onresult = (event) => {
       const transcript = Array.from(event.results)
         .map((r) => r[0]?.transcript ?? "")
         .join(" ")
         .trim();
-      if (transcript) {
-        setInput(transcript);
+      if (!transcript) return;
+      setInput(transcript);
+      const final = Array.from(event.results).some((r) => r.isFinal);
+      if (final) {
+        setListening(false);
+        recognition.stop();
         void send(transcript);
       }
     };

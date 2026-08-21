@@ -377,7 +377,7 @@ function AppInner() {
           allowsBackForwardNavigationGestures
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
-          mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
+          mediaCapturePermissionGrantType="grant"
           injectedJavaScriptBeforeContentLoaded={portalInjectedJs}
           injectedJavaScript={portalInjectedJs}
           onMessage={onWebMessage}
@@ -422,7 +422,7 @@ function AppInner() {
         allowsBackForwardNavigationGestures
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
-        mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
+        mediaCapturePermissionGrantType="grant"
         injectedJavaScript={SESSION_CAPTURE_JS}
         onMessage={onWebMessage}
         onNavigationStateChange={() => {

@@ -196,10 +196,19 @@ export const es: Record<string, string> = {
   "Could not start microphone.": "No se pudo iniciar el micrófono.",
   "Could not start microphone. Type your request below.":
     "No se pudo iniciar el micrófono. Escribe tu solicitud abajo.",
+  "Voice input isn’t available on this device. Opening Assistant…":
+    "La entrada de voz no está disponible en este dispositivo. Abriendo el asistente…",
   "Voice input isn’t available on this device. Type your request below.":
     "La entrada de voz no está disponible en este dispositivo. Escribe tu solicitud abajo.",
+  "Microphone permission is required for voice. Enable it in Settings, or type in Assistant.":
+    "Se necesita permiso del micrófono para usar la voz. Actívalo en Ajustes, o escribe en el asistente.",
   "Microphone permission is required for voice. Enable it in Settings, or type your request.":
     "Se necesita permiso del micrófono para usar la voz. Actívalo en Ajustes, o escribe tu solicitud.",
+  "Got it — opening Assistant…": "Listo — abriendo el asistente…",
+  "Could not start microphone. Opening Assistant…":
+    "No se pudo iniciar el micrófono. Abriendo el asistente…",
+  "Open Assistant": "Abrir asistente",
+  "Stop listening": "Dejar de escuchar",
   "Listening… speak now": "Escuchando… habla ahora",
   "Listening…": "Escuchando…",
   "Tap to speak": "Toca para hablar",

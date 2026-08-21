@@ -2,10 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Mic, Plus, Sparkles } from "lucide-react";
+import { Mic, MicOff, Plus, Sparkles } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import {
+  ensureMicrophoneAccess,
+  getSpeechRecognitionCtor,
+  speechErrorMessage,
+  type SpeechRecognitionLike,
+} from "@/lib/speech";
 
 type SearchResult = {
   type: string;
@@ -15,6 +20,12 @@ type SearchResult = {
   href: string;
 };
 
+/** Hard navigate — Next router.push is unreliable in the Oceanside WKWebView shell. */
+function go(path: string) {
+  if (typeof window === "undefined") return;
+  window.location.assign(path);
+}
+
 /** ChatGPT-style “Ask Plaza” composer on member home. */
 export function MemberMvpHomeSearch({
   className,
@@ -23,12 +34,14 @@ export function MemberMvpHomeSearch({
   communityId?: string | null;
 }) {
   const { t } = useI18n();
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const placeholder = "Ask Plaza";
 
   const search = useCallback(async (q: string) => {
@@ -63,21 +76,102 @@ export function MemberMvpHomeSearch({
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
   function openAssistant(prompt?: string) {
     const q = (prompt ?? query).trim();
-    if (q) {
-      router.push(`/member/assistant?q=${encodeURIComponent(q)}`);
+    go(q ? `/member/assistant?q=${encodeURIComponent(q)}` : "/member/assistant");
+  }
+
+  async function onMicTap() {
+    // Immediate UI response — Apple rejected silent mic taps.
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      setVoiceStatus(t("Listening stopped."));
       return;
     }
-    router.push("/member/assistant");
+
+    setVoiceStatus(t("Listening… speak now"));
+    setListening(true);
+    setOpen(false);
+
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) {
+      setListening(false);
+      setVoiceStatus(
+        t("Voice input isn’t available on this device. Opening Assistant…"),
+      );
+      window.setTimeout(() => go("/member/assistant"), 600);
+      return;
+    }
+
+    const mic = await ensureMicrophoneAccess();
+    if (mic === "denied") {
+      setListening(false);
+      setVoiceStatus(
+        t(
+          "Microphone permission is required for voice. Enable it in Settings, or type in Assistant.",
+        ),
+      );
+      return;
+    }
+
+    const recognition = new Ctor();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((r) => r[0]?.transcript ?? "")
+        .join(" ")
+        .trim();
+      if (!transcript) return;
+      setQuery(transcript);
+      const final = Array.from(event.results).some((r) => r.isFinal);
+      if (final) {
+        setListening(false);
+        setVoiceStatus(t("Got it — opening Assistant…"));
+        recognition.stop();
+        go(`/member/assistant?q=${encodeURIComponent(transcript)}`);
+      }
+    };
+    recognition.onerror = (event) => {
+      setListening(false);
+      if (event?.error === "aborted") {
+        setVoiceStatus(null);
+        return;
+      }
+      setVoiceStatus(t(speechErrorMessage(event?.error)));
+    };
+    recognition.onend = () => {
+      setListening(false);
+    };
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+      setVoiceStatus(t("Could not start microphone. Opening Assistant…"));
+      window.setTimeout(() => go("/member/assistant"), 600);
+    }
   }
 
   return (
     <div ref={wrapRef} className={cn("relative z-10", className)}>
-      <div className="flex h-14 items-center gap-2 rounded-full border border-[#e6eaf0] bg-white px-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
+      <div
+        className={cn(
+          "flex h-14 items-center gap-2 rounded-full border bg-white px-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.12)]",
+          listening ? "border-[var(--mvp-blue)] ring-2 ring-[var(--mvp-blue)]/25" : "border-[#e6eaf0]",
+        )}
+      >
         <Link
           href="/member/assistant"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#667085] hover:bg-[#f2f4f7]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#667085] hover:bg-[#f2f4f7]"
           aria-label={t("Open Plaza")}
           title={t("Ask Plaza")}
         >
@@ -89,6 +183,7 @@ export function MemberMvpHomeSearch({
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
+            setVoiceStatus(null);
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={(e) => {
@@ -97,37 +192,65 @@ export function MemberMvpHomeSearch({
               openAssistant();
             }
           }}
-          placeholder={t(placeholder)}
+          placeholder={listening ? t("Listening…") : t(placeholder)}
           className="min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-[#98a2b3] focus:outline-none"
           aria-label={t("Ask Plaza")}
         />
         <button
           type="button"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#667085] hover:bg-[#f2f4f7] active:bg-[#e8ebf0]"
-          aria-label={t("Voice input")}
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-full active:scale-95",
+            listening
+              ? "bg-red-500 text-white"
+              : "text-[#667085] hover:bg-[#f2f4f7] active:bg-[#e8ebf0]",
+          )}
+          aria-label={listening ? t("Stop listening") : t("Voice input")}
+          aria-pressed={listening}
           title={t("Ask with your voice")}
-          onClick={() => {
-            const q = query.trim();
-            if (q) {
-              router.push(
-                `/member/assistant?q=${encodeURIComponent(q)}&voice=1`,
-              );
-              return;
-            }
-            router.push("/member/assistant?voice=1");
-          }}
+          onClick={() => void onMicTap()}
         >
-          <Mic className="h-5 w-5" strokeWidth={1.75} />
+          {listening ? (
+            <MicOff className="h-5 w-5" strokeWidth={1.75} />
+          ) : (
+            <Mic className="h-5 w-5" strokeWidth={1.75} />
+          )}
         </button>
         <button
           type="button"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--mvp-blue)] text-white shadow-sm hover:brightness-95"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--mvp-blue)] text-white shadow-sm hover:brightness-95"
           aria-label={t("Ask Plaza")}
           onClick={() => openAssistant()}
         >
-          <Sparkles className="h-4.5 w-4.5 h-[18px] w-[18px]" strokeWidth={2} />
+          <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
         </button>
       </div>
+
+      {voiceStatus ? (
+        <p
+          className={cn(
+            "mt-2 rounded-xl px-3 py-2 text-sm",
+            listening
+              ? "bg-[var(--mvp-blue)]/10 font-medium text-[var(--mvp-blue)]"
+              : "bg-[#f2f4f7] text-ink",
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {voiceStatus}
+          {!listening ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="font-semibold text-[var(--mvp-blue)] underline"
+                onClick={() => openAssistant()}
+              >
+                {t("Open Assistant")}
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : null}
 
       {open && query.trim().length >= 2 ? (
         <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-border-2 bg-white py-1 shadow-lg">
