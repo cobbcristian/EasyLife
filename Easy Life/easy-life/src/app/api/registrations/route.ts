@@ -29,11 +29,15 @@ export async function PATCH(request: Request) {
   if (!["vehicle", "pet", "fingerprint"].includes(body.field)) {
     return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   }
-  await updateRegistration(
+  const updated = await updateRegistration(
     body.id,
     body.field as "vehicle" | "pet" | "fingerprint",
     body.value,
+    session.communityId,
   );
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/pm/registrations");
   return NextResponse.json({ ok: true });
 }

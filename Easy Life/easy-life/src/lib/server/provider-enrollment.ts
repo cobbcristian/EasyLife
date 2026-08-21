@@ -3,10 +3,7 @@ import { communityIsResidentialHoa } from "@/lib/community-features";
 import type { ProviderPlanId } from "@/lib/provider-plans";
 import { hashPassword } from "@/lib/server/password";
 import { prisma } from "@/lib/server/prisma";
-import {
-  FEATURED_PLACEMENT_CENTS,
-  createPromotion,
-} from "@/lib/server/records";
+import { createPromotion } from "@/lib/server/records";
 import { upsertProviderSubscription } from "@/lib/server/provider-subscriptions";
 import type { AuthUser } from "@/lib/types";
 import { upsertMembership } from "@/lib/server/memberships";
@@ -132,6 +129,8 @@ export async function registerServiceProvider(input: {
     status: "active",
   });
 
+  // Draft Featured row only — unpaid (paidCents=0) until Stripe settles.
+  // listPaidFeaturedTiles filters paidCents > 0, so this stays off member home.
   const wantFeatured = input.featured !== false;
   if (wantFeatured) {
     const existingFeatured = await prisma.promotion.findFirst({
@@ -158,7 +157,7 @@ export async function registerServiceProvider(input: {
           imageForProviderCategory(category) ||
           brandAssets.serviceCleaningSupplies,
         href: `/member/local-pros?highlight=${provider.id}`,
-        paidCents: FEATURED_PLACEMENT_CENTS,
+        paidCents: 0,
       });
     }
   }

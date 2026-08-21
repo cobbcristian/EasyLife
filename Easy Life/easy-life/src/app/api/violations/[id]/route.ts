@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { canManageCommunity, isSuperAdmin } from "@/lib/server/community-context";
+import type { SessionPayload } from "@/lib/types";
+
+function staffCanAccessViolation(
+  session: SessionPayload,
+  violationCommunityId: string,
+): boolean {
+  if (isSuperAdmin(session)) return true;
+  if (!["admin", "pm", "board"].includes(session.role)) return false;
+  return canManageCommunity(session, violationCommunityId);
+}
 
 export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
   if (!session) {
@@ -21,6 +32,9 @@ export async function GET(
   const isStaff = ["admin", "pm", "board"].includes(session.role);
   const isOwner = violation.memberEmail === session.email;
 
+  if (isStaff && !staffCanAccessViolation(session, violation.communityId)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!isStaff && !isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -30,7 +44,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
   if (!session) {
@@ -49,6 +63,9 @@ export async function PATCH(
   const isStaff = ["admin", "pm", "board"].includes(session.role);
   const isOwner = violation.memberEmail === session.email;
 
+  if (isStaff && !staffCanAccessViolation(session, violation.communityId)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!isStaff && !isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -61,7 +78,7 @@ export async function PATCH(
     updateData.appealedAt = new Date();
   }
 
-  if (isStaff) {
+  if (isStaff && staffCanAccessViolation(session, violation.communityId)) {
     if (status === "resolved" || status === "dismissed") {
       updateData.status = status;
       updateData.resolvedAt = new Date();
@@ -86,8 +103,8 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
   if (!session || !["admin", "pm"].includes(session.role)) {
@@ -95,6 +112,13 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const violation = await prisma.violation.findUnique({ where: { id } });
+  if (!violation) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!staffCanAccessViolation(session, violation.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await prisma.violation.delete({ where: { id } });
 

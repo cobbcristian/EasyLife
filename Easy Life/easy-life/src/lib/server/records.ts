@@ -979,7 +979,14 @@ export async function createInvoice(input: {
   });
 }
 
-export async function updateInvoiceStatus(id: string, status: string) {
+export async function updateInvoiceStatus(
+  id: string,
+  status: string,
+  communityId?: string | null,
+) {
+  const existing = await prisma.invoice.findUnique({ where: { id } });
+  if (!existing) return null;
+  if (communityId && existing.communityId !== communityId) return null;
   return prisma.invoice.update({ where: { id }, data: { status } });
 }
 
@@ -1559,6 +1566,39 @@ export async function listApparelOrders(opts: {
   });
 }
 
+/**
+ * Price apparel cart lines from the club catalog. Client unitPrice/name are ignored.
+ */
+export async function priceApparelCart(
+  communityId: string | null | undefined,
+  items: ApparelLineItem[],
+): Promise<{ ok: true; items: ApparelLineItem[]; total: number } | { ok: false; error: string }> {
+  if (!items.length) return { ok: false, error: "Cart is empty" };
+  const products = await listApparelProducts(communityId);
+  const byId = new Map(products.map((p) => [p.id, p]));
+  const priced: ApparelLineItem[] = [];
+  for (const line of items) {
+    const product = byId.get(line.productId);
+    if (!product) {
+      return { ok: false, error: `Unknown product: ${line.productId}` };
+    }
+    const sizes = JSON.parse(product.sizesJson) as string[];
+    if (!sizes.includes(line.size)) {
+      return { ok: false, error: `Invalid size for ${product.name}` };
+    }
+    const qty = Math.max(1, Math.min(500, Math.floor(line.qty) || 1));
+    priced.push({
+      productId: product.id,
+      name: product.name,
+      size: line.size,
+      qty,
+      unitPrice: product.price,
+    });
+  }
+  const total = priced.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+  return { ok: true, items: priced, total };
+}
+
 export async function createApparelOrder(input: {
   communityId?: string | null;
   vendorName?: string;
@@ -1567,8 +1607,9 @@ export async function createApparelOrder(input: {
   orderedByName: string;
   items: ApparelLineItem[];
   notes?: string;
-}) {
-  const total = input.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+}): Promise<{ order: Awaited<ReturnType<typeof prisma.apparelOrder.create>> } | { error: string }> {
+  const priced = await priceApparelCart(input.communityId, input.items);
+  if (!priced.ok) return { error: priced.error };
   const order = await prisma.apparelOrder.create({
     data: {
       communityId: scope(input.communityId),
@@ -1576,8 +1617,8 @@ export async function createApparelOrder(input: {
       orderType: input.orderType,
       orderedByEmail: input.orderedByEmail,
       orderedByName: input.orderedByName,
-      itemsJson: JSON.stringify(input.items),
-      total,
+      itemsJson: JSON.stringify(priced.items),
+      total: priced.total,
       notes: input.notes ?? null,
       status: "submitted",
     },
@@ -1586,12 +1627,19 @@ export async function createApparelOrder(input: {
     communityId: input.communityId,
     userName: input.orderedByName,
     action: "Apparel order",
-    detail: `${input.orderType} order — $${total.toFixed(2)} to ${input.vendorName ?? APPAREL_VENDOR}`,
+    detail: `${input.orderType} order — $${priced.total.toFixed(2)} to ${input.vendorName ?? APPAREL_VENDOR}`,
   });
-  return order;
+  return { order };
 }
 
-export async function updateApparelOrderStatus(id: string, status: string) {
+export async function updateApparelOrderStatus(
+  id: string,
+  status: string,
+  communityId?: string | null,
+) {
+  const existing = await prisma.apparelOrder.findUnique({ where: { id } });
+  if (!existing) return null;
+  if (communityId && existing.communityId !== communityId) return null;
   return prisma.apparelOrder.update({ where: { id }, data: { status } });
 }
 
@@ -2840,7 +2888,14 @@ export async function createCheckin(input: {
   });
 }
 
-export async function updateCheckinStatus(id: string, status: string) {
+export async function updateCheckinStatus(
+  id: string,
+  status: string,
+  communityId?: string | null,
+) {
+  const existing = await prisma.checkin.findUnique({ where: { id } });
+  if (!existing) return null;
+  if (communityId && existing.communityId !== communityId) return null;
   return prisma.checkin.update({ where: { id }, data: { status } });
 }
 
@@ -2855,7 +2910,11 @@ export async function updateRegistration(
   id: string,
   field: "vehicle" | "pet" | "fingerprint",
   value: boolean,
+  communityId?: string | null,
 ) {
+  const existing = await prisma.registrationChecklist.findUnique({ where: { id } });
+  if (!existing) return null;
+  if (communityId && existing.communityId !== communityId) return null;
   return prisma.registrationChecklist.update({
     where: { id },
     data: { [field]: value },
@@ -2895,15 +2954,17 @@ export async function createPromotion(input: {
   subtitle?: string | null;
   rating?: string | null;
   priceLabel?: string | null;
-  /** Featured placements must be paid — defaults to FEATURED_PLACEMENT_CENTS when type is featured. */
+  /**
+   * Featured placements only appear on member home when paidCents > 0.
+   * Callers must pass a positive paidCents after real payment (or demo seed).
+   * Never invent a paid amount here — that would grant free Featured slots.
+   */
   paidCents?: number;
 }) {
-  const isFeatured = input.type === "featured";
-  const paidCents = isFeatured
-    ? input.paidCents && input.paidCents > 0
+  const paidCents =
+    typeof input.paidCents === "number" && input.paidCents > 0
       ? input.paidCents
-      : FEATURED_PLACEMENT_CENTS
-    : (input.paidCents ?? 0);
+      : 0;
 
   return prisma.promotion.create({
     data: {
