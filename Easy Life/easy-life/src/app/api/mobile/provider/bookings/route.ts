@@ -3,11 +3,20 @@ import { getMobileSession } from "@/lib/server/mobile-auth";
 import {
   addCommunityBooking,
   getCommunityBookings,
-  updateCommunityBookingStatus,
+  updateCommunityBookingStatusForProvider,
 } from "@/lib/communities-data";
 import { getCommunityById } from "@/lib/server/db";
+import { amountForProviderServices } from "@/lib/server/provider-booking-auth";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import type { ServiceBookingStatus } from "@/lib/types";
+
+const ALLOWED_STATUSES: ServiceBookingStatus[] = [
+  "pending",
+  "accepted",
+  "upcoming",
+  "completed",
+  "cancelled",
+];
 
 export async function GET(request: Request) {
   const session = await getMobileSession(request);
@@ -64,13 +73,7 @@ export async function POST(request: Request) {
   }
 
   const service = body.services.join(", ");
-  const amount =
-    body.amount ??
-    body.services.reduce((sum, name) => {
-      if (name.includes("Full House")) return sum + 250;
-      if (name.includes("Carpet")) return sum + 150;
-      return sum + 100;
-    }, 0);
+  const amount = amountForProviderServices(body.services);
 
   const created = addCommunityBooking({
     communityId: session.communityId,
@@ -118,7 +121,14 @@ export async function PATCH(request: Request) {
   if (!body.id || !body.status) {
     return NextResponse.json({ error: "id and status required" }, { status: 400 });
   }
-  const updated = updateCommunityBookingStatus(body.id, body.status);
+  if (!ALLOWED_STATUSES.includes(body.status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+  const updated = updateCommunityBookingStatusForProvider(
+    body.id,
+    body.status,
+    session.name,
+  );
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
