@@ -103,10 +103,19 @@ export function MemberMvpHomeSearch({
         />
         <button
           type="button"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#667085] hover:bg-[#f2f4f7]"
-          aria-label={t("Voice")}
-          title={t("Ask Plaza")}
-          onClick={() => openAssistant()}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#667085] hover:bg-[#f2f4f7] active:bg-[#e8ebf0]"
+          aria-label={t("Voice input")}
+          title={t("Ask with your voice")}
+          onClick={() => {
+            const q = query.trim();
+            if (q) {
+              router.push(
+                `/member/assistant?q=${encodeURIComponent(q)}&voice=1`,
+              );
+              return;
+            }
+            router.push("/member/assistant?voice=1");
+          }}
         >
           <Mic className="h-5 w-5" strokeWidth={1.75} />
         </button>

@@ -194,6 +194,27 @@ export const es: Record<string, string> = {
     "Modo texto — responde escribiendo. Activa Voz para oír confirmaciones habladas.",
   "Voice not supported in this browser.": "La voz no es compatible con este navegador.",
   "Could not start microphone.": "No se pudo iniciar el micrófono.",
+  "Could not start microphone. Type your request below.":
+    "No se pudo iniciar el micrófono. Escribe tu solicitud abajo.",
+  "Voice input isn’t available on this device. Type your request below.":
+    "La entrada de voz no está disponible en este dispositivo. Escribe tu solicitud abajo.",
+  "Microphone permission is required for voice. Enable it in Settings, or type your request.":
+    "Se necesita permiso del micrófono para usar la voz. Actívalo en Ajustes, o escribe tu solicitud.",
+  "Listening… speak now": "Escuchando… habla ahora",
+  "Listening…": "Escuchando…",
+  "Tap to speak": "Toca para hablar",
+  "Voice may need permission — tap to try": "La voz puede pedir permiso — toca para intentar",
+  "Ask with your voice": "Pregunta con tu voz",
+  "Voice input": "Entrada de voz",
+  "Didn’t catch that — tap the mic and try again, or type your request.":
+    "No te escuché — toca el micrófono e inténtalo de nuevo, o escribe tu solicitud.",
+  "No microphone was found. Type your request instead.":
+    "No se encontró micrófono. Escribe tu solicitud.",
+  "Voice needs a network connection. Check Wi‑Fi and try again, or type your request.":
+    "La voz necesita conexión. Revisa el Wi‑Fi e inténtalo de nuevo, o escribe tu solicitud.",
+  "Listening stopped.": "Se detuvo la escucha.",
+  "Voice input isn’t available right now. Type your request below.":
+    "La entrada de voz no está disponible ahora. Escribe tu solicitud abajo.",
   Fun: "Diversión",
   "Fun Stuff": "Actividades",
   "Browse Fun Stuff": "Explorar actividades",

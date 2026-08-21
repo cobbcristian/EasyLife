@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.easylife.oceanside",
-      "buildNumber": "15",
+      "buildNumber": "23",
       "entitlements": {
         "aps-environment": "production"
       },
@@ -26,6 +26,8 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Allow camera access to upload photos for your resident profile and service requests.",
         "NSPhotoLibraryUsageDescription": "Allow photo library access to upload images for your resident profile and service requests.",
+        "NSMicrophoneUsageDescription": "Allow microphone access so you can ask the resident assistant by voice.",
+        "NSSpeechRecognitionUsageDescription": "Allow speech recognition so your spoken questions can be turned into text for the resident assistant.",
         "NSLocationWhenInUseUsageDescription": "Location may be used for community visitor and amenity features when you opt in.",
         "UIBackgroundModes": ["remote-notification"]
       },
@@ -54,7 +56,9 @@
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
       ],
       "predictiveBackGestureEnabled": false,
       "intentFilters": [

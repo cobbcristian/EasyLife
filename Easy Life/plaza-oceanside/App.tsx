@@ -375,6 +375,9 @@ function AppInner() {
           originWhitelist={["*"]}
           applicationNameForUserAgent="PlazaOceansideApp/1"
           allowsBackForwardNavigationGestures
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
           injectedJavaScriptBeforeContentLoaded={portalInjectedJs}
           injectedJavaScript={portalInjectedJs}
           onMessage={onWebMessage}
@@ -417,6 +420,9 @@ function AppInner() {
         originWhitelist={["*"]}
         applicationNameForUserAgent="PlazaOceansideApp/1"
         allowsBackForwardNavigationGestures
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
         injectedJavaScript={SESSION_CAPTURE_JS}
         onMessage={onWebMessage}
         onNavigationStateChange={() => {

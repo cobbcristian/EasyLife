@@ -6,6 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
+import {
+  ensureMicrophoneAccess,
+  getSpeechRecognitionCtor,
+  speechErrorMessage,
+  type SpeechRecognitionLike,
+} from "@/lib/speech";
 
 type AiAction =
   | { type: "open"; label: string; href: string }
@@ -54,26 +60,6 @@ type ChatMsg = {
   content: string;
   actions?: AiAction[];
 };
-
-type SpeechRecognitionLike = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-};
-
-function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as Window & {
-    SpeechRecognition?: new () => SpeechRecognitionLike;
-    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
 
 function speakText(text: string) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -145,9 +131,11 @@ export function AssistantClient() {
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isResidentialHoa, setIsResidentialHoa] = useState(false);
+  const [speechAvailable, setSpeechAvailable] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const bootstrappedQuery = useRef(false);
-  const voiceSupported = typeof window !== "undefined" && Boolean(getSpeechRecognition());
+  const bootstrappedVoice = useRef(false);
 
   const load = useCallback(() => {
     return fetch("/api/ai/chat")
@@ -158,6 +146,7 @@ export function AssistantClient() {
 
   useEffect(() => {
     setVoiceEnabled(readVoicePref());
+    setSpeechAvailable(Boolean(getSpeechRecognitionCtor()));
   }, []);
 
   useEffect(() => {
@@ -236,19 +225,45 @@ export function AssistantClient() {
     if (!q || bootstrappedQuery.current) return;
     bootstrappedQuery.current = true;
     void send(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap once from URL
   }, [searchParams]);
 
-  function toggleListen() {
-    const Ctor = getSpeechRecognition();
-    if (!Ctor) {
-      setError(t("Voice not supported in this browser."));
-      return;
-    }
+  function focusComposer() {
+    window.setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  async function toggleListen() {
     if (listening) {
       recognitionRef.current?.stop();
       setListening(false);
       return;
     }
+
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) {
+      setSpeechAvailable(false);
+      setError(
+        t("Voice input isn’t available on this device. Type your request below."),
+      );
+      focusComposer();
+      return;
+    }
+
+    setError(null);
+    setListening(true);
+
+    const mic = await ensureMicrophoneAccess();
+    if (mic === "denied") {
+      setListening(false);
+      setError(
+        t(
+          "Microphone permission is required for voice. Enable it in Settings, or type your request.",
+        ),
+      );
+      focusComposer();
+      return;
+    }
+
     const recognition = new Ctor();
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -263,18 +278,36 @@ export function AssistantClient() {
         void send(transcript);
       }
     };
-    recognition.onerror = () => setListening(false);
+    recognition.onerror = (event) => {
+      setListening(false);
+      const msg = speechErrorMessage(event?.error);
+      if (event?.error !== "aborted") {
+        setError(t(msg));
+        focusComposer();
+      }
+    };
     recognition.onend = () => setListening(false);
     recognitionRef.current = recognition;
     try {
       recognition.start();
-      setListening(true);
-      setError(null);
+      setSpeechAvailable(true);
     } catch {
-      setError(t("Could not start microphone."));
       setListening(false);
+      setError(t("Could not start microphone. Type your request below."));
+      focusComposer();
     }
   }
+
+  useEffect(() => {
+    if (bootstrappedVoice.current) return;
+    if (searchParams.get("voice") !== "1") return;
+    bootstrappedVoice.current = true;
+    const timer = window.setTimeout(() => {
+      void toggleListen();
+    }, 400);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- start once from ?voice=1
+  }, [searchParams]);
 
   function onActionClick(a: AiAction) {
     if (a.type === "book_amenity" || a.type === "book_vendor") {
@@ -395,7 +428,16 @@ export function AssistantClient() {
               </div>
             ))
           )}
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {listening ? (
+            <p className="text-sm font-medium text-[var(--mvp-blue)]" aria-live="polite">
+              {t("Listening… speak now")}
+            </p>
+          ) : null}
         </div>
 
         <form
@@ -406,26 +448,31 @@ export function AssistantClient() {
           }}
         >
           <div className="flex items-center gap-2">
-            {voiceSupported ? (
-              <button
-                type="button"
-                onClick={toggleListen}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
-                  listening
-                    ? "bg-red-500 text-white"
-                    : "border border-[#e4e8ee] bg-white text-[var(--mvp-blue)]"
-                }`}
-                aria-label={listening ? t("Stop listening") : t("Voice input")}
-              >
-                {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => void toggleListen()}
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
+                listening
+                  ? "bg-red-500 text-white"
+                  : "border border-[#e4e8ee] bg-white text-[var(--mvp-blue)]"
+              }`}
+              aria-label={listening ? t("Stop listening") : t("Voice input")}
+              aria-pressed={listening}
+              title={
+                speechAvailable
+                  ? t("Tap to speak")
+                  : t("Voice may need permission — tap to try")
+              }
+            >
+              {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </button>
             <input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={
                 listening
-                  ? t("Listening'")
+                  ? t("Listening…")
                   : t("Ask or say: book a court tomorrow at 10'")
               }
               className="box-border h-11 min-w-0 flex-1 rounded-2xl border border-[#e4e8ee] px-4 text-sm leading-none outline-none focus:border-[var(--mvp-blue)]"
