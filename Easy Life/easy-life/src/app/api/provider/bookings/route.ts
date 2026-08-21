@@ -4,9 +4,10 @@ import { getSession } from "@/lib/server/auth";
 import {
   addCommunityBooking,
   getCommunityBookings,
-  updateCommunityBookingStatus,
+  updateCommunityBookingStatusForProvider,
 } from "@/lib/communities-data";
 import { getCommunityById } from "@/lib/server/db";
+import { amountForProviderServices } from "@/lib/server/provider-booking-auth";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import type { ServiceBookingStatus } from "@/lib/types";
 
@@ -87,12 +88,7 @@ export async function POST(req: Request) {
     goingFromBody ??
     (invitees.length > 0 ? 1 + invitees.length : undefined);
 
-  const amount = (body.services as string[]).reduce((sum, name) => {
-    if (name.includes("Full House")) return sum + 250;
-    if (name.includes("Carpet")) return sum + 150;
-    if (/court/i.test(name)) return sum + 0;
-    return sum + 100;
-  }, 0);
+  const amount = amountForProviderServices(body.services as string[]);
 
   const created = addCommunityBooking({
     communityId: session.communityId,
@@ -134,8 +130,12 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  const updated = updateCommunityBookingStatus(id, status);
-  if (!updated || updated.provider !== session.name) {
+  const updated = updateCommunityBookingStatusForProvider(
+    id,
+    status,
+    session.name,
+  );
+  if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

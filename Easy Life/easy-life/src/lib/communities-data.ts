@@ -1312,6 +1312,22 @@ export function updateCommunityBookingStatus(
   return row;
 }
 
+/**
+ * Update status only when the booking is assigned to `providerName`.
+ * Callers that update-then-check leave rival providers' cancels/completions
+ * persisted even when they return 404 — always authorize before mutating.
+ */
+export function updateCommunityBookingStatusForProvider(
+  id: string,
+  status: ServiceBooking["status"],
+  providerName: string,
+): ServiceBooking | null {
+  const row = underlyingBooking(id);
+  if (!row || row.provider !== providerName) return null;
+  row.status = status;
+  return row;
+}
+
 export function getCommunityBookingById(id: string): ServiceBooking | undefined {
   return bookingViewForId(id);
 }
