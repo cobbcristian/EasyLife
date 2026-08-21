@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 
 export async function GET(
   req: NextRequest,
@@ -15,6 +16,10 @@ export async function GET(
   const article = await prisma.knowledgeArticle.findUnique({ where: { id } });
 
   if (!article) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
+  if (article.communityId !== session.communityId && !canMutateCommunityResource(session, article.communityId)) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
@@ -47,6 +52,9 @@ export async function PATCH(
   if (!article) {
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
+  if (!canMutateCommunityResource(session, article.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const updated = await prisma.knowledgeArticle.update({
     where: { id },
@@ -73,6 +81,13 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const article = await prisma.knowledgeArticle.findUnique({ where: { id } });
+  if (!article) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+  if (!canMutateCommunityResource(session, article.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await prisma.knowledgeArticle.delete({ where: { id } });
 

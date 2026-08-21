@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 
 export async function PATCH(
   req: NextRequest,
@@ -25,6 +26,13 @@ export async function PATCH(
 
   if (!isStaff && !isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (isStaff && !canMutateCommunityResource(session, pkg.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // Owners may only act on packages addressed to them in their club.
+  if (!isStaff && pkg.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const updateData: Record<string, unknown> = {};
@@ -62,6 +70,13 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const pkg = await prisma.package.findUnique({ where: { id } });
+  if (!pkg) {
+    return NextResponse.json({ error: "Package not found" }, { status: 404 });
+  }
+  if (!canMutateCommunityResource(session, pkg.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await prisma.package.delete({ where: { id } });
 
