@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
 import { updateInvoiceStatus } from "@/lib/server/records";
 
 export async function PATCH(
@@ -21,7 +22,15 @@ export async function PATCH(
   if (body.status !== "approved" && body.status !== "rejected") {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
-  await updateInvoiceStatus(id, body.status);
+
+  const updated = await updateInvoiceStatus(
+    id,
+    body.status,
+    isSuperAdmin(session) ? undefined : session.communityId,
+  );
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/board/invoices");
   revalidatePath("/pm/invoices");
   return NextResponse.json({ ok: true });

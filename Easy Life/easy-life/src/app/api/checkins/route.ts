@@ -11,6 +11,7 @@ import {
 } from "@/lib/server/records";
 import { parseBody, checkinSchema } from "@/lib/server/validation";
 import {
+  listApprovedProviderVisitsForToday,
   mergeApprovedBookingsIntoCheckins,
   parseServiceBookingIdFromCheckinId,
   serviceBookingUnit,
@@ -99,6 +100,12 @@ export async function PATCH(request: Request) {
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
+    const allowedToday = listApprovedProviderVisitsForToday(session.communityId).some(
+      (b) => b.id === booking.id,
+    );
+    if (!allowedToday) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const checkin = await createCheckin({
       communityId: session.communityId,
       name: booking.provider,
@@ -132,7 +139,14 @@ export async function PATCH(request: Request) {
     });
   }
 
-  await updateCheckinStatus(body.id, body.status);
+  const updated = await updateCheckinStatus(
+    body.id,
+    body.status,
+    session.communityId,
+  );
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/pm/front-desk");
   revalidatePath("/pm");
   return NextResponse.json({ ok: true });

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
-import { resolveScopedCommunityId } from "@/lib/server/community-context";
+import {
+  isSuperAdmin,
+  resolveScopedCommunityId,
+} from "@/lib/server/community-context";
 import {
   APPAREL_VENDOR,
   createApparelOrder,
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
       ? await resolveScopedCommunityId(session)
       : session.communityId;
 
-  const order = await createApparelOrder({
+  const result = await createApparelOrder({
     communityId,
     orderType,
     orderedByEmail: session.email,
@@ -77,10 +80,13 @@ export async function POST(request: Request) {
     items: parsed.data.items,
     notes: parsed.data.notes,
   });
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
 
   revalidatePath("/apparel");
   revalidatePath("/member/apparel");
-  return NextResponse.json({ ok: true, order });
+  return NextResponse.json({ ok: true, order: result.order });
 }
 
 export async function PATCH(request: Request) {
@@ -99,7 +105,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "ID and status required" }, { status: 400 });
   }
 
-  const updated = await updateApparelOrderStatus(body.id, body.status);
+  const communityId = await resolveScopedCommunityId(session);
+  const updated = await updateApparelOrderStatus(
+    body.id,
+    body.status,
+    isSuperAdmin(session) ? undefined : communityId,
+  );
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   revalidatePath("/apparel");
   return NextResponse.json({ ok: true, order: updated });
 }

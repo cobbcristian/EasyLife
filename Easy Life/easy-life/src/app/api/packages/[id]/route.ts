@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { canManageCommunity, isSuperAdmin } from "@/lib/server/community-context";
+import type { SessionPayload } from "@/lib/types";
+
+function staffOwnsPackageCommunity(
+  session: SessionPayload,
+  communityId: string,
+): boolean {
+  if (isSuperAdmin(session)) return true;
+  return canManageCommunity(session, communityId);
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -23,6 +33,9 @@ export async function PATCH(
   const isStaff = ["admin", "pm", "board"].includes(session.role);
   const isOwner = pkg.memberEmail === session.email;
 
+  if (isStaff && !staffOwnsPackageCommunity(session, pkg.communityId)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (!isStaff && !isOwner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -62,6 +75,13 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const pkg = await prisma.package.findUnique({ where: { id } });
+  if (!pkg) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!staffOwnsPackageCommunity(session, pkg.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await prisma.package.delete({ where: { id } });
 
