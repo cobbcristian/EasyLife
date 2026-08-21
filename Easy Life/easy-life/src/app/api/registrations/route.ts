@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
+import { prisma } from "@/lib/server/prisma";
 import { ensureRecordsSeeded, listRegistrations, updateRegistration } from "@/lib/server/records";
 
 export async function GET() {
@@ -29,6 +31,17 @@ export async function PATCH(request: Request) {
   if (!["vehicle", "pet", "fingerprint"].includes(body.field)) {
     return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   }
+
+  const existing = await prisma.registrationChecklist.findUnique({
+    where: { id: body.id },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!canMutateCommunityResource(session, existing.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   await updateRegistration(
     body.id,
     body.field as "vehicle" | "pet" | "fingerprint",

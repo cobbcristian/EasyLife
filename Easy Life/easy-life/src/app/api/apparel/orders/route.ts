@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 import { resolveScopedCommunityId } from "@/lib/server/community-context";
 import {
   APPAREL_VENDOR,
@@ -10,6 +11,7 @@ import {
   updateApparelOrderStatus,
 } from "@/lib/server/records";
 import { parseBody, apparelOrderSchema } from "@/lib/server/validation";
+import { prisma } from "@/lib/server/prisma";
 
 export async function GET() {
   const session = await getSession();
@@ -97,6 +99,14 @@ export async function PATCH(request: Request) {
   }
   if (!body.id || !body.status) {
     return NextResponse.json({ error: "ID and status required" }, { status: 400 });
+  }
+
+  const existing = await prisma.apparelOrder.findUnique({ where: { id: body.id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!canMutateCommunityResource(session, existing.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const updated = await updateApparelOrderStatus(body.id, body.status);

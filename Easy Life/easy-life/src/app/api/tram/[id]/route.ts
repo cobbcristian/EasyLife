@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 import { sendSms, isSmsConfigured } from "@/lib/server/sms";
 
 export async function GET(
@@ -17,6 +18,18 @@ export async function GET(
 
   if (!tramRequest) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const isPM = session.role === "pm" || session.role === "admin";
+  const isOwner = tramRequest.memberEmail === session.email;
+  if (!isPM && !isOwner) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (isPM && !canMutateCommunityResource(session, tramRequest.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!isPM && tramRequest.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   return NextResponse.json(tramRequest);
@@ -42,6 +55,12 @@ export async function PATCH(
 
   // Members can only cancel their own requests
   if (!isPM && existing.memberEmail !== session.email) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!isPM && existing.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (isPM && !canMutateCommunityResource(session, existing.communityId)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -144,6 +163,14 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const existing = await prisma.tramRequest.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!canMutateCommunityResource(session, existing.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   await prisma.tramRequest.delete({ where: { id } });
 
   return NextResponse.json({ success: true });

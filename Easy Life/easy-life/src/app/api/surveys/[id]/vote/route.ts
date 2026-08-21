@@ -23,9 +23,16 @@ export async function POST(
     surveyId: id,
     optionId: body.optionId,
     voterEmail: session.email,
+    communityId: session.communityId,
   });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 409 });
+    const notFound =
+      result.error === "Survey not found" ||
+      result.error === "Invalid option for this survey";
+    return NextResponse.json(
+      { error: result.error },
+      { status: notFound ? 404 : 409 },
+    );
   }
   revalidatePath("/board/governance");
   return NextResponse.json({ ok: true });

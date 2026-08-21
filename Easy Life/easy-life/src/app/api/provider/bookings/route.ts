@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
 import {
   addCommunityBooking,
+  getCommunityBookingById,
   getCommunityBookings,
   updateCommunityBookingStatus,
 } from "@/lib/communities-data";
@@ -134,8 +135,15 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
+  // Ownership must be verified before mutating — updateCommunityBookingStatus
+  // writes status in place and would otherwise apply IDOR changes then 404.
+  const existing = getCommunityBookingById(id);
+  if (!existing || existing.provider !== session.name) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const updated = updateCommunityBookingStatus(id, status);
-  if (!updated || updated.provider !== session.name) {
+  if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

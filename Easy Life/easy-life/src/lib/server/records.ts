@@ -1628,7 +1628,24 @@ export async function castVote(input: {
   surveyId: string;
   optionId: string;
   voterEmail: string;
+  communityId?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
+  const survey = await prisma.survey.findUnique({
+    where: { id: input.surveyId },
+    include: { options: { select: { id: true } } },
+  });
+  if (!survey) return { ok: false, error: "Survey not found" };
+  if (
+    input.communityId &&
+    survey.communityId &&
+    survey.communityId !== input.communityId
+  ) {
+    return { ok: false, error: "Survey not found" };
+  }
+  if (!survey.options.some((o) => o.id === input.optionId)) {
+    return { ok: false, error: "Invalid option for this survey" };
+  }
+
   const existing = await prisma.surveyVote.findUnique({
     where: { surveyId_voterEmail: { surveyId: input.surveyId, voterEmail: input.voterEmail } },
   });

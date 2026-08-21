@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 import { ensureFourClubDemoContent } from "@/lib/server/four-club-demo-content";
 import {
   createCheckin,
@@ -16,6 +17,7 @@ import {
   serviceBookingUnit,
 } from "@/lib/server/gate-arrivals";
 import { getCommunityBookingById } from "@/lib/communities-data";
+import { prisma } from "@/lib/server/prisma";
 
 export async function GET() {
   const session = await getSession();
@@ -130,6 +132,14 @@ export async function PATCH(request: Request) {
         service: booking.service,
       },
     });
+  }
+
+  const existing = await prisma.checkin.findUnique({ where: { id: body.id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!canMutateCommunityResource(session, existing.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   await updateCheckinStatus(body.id, body.status);

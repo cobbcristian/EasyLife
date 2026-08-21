@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canMutateCommunityResource } from "@/lib/server/community-resource-scope";
 import { deleteProvider, setProviderStatus } from "@/lib/server/db";
 import { ensureRecordsSeeded, listMenuItems } from "@/lib/server/records";
 import {
@@ -75,6 +76,15 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  const existing = await prisma.provider.findUnique({
+    where: { id },
+    select: { communityId: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canMutateCommunityResource(session, existing.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const ok = await deleteProvider(id);
   if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -102,6 +112,15 @@ export async function PATCH(
   }
   if (body.status !== "active" && body.status !== "frozen") {
     return NextResponse.json({ error: "status must be active or frozen" }, { status: 400 });
+  }
+
+  const existing = await prisma.provider.findUnique({
+    where: { id },
+    select: { communityId: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!canMutateCommunityResource(session, existing.communityId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const updated = await setProviderStatus(id, body.status);
