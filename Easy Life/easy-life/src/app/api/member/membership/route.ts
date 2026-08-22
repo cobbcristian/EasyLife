@@ -81,7 +81,10 @@ export async function POST(request: Request) {
   }
 
   if (body.action === "rejoin") {
-    const result = await requestRejoin({ userEmail: session.email });
+    const result = await requestRejoin({
+      userEmail: session.email,
+      communityId,
+    });
     const snapshot = await getMembershipSnapshot(session.email, communityId);
     return NextResponse.json({ ...snapshot, rejoinResult: result });
   }
@@ -95,6 +98,7 @@ export async function POST(request: Request) {
     }
     const result = await reactivateMembership({
       userEmail: body.email,
+      communityId,
       membershipExpiresOn: body.membershipExpiresOn,
     });
     const snapshot = await getMembershipSnapshot(session.email, communityId);
