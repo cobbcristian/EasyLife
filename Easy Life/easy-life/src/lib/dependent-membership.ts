@@ -141,3 +141,14 @@ export function noticeMessage(input: {
     input.daysLeft != null ? ` in ${input.daysLeft} days` : ""
   }. Please arrange an individual membership before privileges end${due}.`;
 }
+
+/**
+ * Whether a dependent email belongs to the club whose aging policy is running.
+ * Aging must never apply Club A's policy to Club B's dependents.
+ */
+export function isDependentInCommunityScope(
+  dependentEmail: string,
+  communityMemberEmails: ReadonlySet<string>,
+): boolean {
+  return communityMemberEmails.has(dependentEmail.trim().toLowerCase());
+}
