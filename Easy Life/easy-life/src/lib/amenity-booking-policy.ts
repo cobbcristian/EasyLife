@@ -20,3 +20,15 @@ export function initialBookingStatus(amenityName: string): "confirmed" | "pendin
     ? "pending"
     : "confirmed";
 }
+
+/**
+ * Client-supplied amenityId must resolve in the caller's club.
+ * Rejecting unknown ids prevents forging a miss so createBooking skips
+ * fee / membership / hours checks and books by free-form name only.
+ */
+export function unknownAmenityIdMustReject(
+  amenityId: string | undefined | null,
+  resolved: boolean,
+): boolean {
+  return Boolean(amenityId?.trim()) && !resolved;
+}

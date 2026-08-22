@@ -9,7 +9,7 @@ export async function GET(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const reviews = await listProviderReviews(id);
+  const reviews = await listProviderReviews(id, session.communityId);
   return NextResponse.json({ reviews });
 }
 

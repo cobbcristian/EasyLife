@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   if (!body.groupId) {
     return NextResponse.json({ error: "Group ID required" }, { status: 400 });
   }
-  const group = await toggleGroupMembership(session.email, body.groupId);
+  const group = await toggleGroupMembership(session.email, body.groupId, session.communityId);
   if (!group) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }

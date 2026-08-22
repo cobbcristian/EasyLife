@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
-import { inviteToGroup } from "@/lib/server/member-api-store";
-import { prisma } from "@/lib/server/prisma";
+import { getGroupInCommunity, inviteToGroup } from "@/lib/server/member-api-store";
 
 export async function POST(
   request: Request,
@@ -11,7 +10,7 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { groupId } = await params;
-  const group = await prisma.communityGroup.findUnique({ where: { id: groupId } });
+  const group = await getGroupInCommunity(groupId, session.communityId);
   if (!group) return NextResponse.json({ error: "Group not found" }, { status: 404 });
 
   let body: { email?: string };
@@ -25,7 +24,10 @@ export async function POST(
     return NextResponse.json({ error: "Email required" }, { status: 400 });
   }
 
-  await inviteToGroup(groupId, body.email.trim());
+  const result = await inviteToGroup(groupId, body.email.trim(), session.communityId);
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
 
   return NextResponse.json({
     ok: true,

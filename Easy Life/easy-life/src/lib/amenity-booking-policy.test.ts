@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   amenityRequiresManagementApproval,
   initialBookingStatus,
+  unknownAmenityIdMustReject,
 } from "@/lib/amenity-booking-policy";
 
 describe("amenity-booking-policy", () => {
@@ -16,5 +17,12 @@ describe("amenity-booking-policy", () => {
     expect(initialBookingStatus("Board Room")).toBe("pending");
     expect(initialBookingStatus("Social Room")).toBe("pending");
     expect(amenityRequiresManagementApproval("The Social Room")).toBe(true);
+  });
+
+  it("rejects forged amenityId that does not resolve in-club", () => {
+    expect(unknownAmenityIdMustReject("am_fake", false)).toBe(true);
+    expect(unknownAmenityIdMustReject("am_real", true)).toBe(false);
+    expect(unknownAmenityIdMustReject(undefined, false)).toBe(false);
+    expect(unknownAmenityIdMustReject("", false)).toBe(false);
   });
 });

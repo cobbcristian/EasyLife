@@ -370,13 +370,34 @@ export async function listGroupsForMember(email: string, communityId?: string | 
   }));
 }
 
-export async function toggleGroupMembership(email: string, groupId: string) {
+/** Resolve a club group only when it belongs to the caller's community. */
+export async function getGroupInCommunity(
+  groupId: string,
+  communityId?: string | null,
+) {
+  const cid = communityId?.trim() || "__missing_community__";
+  return prisma.communityGroup.findFirst({
+    where: { id: groupId, communityId: cid },
+  });
+}
+
+export async function isGroupMember(groupId: string, email: string) {
+  return prisma.groupMembership.findFirst({
+    where: { groupId, userEmail: email.trim().toLowerCase() },
+  });
+}
+
+export async function toggleGroupMembership(
+  email: string,
+  groupId: string,
+  communityId?: string | null,
+) {
   const key = email.toLowerCase();
+  const group = await getGroupInCommunity(groupId, communityId);
+  if (!group) return null;
   const existing = await prisma.groupMembership.findFirst({
     where: { groupId, userEmail: key },
   });
-  const group = await prisma.communityGroup.findUnique({ where: { id: groupId } });
-  if (!group) return null;
   if (existing) {
     await prisma.groupMembership.delete({ where: { id: existing.id } });
     await prisma.communityGroup.update({
@@ -421,13 +442,41 @@ export async function createCommunityGroup(input: {
   return group;
 }
 
-export async function inviteToGroup(groupId: string, inviteEmail: string) {
+export async function inviteToGroup(
+  groupId: string,
+  inviteEmail: string,
+  communityId?: string | null,
+) {
+  const group = await getGroupInCommunity(groupId, communityId);
+  if (!group) return { error: "Group not found" as const };
+
+  const email = inviteEmail.trim().toLowerCase();
+  const cid = communityId?.trim() || "__missing_community__";
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, communityId: true },
+  });
+  if (!user) {
+    return { error: "Invitee is not a member of this club" as const };
+  }
+  const membership = await prisma.userCommunity.findFirst({
+    where: {
+      userId: user.id,
+      communityId: cid,
+      status: "active",
+    },
+    select: { id: true },
+  });
+  if (!membership && user.communityId !== cid) {
+    return { error: "Invitee is not a member of this club" as const };
+  }
+
   await prisma.groupMembership.upsert({
-    where: { groupId_userEmail: { groupId, userEmail: inviteEmail.toLowerCase() } },
-    create: { groupId, userEmail: inviteEmail.toLowerCase() },
+    where: { groupId_userEmail: { groupId, userEmail: email } },
+    create: { groupId, userEmail: email },
     update: {},
   });
-  return { ok: true };
+  return { ok: true as const };
 }
 
 export async function listBlogComments(blogId: string) {

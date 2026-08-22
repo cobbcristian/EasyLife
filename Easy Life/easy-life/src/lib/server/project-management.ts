@@ -271,10 +271,15 @@ export async function createGroupPost(input: {
   imageUrl?: string | null;
   eventId?: string | null;
 }) {
+  const cid = input.communityId?.trim() || "__missing_community__";
+  const group = await prisma.communityGroup.findFirst({
+    where: { id: input.groupId, communityId: cid },
+  });
+  if (!group) return null;
   return prisma.groupPost.create({
     data: {
       groupId: input.groupId,
-      communityId: input.communityId?.trim() || "__missing_community__",
+      communityId: cid,
       authorEmail: input.authorEmail.trim().toLowerCase(),
       authorName: input.authorName,
       body: input.body.trim(),
@@ -287,8 +292,20 @@ export async function createGroupPost(input: {
 export async function toggleGroupPostLike(input: {
   postId: string;
   memberEmail: string;
+  communityId?: string | null;
+  groupId?: string;
 }) {
   const email = input.memberEmail.trim().toLowerCase();
+  const cid = input.communityId?.trim() || "__missing_community__";
+  const post = await prisma.groupPost.findFirst({
+    where: {
+      id: input.postId,
+      communityId: cid,
+      ...(input.groupId ? { groupId: input.groupId } : {}),
+    },
+  });
+  if (!post) return { error: "Post not found" as const };
+
   const existing = await prisma.groupPostLike.findUnique({
     where: {
       postId_memberEmail: { postId: input.postId, memberEmail: email },
@@ -309,7 +326,19 @@ export async function addGroupPostComment(input: {
   authorEmail: string;
   authorName: string;
   body: string;
+  communityId?: string | null;
+  groupId?: string;
 }) {
+  const cid = input.communityId?.trim() || "__missing_community__";
+  const post = await prisma.groupPost.findFirst({
+    where: {
+      id: input.postId,
+      communityId: cid,
+      ...(input.groupId ? { groupId: input.groupId } : {}),
+    },
+  });
+  if (!post) return { error: "Post not found" as const };
+
   return prisma.groupPostComment.create({
     data: {
       postId: input.postId,
