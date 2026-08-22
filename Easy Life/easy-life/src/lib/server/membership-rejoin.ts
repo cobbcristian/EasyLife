@@ -11,6 +11,9 @@ import {
   MEMBERSHIP_NOT_RENEWED_MESSAGE,
   isMembershipDeactivated,
 } from "@/lib/membership-status";
+import { memberInCommunityScope } from "@/lib/membership-reactivate-auth";
+
+export { memberInCommunityScope } from "@/lib/membership-reactivate-auth";
 
 const DEFAULT_WAIT_DAYS = 365;
 
@@ -402,9 +405,37 @@ export async function listDeactivatedMembers(communityId: string) {
 
 export async function reactivateMembership(input: {
   userEmail: string;
+  communityId: string;
   membershipExpiresOn?: string | null;
 }) {
   const email = input.userEmail.toLowerCase();
+  const communityId = input.communityId.trim();
+  if (!communityId) {
+    return { ok: false as const, error: "Community required." };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, communityId: true },
+  });
+  if (!user) {
+    return { ok: false as const, error: "Member not found in this club." };
+  }
+
+  const seats = await prisma.userCommunity.findMany({
+    where: { userId: user.id, status: "active" },
+    select: { communityId: true },
+  });
+  if (
+    !memberInCommunityScope({
+      primaryCommunityId: user.communityId,
+      membershipCommunityIds: seats.map((s) => s.communityId),
+      communityId,
+    })
+  ) {
+    return { ok: false as const, error: "Member not found in this club." };
+  }
+
   const profile = await prisma.memberProfileExt.findUnique({
     where: { userEmail: email },
   });
