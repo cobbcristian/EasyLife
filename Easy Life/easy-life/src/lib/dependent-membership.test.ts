@@ -4,6 +4,7 @@ import {
   ageInYears,
   birthdayOnAge,
   evaluateDependentEligibility,
+  isDependentInCommunityScope,
   noticeMessage,
 } from "@/lib/dependent-membership";
 
@@ -89,5 +90,12 @@ describe("dependent membership", () => {
     expect(msg).toContain("Alex Mitchell");
     expect(msg).toContain("25");
     expect(msg).toContain("45 days");
+  });
+
+  it("scopes aging to dependents who belong to the club", () => {
+    const clubA = new Set(["alex@club-a.com", "sara@club-a.com"]);
+    expect(isDependentInCommunityScope("alex@club-a.com", clubA)).toBe(true);
+    expect(isDependentInCommunityScope("Alex@Club-A.com", clubA)).toBe(true);
+    expect(isDependentInCommunityScope("kid@club-b.com", clubA)).toBe(false);
   });
 });

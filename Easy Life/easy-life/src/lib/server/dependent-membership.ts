@@ -2,6 +2,7 @@ import { prisma } from "@/lib/server/prisma";
 import { addMemberInboxItem } from "@/lib/server/project-management";
 import {
   evaluateDependentEligibility,
+  isDependentInCommunityScope,
   noticeMessage,
   type DependentNoticeLevel,
 } from "@/lib/dependent-membership";
@@ -191,6 +192,21 @@ async function createNoticeIfNew(input: {
 }
 
 /** Scan dependents and apply warnings / conversion requirements. */
+
+/** Active / primary accounts for a club (cached communityId or memberships). */
+async function listCommunityMemberEmails(communityId: string): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: {
+      OR: [
+        { communityId },
+        { memberships: { some: { communityId, status: "active" } } },
+      ],
+    },
+    select: { email: true },
+  });
+  return users.map((u) => u.email.toLowerCase());
+}
+
 export async function processDependentMembershipAging(
   communityId?: string,
 ): Promise<number> {
@@ -212,15 +228,21 @@ export async function processDependentMembershipAging(
   const policy = await ensureDependentPolicy(cid);
   if (!policy.active) return 0;
 
+  const memberEmails = await listCommunityMemberEmails(cid);
+  if (memberEmails.length === 0) return 0;
+  const memberEmailSet = new Set(memberEmails);
+
   const dependents = await prisma.memberProfileExt.findMany({
     where: {
       householdRole: "dependent",
       dependentStatus: { not: "terminated" },
+      userEmail: { in: memberEmails },
     },
   });
 
   let updated = 0;
   for (const dep of dependents) {
+    if (!isDependentInCommunityScope(dep.userEmail, memberEmailSet)) continue;
     if (!dep.sponsorEmail) continue;
     const sponsor = await prisma.memberProfileExt.findUnique({
       where: { userEmail: dep.sponsorEmail.toLowerCase() },
