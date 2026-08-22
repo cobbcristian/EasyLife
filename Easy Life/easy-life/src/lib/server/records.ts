@@ -19,7 +19,10 @@ import { sendPushToUser } from "@/lib/server/push";
 import { sendEmail } from "@/lib/server/notify";
 import { addMemberInboxItem } from "@/lib/server/project-management";
 import { appPath } from "@/lib/server/app-url";
-import { initialBookingStatus } from "@/lib/amenity-booking-policy";
+import {
+  initialBookingStatus,
+  unknownAmenityIdMustReject,
+} from "@/lib/amenity-booking-policy";
 import { serializeTiebreakers, DEFAULT_TIEBREAKERS } from "@/lib/tournament-tiebreakers";
 import { DEFAULT_NO_START_POLICY } from "@/lib/tournament-no-start";
 import type { TiebreakerCriterion } from "@/lib/tournament-tiebreakers";
@@ -543,9 +546,15 @@ export async function createBooking(input: {
 }) {
   const communityId = scope(input.communityId);
 
-  const amenityRecord = input.amenityId
-    ? await prisma.amenity.findFirst({ where: { id: input.amenityId, communityId } })
+  const amenityId = input.amenityId?.trim() || undefined;
+  // When the client sends amenityId, it must resolve in this club. A forged /
+  // unknown id must not skip name lookup and amenity policy (fee, hours, tier).
+  const amenityRecord = amenityId
+    ? await prisma.amenity.findFirst({ where: { id: amenityId, communityId } })
     : await prisma.amenity.findFirst({ where: { name: input.amenity, communityId } });
+  if (unknownAmenityIdMustReject(amenityId, Boolean(amenityRecord))) {
+    throw new BookingConflictError("Amenity not found.");
+  }
 
   if (amenityRecord && !amenityRecord.playable) {
     const reason = amenityRecord.unplayableReason?.trim();
