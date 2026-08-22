@@ -31,6 +31,9 @@ export async function POST(request: Request) {
     const row = await prisma.provider.findFirst({
       where: {
         email: body.providerEmail.trim(),
+        ...(session.communityId
+          ? { communityId: session.communityId }
+          : {}),
       },
       select: { id: true },
     });

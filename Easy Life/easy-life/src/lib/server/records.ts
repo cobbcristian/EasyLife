@@ -1212,9 +1212,14 @@ export async function createGroupMessage(input: {
   author: string;
   body: string;
 }) {
+  const communityId = scope(input.communityId);
+  const group = await prisma.communityGroup.findFirst({
+    where: { id: input.groupId, communityId },
+  });
+  if (!group) return null;
   return prisma.groupMessage.create({
     data: {
-      communityId: scope(input.communityId),
+      communityId,
       groupId: input.groupId,
       author: input.author,
       body: input.body,

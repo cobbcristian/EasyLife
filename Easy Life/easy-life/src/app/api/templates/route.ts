@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
 import { createTemplate, ensureRecordsSeeded, listTemplates } from "@/lib/server/records";
 import { parseBody, templateSchema } from "@/lib/server/validation";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || !isSuperAdmin(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   await ensureRecordsSeeded();
@@ -15,7 +16,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || !isSuperAdmin(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: unknown;

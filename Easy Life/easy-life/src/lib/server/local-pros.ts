@@ -190,8 +190,20 @@ export async function listLocalPros(communityId: string | null): Promise<LocalPr
   return cards;
 }
 
-export async function listProviderReviews(providerId: string) {
+export async function listProviderReviews(
+  providerId: string,
+  communityId?: string | null,
+) {
   await ensureSeeded();
+  const provider = await prisma.provider.findUnique({ where: { id: providerId } });
+  if (!provider || provider.listingKind !== "local_pro") return [];
+  if (
+    communityId != null &&
+    communityId.trim() !== "" &&
+    provider.communityId !== communityId.trim()
+  ) {
+    return [];
+  }
   return prisma.providerReview.findMany({
     where: { providerId },
     orderBy: { createdAt: "desc" },
@@ -212,6 +224,10 @@ export async function upsertProviderReview(input: {
   if (!provider || provider.listingKind !== "local_pro") {
     return null;
   }
+  const cid = communityOrDefault(input.communityId);
+  if (provider.communityId !== cid) {
+    return null;
+  }
 
   const review = await prisma.providerReview.upsert({
     where: {
@@ -222,7 +238,7 @@ export async function upsertProviderReview(input: {
     },
     create: {
       providerId: input.providerId,
-      communityId: communityOrDefault(input.communityId),
+      communityId: cid,
       memberEmail: input.memberEmail.toLowerCase(),
       memberName: input.memberName,
       rating,
@@ -627,6 +643,9 @@ export async function startSharedCalendar(input: {
   if (!provider || !provider.calendarSharingEnabled || provider.listingKind !== "local_pro") {
     return { error: "Calendar sharing is not available for this pro." as const };
   }
+  if (provider.communityId !== communityOrDefault(input.communityId)) {
+    return { error: "Calendar sharing is not available for this pro." as const };
+  }
 
   const existing = await prisma.sharedCalendar.findUnique({
     where: {
@@ -727,6 +746,9 @@ export async function createEscrowJob(input: {
   await ensureSeeded();
   const provider = await prisma.provider.findUnique({ where: { id: input.providerId } });
   if (!provider || !provider.escrowEnabled || provider.listingKind !== "local_pro") {
+    return { error: "Escrow payments are not enabled for this pro." as const };
+  }
+  if (provider.communityId !== communityOrDefault(input.communityId)) {
     return { error: "Escrow payments are not enabled for this pro." as const };
   }
   if (input.amountCents < 100) {

@@ -4,6 +4,15 @@ import {
   addBlogComment,
   listBlogComments,
 } from "@/lib/server/member-api-store";
+import { prisma } from "@/lib/server/prisma";
+
+async function blogInCommunity(postId: string, communityId?: string | null) {
+  const cid = communityId?.trim() || "__missing_community__";
+  return prisma.blogPost.findFirst({
+    where: { id: postId, communityId: cid },
+    select: { id: true },
+  });
+}
 
 export async function GET(
   _request: Request,
@@ -13,6 +22,9 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!(await blogInCommunity(id, session.communityId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   return NextResponse.json({ comments: await listBlogComments(id) });
 }
 
@@ -24,6 +36,9 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!(await blogInCommunity(id, session.communityId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   let body: { body?: string };
   try {
     body = await request.json();

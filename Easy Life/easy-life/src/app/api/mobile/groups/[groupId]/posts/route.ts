@@ -6,6 +6,7 @@ import {
   listGroupPosts,
   toggleGroupPostLike,
 } from "@/lib/server/project-management";
+import { getGroupInCommunity, isGroupMember } from "@/lib/server/member-api-store";
 
 export async function GET(
   request: Request,
@@ -16,6 +17,13 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { groupId } = await params;
+  const group = await getGroupInCommunity(groupId, session.communityId);
+  if (!group) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
+  if (!(await isGroupMember(groupId, session.email))) {
+    return NextResponse.json({ error: "Join this group to view posts" }, { status: 403 });
+  }
   const posts = await listGroupPosts(groupId, session.email);
   return NextResponse.json({ posts });
 }
@@ -29,6 +37,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { groupId } = await params;
+  const group = await getGroupInCommunity(groupId, session.communityId);
+  if (!group) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
+  if (!(await isGroupMember(groupId, session.email))) {
+    return NextResponse.json({ error: "Join this group first" }, { status: 403 });
+  }
   let body: {
     action?: "create" | "like" | "comment";
     text?: string;
@@ -55,6 +70,9 @@ export async function POST(
         body: body.text,
         eventId: body.eventId,
       });
+      if (!post) {
+        return NextResponse.json({ error: "Group not found" }, { status: 404 });
+      }
       return NextResponse.json({ ok: true, post });
     }
     case "like": {
@@ -64,7 +82,12 @@ export async function POST(
       const result = await toggleGroupPostLike({
         postId: body.postId,
         memberEmail: session.email,
+        communityId: session.communityId,
+        groupId,
       });
+      if ("error" in result) {
+        return NextResponse.json({ error: result.error }, { status: 404 });
+      }
       return NextResponse.json({ ok: true, ...result });
     }
     case "comment": {
@@ -79,7 +102,15 @@ export async function POST(
         authorEmail: session.email,
         authorName: session.name,
         body: body.text,
+        communityId: session.communityId,
+        groupId,
       });
+      if (!comment || "error" in comment) {
+        return NextResponse.json(
+          { error: comment && "error" in comment ? comment.error : "Post not found" },
+          { status: 404 },
+        );
+      }
       return NextResponse.json({ ok: true, comment });
     }
     default: {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
 import { sendEmail } from "@/lib/server/notify";
+import { prisma } from "@/lib/server/prisma";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -22,8 +24,35 @@ export async function POST(request: Request) {
     );
   }
 
+  const to = body.to.trim().toLowerCase();
+  if (!isSuperAdmin(session)) {
+    if (!session.communityId) {
+      return NextResponse.json({ error: "No club on session" }, { status: 400 });
+    }
+    const recipient = await prisma.user.findUnique({
+      where: { email: to },
+      select: { id: true, communityId: true },
+    });
+    if (!recipient) {
+      return NextResponse.json({ error: "Recipient not found in this club" }, { status: 404 });
+    }
+    const inClub =
+      recipient.communityId === session.communityId ||
+      (await prisma.userCommunity.findFirst({
+        where: {
+          userId: recipient.id,
+          communityId: session.communityId,
+          status: "active",
+        },
+        select: { id: true },
+      }));
+    if (!inClub) {
+      return NextResponse.json({ error: "Recipient not found in this club" }, { status: 404 });
+    }
+  }
+
   const result = await sendEmail({
-    to: body.to,
+    to,
     subject: body.subject,
     body: body.body ?? "",
   });
