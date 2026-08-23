@@ -6,6 +6,7 @@ import {
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
+import { walletIntentAmountMatchesMetadata } from "@/lib/server/wallet-payment";
 
 export const runtime = "nodejs";
 
@@ -54,7 +55,13 @@ export async function POST(request: Request) {
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object;
     const chargeId = intent.metadata?.chargeId;
-    if (chargeId) {
+    if (
+      chargeId &&
+      walletIntentAmountMatchesMetadata({
+        intentAmount: intent.amount,
+        metadataAmountCents: intent.metadata?.amountCents,
+      })
+    ) {
       if (intent.metadata?.type === "hoa") {
         await markHoaChargePaid(chargeId);
       } else {

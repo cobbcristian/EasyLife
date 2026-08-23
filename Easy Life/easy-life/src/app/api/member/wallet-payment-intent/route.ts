@@ -7,6 +7,10 @@ import {
 } from "@/lib/server/hoa-dues";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe, isWalletPayConfigured } from "@/lib/server/stripe";
+import {
+  normalizeWalletPayKind,
+  validateWalletPayKind,
+} from "@/lib/server/wallet-payment";
 
 async function markPaid(chargeId?: string) {
   if (!chargeId) return;
@@ -15,7 +19,8 @@ async function markPaid(chargeId?: string) {
 
 /**
  * Creates a PaymentIntent for Apple Pay / Google Pay (Payment Request API).
- * Amount is always resolved server-side for HOA; generic charges validated by id.
+ * HOA and linked charges always resolve amount server-side.
+ * kind=amount is ad-hoc only and must not attach a chargeId (webhook would settle it).
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -35,11 +40,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const kind = body.kind ?? "amount";
+  const kind = normalizeWalletPayKind(body.kind);
+  const kindCheck = validateWalletPayKind({
+    kind,
+    chargeId: body.chargeId,
+  });
+  if (!kindCheck.ok) {
+    return NextResponse.json(
+      { error: kindCheck.error },
+      { status: kindCheck.status },
+    );
+  }
+
   const returnPath = "/member/payments";
   let amountCents = 0;
   let description = body.description ?? "Club payment";
-  let chargeId: string | undefined = body.chargeId;
+  /** Only set after server-side ownership / HOA resolution. */
+  let chargeId: string | undefined;
   const metadata: Record<string, string> = { userEmail: session.email };
 
   if (kind === "hoa") {
@@ -63,10 +80,11 @@ export async function POST(request: Request) {
     metadata.communityId = payment.communityId;
     metadata.unit = payment.unit;
     metadata.periodId = payment.periodId;
-  } else if (kind === "charge" && body.chargeId) {
+    metadata.amountCents = String(amountCents);
+  } else if (kind === "charge") {
     const { prisma } = await import("@/lib/server/prisma");
     const charge = await prisma.memberCharge.findFirst({
-      where: { id: body.chargeId, memberEmail: session.email.toLowerCase() },
+      where: { id: body.chargeId!, memberEmail: session.email.toLowerCase() },
     });
     if (!charge) {
       return NextResponse.json({ error: "Charge not found" }, { status: 404 });
@@ -75,16 +93,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Already paid" }, { status: 400 });
     }
     amountCents = Math.round(charge.amount * 100);
+    if (!Number.isFinite(amountCents) || amountCents <= 0) {
+      return NextResponse.json({ error: "Invalid charge amount" }, { status: 400 });
+    }
     description = charge.description;
     chargeId = charge.id;
     metadata.chargeId = charge.id;
+    metadata.amountCents = String(amountCents);
   } else {
     const amount = Number(body.amount);
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
     amountCents = Math.round(amount * 100);
-    if (chargeId) metadata.chargeId = chargeId;
+    // Intentionally no chargeId — ad-hoc wallet pay must not settle DB charges.
   }
 
   const stripe = getStripe();
@@ -92,7 +114,7 @@ export async function POST(request: Request) {
     if (isDemoPaymentAllowed()) {
       if (kind === "hoa" && chargeId) {
         await markHoaChargePaid(chargeId);
-      } else {
+      } else if (kind === "charge" && chargeId) {
         await markPaid(chargeId);
       }
       return NextResponse.json({
