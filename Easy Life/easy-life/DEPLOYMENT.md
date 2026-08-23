@@ -296,7 +296,8 @@ az webapp restart \
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` / `MICROSOFT_TENANT_ID` | Microsoft Entra SSO (`common` default) | Optional |
 | `APPLE_CLIENT_ID` / `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` | Sign in with Apple | Optional |
 | `STRIPE_SECRET_KEY` | Stripe secret key for Checkout (per-unit HOA amounts via `price_data`) | For payments |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`/api/stripe/webhook`) | For payments |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key for in-app Apple Pay / Google Pay (`WalletPayButtons`) | For wallet pay |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`/api/stripe/webhook` — Checkout + PaymentIntent) | For payments |
 | `STRIPE_PROVIDER_PRICE_ID` | Fixed Price ID for **provider** platform billing only — not HOA dues | Optional |
 
 ---

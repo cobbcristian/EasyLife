@@ -142,6 +142,18 @@ export function memberPortalUrl(): string {
   return `${API_BASE_URL}/member`;
 }
 
+/** Returns true when the bearer token is still valid (used on app cold start). */
+export async function validateStoredSession(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/mobile/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function registerWebUrl(): string {
   return `${API_BASE_URL}/register?mode=join&communityId=${COMMUNITY_ID}`;
 }

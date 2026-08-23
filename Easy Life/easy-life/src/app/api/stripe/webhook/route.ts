@@ -10,7 +10,7 @@ import { getStripe } from "@/lib/server/stripe";
 export const runtime = "nodejs";
 
 /**
- * Stripe webhook — confirms Checkout payment and marks the linked charge paid.
+ * Stripe webhook — confirms Checkout and wallet PaymentIntent payments; marks linked charges paid.
  * Requires STRIPE_WEBHOOK_SECRET. Amount was set server-side at session create;
  * residents cannot alter it on the Stripe hosted page.
  */
@@ -42,6 +42,20 @@ export async function POST(request: Request) {
     const chargeId = session.metadata?.chargeId;
     if (chargeId) {
       if (session.metadata?.type === "hoa") {
+        await markHoaChargePaid(chargeId);
+      } else {
+        await updateMemberChargeStatus(chargeId, "paid");
+        await activateSharedCalendarByCharge(chargeId);
+        await markEscrowHeldByCharge(chargeId);
+      }
+    }
+  }
+
+  if (event.type === "payment_intent.succeeded") {
+    const intent = event.data.object;
+    const chargeId = intent.metadata?.chargeId;
+    if (chargeId) {
+      if (intent.metadata?.type === "hoa") {
         await markHoaChargePaid(chargeId);
       } else {
         await updateMemberChargeStatus(chargeId, "paid");

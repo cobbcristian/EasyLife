@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   BackHandler,
   Linking,
   Platform,
@@ -16,7 +17,14 @@ import { WebView } from "react-native-webview";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import * as Notifications from "expo-notifications";
-import { sessionBridgeUrl } from "./src/api";
+import { sessionBridgeUrl, validateStoredSession } from "./src/api";
+import {
+  authenticateWithBiometric,
+  getBiometricLabel,
+  isBiometricHardwareAvailable,
+  isBiometricSignInEnabled,
+  setBiometricSignInEnabled,
+} from "./src/biometric";
 import { ensurePushRegistered, unregisterPush } from "./src/push";
 import {
   APP_NAME,
@@ -109,16 +117,62 @@ function AppInner() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [hidePortalBar, setHidePortalBar] = useState(false);
   const [authKey, setAuthKey] = useState(0);
+  const [biometricLabel, setBiometricLabel] = useState("Face ID");
+  const [faceRetryToken, setFaceRetryToken] = useState<string | null>(null);
+  const [faceUnlocking, setFaceUnlocking] = useState(false);
+  const offeredBiometricRef = useRef(false);
 
   const portalUri = useMemo(
     () => (token ? sessionBridgeUrl(token) : null),
     [token],
   );
 
-  async function enterPortal(nextToken: string) {
+  async function enterPortal(nextToken: string, offerBiometric = true) {
     await SecureStore.setItemAsync(SESSION_KEY, nextToken);
     setToken(nextToken);
+    setFaceRetryToken(null);
     setMode("portal");
+
+    if (!offerBiometric || offeredBiometricRef.current) return;
+    const bioAvailable = await isBiometricHardwareAvailable();
+    const bioEnabled = await isBiometricSignInEnabled();
+    if (!bioAvailable || bioEnabled) return;
+
+    offeredBiometricRef.current = true;
+    const label = await getBiometricLabel();
+    Alert.alert(
+      `Enable ${label}?`,
+      `Sign in instantly next time with ${label}. You stay signed in until you tap Sign out.`,
+      [
+        { text: "Not now", style: "cancel" },
+        {
+          text: "Enable",
+          onPress: () => {
+            void (async () => {
+              const ok = await authenticateWithBiometric(
+                `Confirm to enable ${label}`,
+              );
+              if (ok) await setBiometricSignInEnabled(true);
+            })();
+          },
+        },
+      ],
+    );
+  }
+
+  async function unlockWithBiometric(storedToken: string): Promise<boolean> {
+    setFaceUnlocking(true);
+    try {
+      const label = await getBiometricLabel();
+      const ok = await authenticateWithBiometric(`Sign in with ${label}`);
+      if (!ok) return false;
+      setToken(storedToken);
+      setFaceRetryToken(null);
+      setMode("portal");
+      return true;
+    } finally {
+      setFaceUnlocking(false);
+    }
   }
 
   async function handleOAuthReturnUrl(url: string) {
@@ -151,15 +205,30 @@ function AppInner() {
   useEffect(() => {
     void (async () => {
       try {
+        const label = await getBiometricLabel();
+        setBiometricLabel(label);
+
         const saved = await SecureStore.getItemAsync(SESSION_KEY);
-        if (saved) {
-          setToken(saved);
-          setMode("portal");
+        if (!saved || !(await validateStoredSession(saved))) {
+          if (saved) await SecureStore.deleteItemAsync(SESSION_KEY);
+          return;
         }
+
+        const bioEnabled = await isBiometricSignInEnabled();
+        const bioAvailable = await isBiometricHardwareAvailable();
+        if (bioEnabled && bioAvailable) {
+          const ok = await unlockWithBiometric(saved);
+          if (!ok) setFaceRetryToken(saved);
+          return;
+        }
+
+        setToken(saved);
+        setMode("portal");
       } finally {
         setBooting(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -205,6 +274,7 @@ function AppInner() {
   async function onSignOut() {
     await SecureStore.deleteItemAsync(SESSION_KEY);
     setToken(null);
+    setFaceRetryToken(null);
     setMode("auth");
     setAuthKey((k) => k + 1);
   }
@@ -408,6 +478,24 @@ function AppInner() {
   return (
     <SafeAreaView style={styles.flex} edges={["top", "left", "right", "bottom"]}>
       <StatusBar style="dark" />
+      {faceRetryToken ? (
+        <View style={styles.faceBar}>
+          <Pressable
+            style={styles.faceButton}
+            disabled={faceUnlocking}
+            onPress={() => void unlockWithBiometric(faceRetryToken)}
+            accessibilityRole="button"
+            accessibilityLabel={`Sign in with ${biometricLabel}`}
+          >
+            {faceUnlocking ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.faceButtonText}>Sign in with {biometricLabel}</Text>
+            )}
+          </Pressable>
+          <Text style={styles.faceHint}>Or sign in with email and password below</Text>
+        </View>
+      ) : null}
       <WebView
         key={authKey}
         source={{ uri: AUTH_URI }}
@@ -491,5 +579,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
+  },
+  faceBar: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  faceButton: {
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: BRAND,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  faceButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  faceHint: {
+    marginTop: 8,
+    textAlign: "center",
+    fontSize: 12,
+    color: "#666",
   },
 });

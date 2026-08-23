@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/server/prisma";
-import { getStripe, isStripeConfigured } from "@/lib/server/stripe";
+import { getStripe, isStripeConfigured, getStripePublishableKey, isWalletPayConfigured } from "@/lib/server/stripe";
+import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 
@@ -20,6 +21,8 @@ export interface PaymentSettingsDTO {
   methods: PaymentMethodDTO[];
   stripeEnabled: boolean;
   demoPaymentsAllowed: boolean;
+  walletPayEnabled: boolean;
+  stripePublishableKey: string | null;
 }
 
 function normalizeEmail(email: string): string {
@@ -80,6 +83,8 @@ export async function getPaymentSettings(userEmail: string): Promise<PaymentSett
     methods: methods.map(toDto),
     stripeEnabled: isStripeConfigured(),
     demoPaymentsAllowed: isDemoPaymentAllowed(),
+    walletPayEnabled: isWalletPayConfigured(),
+    stripePublishableKey: getStripePublishableKey(),
   };
 }
 
@@ -309,7 +314,7 @@ export async function createStripeSetupCheckout(
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: customerId,
-    payment_method_types: ["card"],
+    ...stripeCheckoutPaymentOptions,
     success_url: `${origin}${returnPath}?payment_setup=success`,
     cancel_url: `${origin}${returnPath}?payment_setup=cancelled`,
   });

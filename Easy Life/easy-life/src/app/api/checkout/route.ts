@@ -11,6 +11,7 @@ import {
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
+import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
 
 async function afterChargePaid(chargeId: string | undefined) {
   if (!chargeId) return;
@@ -120,6 +121,7 @@ export async function POST(request: Request) {
   try {
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
+      ...stripeCheckoutPaymentOptions,
       line_items: [
         {
           price_data: {

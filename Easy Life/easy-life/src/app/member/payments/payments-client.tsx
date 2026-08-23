@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckoutButton } from "@/components/payments/checkout-button";
 import { PaymentMethodsSettings } from "@/components/payments/payment-methods-settings";
+import { WalletPayButtons } from "@/components/payments/wallet-pay-buttons";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { communityIsResidentialHoa } from "@/lib/community-features";
@@ -320,14 +321,26 @@ export function PaymentsClient() {
                 )}
               </p>
               {hoaDues?.amountDue != null && hoaDues.amountDue > 0 ? (
-                <button
-                  type="button"
-                  disabled={hoaPaying}
-                  onClick={() => void payHoaDues()}
-                  className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {hoaPaying ? t("Starting checkout…") : t("Pay HOA dues")} →
-                </button>
+                <div className="mt-3 space-y-3">
+                  <WalletPayButtons
+                    kind="hoa"
+                    amount={hoaDues.amountDue}
+                    description={hoaDues.productName}
+                    onPaid={() => {
+                      loadCharges();
+                      loadStatement();
+                      loadHoaDues();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={hoaPaying}
+                    onClick={() => void payHoaDues()}
+                    className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-[#e8ebf0] bg-white px-4 text-sm font-semibold text-ink disabled:opacity-60 sm:w-auto"
+                  >
+                    {hoaPaying ? t("Starting checkout…") : t("Pay with card")} →
+                  </button>
+                </div>
               ) : null}
               {hoaPortal ? (
                 <p className="mt-3 text-[11px] text-grey">
@@ -421,16 +434,27 @@ export function PaymentsClient() {
           ) : null}
 
           {totalDue > 0 ? (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--mvp-blue)]/20 bg-[var(--mvp-blue)]/5 px-4 py-3">
-              <p className="text-[12px] text-grey">{t("Pay all outstanding balances")}</p>
-              <CheckoutButton
+            <div className="space-y-3 rounded-2xl border border-[var(--mvp-blue)]/20 bg-[var(--mvp-blue)]/5 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[12px] text-grey">{t("Pay all outstanding balances")}</p>
+                <p className="text-sm font-bold text-ink">{formatCurrency(totalDue)}</p>
+              </div>
+              <WalletPayButtons
+                kind="amount"
                 amount={totalDue}
                 description={t("Club account — QuickPay")}
-                returnPath="/member/payments"
-                label={t("QuickPay")}
                 onPaid={loadCharges}
-                showCardOverride
               />
+              <div className="flex justify-end">
+                <CheckoutButton
+                  amount={totalDue}
+                  description={t("Club account — QuickPay")}
+                  returnPath="/member/payments"
+                  label={t("Pay with card")}
+                  onPaid={loadCharges}
+                  showCardOverride
+                />
+              </div>
             </div>
           ) : null}
 
@@ -481,20 +505,30 @@ export function PaymentsClient() {
                           {c.dueDate ? ` · ${formatDate(c.dueDate)}` : ""}
                         </p>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <span className={`text-[12px] font-semibold ${statusClass(c.status)}`}>
+                      <div className="flex shrink-0 flex-col items-stretch gap-2 min-w-[140px] sm:min-w-[180px]">
+                        <span className={`text-right text-[12px] font-semibold ${statusClass(c.status)}`}>
                           {t(c.status)}
                         </span>
                         {c.status !== "paid" ? (
-                          <CheckoutButton
-                            amount={c.amount}
-                            description={c.description}
-                            returnPath="/member/payments"
-                            chargeId={c.id}
-                            label={t("Pay")}
-                            onPaid={loadCharges}
-                            showCardOverride
-                          />
+                          <>
+                            <WalletPayButtons
+                              kind="charge"
+                              chargeId={c.id}
+                              amount={c.amount}
+                              description={c.description}
+                              onPaid={loadCharges}
+                              className="w-full"
+                            />
+                            <CheckoutButton
+                              amount={c.amount}
+                              description={c.description}
+                              returnPath="/member/payments"
+                              chargeId={c.id}
+                              label={t("Pay with card")}
+                              onPaid={loadCharges}
+                              showCardOverride
+                            />
+                          </>
                         ) : null}
                       </div>
                     </li>

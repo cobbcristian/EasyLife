@@ -6,6 +6,7 @@ import {
 import { markClinicGuestPaidAndRsvp } from "@/lib/server/clinics";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 import { getStripe } from "@/lib/server/stripe";
+import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -69,6 +70,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
+    ...stripeCheckoutPaymentOptions,
     line_items: [
       {
         quantity: 1,

@@ -17,13 +17,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.easylife.oceanside",
-      "buildNumber": "23",
+      "buildNumber": "29",
       "entitlements": {
         "aps-environment": "production"
       },
       "infoPlist": {
         "CFBundleDisplayName": "The Plaza at Oceanside",
         "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Use Face ID to sign in quickly. Your session stays active until you sign out.",
         "NSCameraUsageDescription": "Allow camera access to upload photos for your resident profile and service requests.",
         "NSPhotoLibraryUsageDescription": "Allow photo library access to upload images for your resident profile and service requests.",
         "NSMicrophoneUsageDescription": "Allow microphone access so you can ask the resident assistant by voice.",
@@ -58,7 +59,9 @@
         "ACCESS_NETWORK_STATE",
         "POST_NOTIFICATIONS",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ],
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
@@ -101,6 +104,7 @@
     "plugins": [
       "expo-secure-store",
       "expo-web-browser",
+      "expo-local-authentication",
       [
         "expo-notifications",
         {

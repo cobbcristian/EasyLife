@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   SESSION_COOKIE,
   homeForRole,
+  maybeRefreshSessionToken,
+  setSessionCookie,
   verifySessionToken,
 } from "@/lib/server/auth";
 import { publicAbsoluteUrl, publicRequestOrigin } from "@/lib/server/app-url";
@@ -302,8 +304,16 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  const response = NextResponse.next();
+  const response = NextResponse.next({
+    request: { headers: withPathnameHeader(request, pathname) },
+  });
   if (tenant) applyDemoTenantCookies(response, tenant);
+  if (token) {
+    const refreshed = await maybeRefreshSessionToken(session, token);
+    if (refreshed !== token) {
+      setSessionCookie(response, refreshed);
+    }
+  }
   return response;
 }
 

@@ -6,6 +6,7 @@ import {
   resolveHoaPaymentForMember,
 } from "@/lib/server/hoa-dues";
 import { getStripe } from "@/lib/server/stripe";
+import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
 
 /**
  * Creates a Stripe Checkout Session for the resident's unit HOA amount.
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
   try {
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
+      ...stripeCheckoutPaymentOptions,
       customer_email: session.email,
       line_items: [
         {

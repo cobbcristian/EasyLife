@@ -5,9 +5,9 @@ import {
   DEMO_TENANT_COOKIE,
 } from "@/lib/tenant";
 import {
-  SESSION_COOKIE,
+  createSessionToken,
   homeForRole,
-  sessionCookieOptions,
+  setSessionCookie,
   verifySessionToken,
 } from "@/lib/server/auth";
 
@@ -45,7 +45,8 @@ export async function GET(request: Request) {
   }
 
   const response = NextResponse.redirect(new URL(destination, origin));
-  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
+  const freshToken = await createSessionToken(session);
+  setSessionCookie(response, freshToken);
 
   if (session.communityId === "oceanside-residents") {
     response.cookies.set(ACTIVE_COMMUNITY_COOKIE, "oceanside-residents", {

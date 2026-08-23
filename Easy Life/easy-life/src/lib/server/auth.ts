@@ -1,9 +1,16 @@
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import type { SessionPayload } from "@/lib/types";
 
 export const SESSION_COOKIE = "el_session";
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+
+/** Stay signed in until logout (social-app style), not bank-style auto sign-out. */
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365; // 365 days
+const MAX_AGE = SESSION_MAX_AGE_SECONDS;
+
+/** Renew JWT when less than 30 days remain so active users rarely hit expiry. */
+const SESSION_REFRESH_THRESHOLD_SECONDS = 60 * 60 * 24 * 30;
 
 function getKey(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
@@ -48,22 +55,55 @@ export function defaultCommunityForRole(
   return COMMUNITY_BY_ROLE[role] ?? null;
 }
 
+export function sessionFromJwtPayload(payload: JWTPayload): SessionPayload {
+  return {
+    sub: payload.sub as string,
+    email: payload.email as string,
+    role: payload.role as SessionPayload["role"],
+    name: payload.name as string,
+    communityId: (payload.communityId as string | null | undefined) ?? null,
+  };
+}
+
 export async function verifySessionToken(
   token: string | undefined,
 ): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getKey());
-    return {
-      sub: payload.sub as string,
-      email: payload.email as string,
-      role: payload.role as SessionPayload["role"],
-      name: payload.name as string,
-      communityId: (payload.communityId as string | null | undefined) ?? null,
-    };
+    return sessionFromJwtPayload(payload);
   } catch {
     return null;
   }
+}
+
+export async function getSessionTokenExpiry(
+  token: string,
+): Promise<number | null> {
+  try {
+    const { payload } = await jwtVerify(token, getKey());
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Issue a new JWT when the current one is nearing expiry (sliding session). */
+export async function maybeRefreshSessionToken(
+  session: SessionPayload,
+  currentToken: string,
+): Promise<string> {
+  const exp = await getSessionTokenExpiry(currentToken);
+  if (!exp) return currentToken;
+  const remaining = exp - Math.floor(Date.now() / 1000);
+  if (remaining > SESSION_REFRESH_THRESHOLD_SECONDS) {
+    return currentToken;
+  }
+  return createSessionToken(session);
+}
+
+export function setSessionCookie(response: NextResponse, token: string) {
+  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
 }
 
 const RESET_MAX_AGE = 60 * 60; // 1 hour
