@@ -9,6 +9,9 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session.communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   const { id } = await params;
   let body: { optionId?: string };
   try {
@@ -23,9 +26,13 @@ export async function POST(
     surveyId: id,
     optionId: body.optionId,
     voterEmail: session.email,
+    communityId: session.communityId,
   });
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 409 });
+    return NextResponse.json(
+      { error: result.error },
+      { status: result.status ?? 409 },
+    );
   }
   revalidatePath("/board/governance");
   return NextResponse.json({ ok: true });

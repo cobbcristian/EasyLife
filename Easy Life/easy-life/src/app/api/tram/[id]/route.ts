@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
 import { sendSms, isSmsConfigured } from "@/lib/server/sms";
+import {
+  canAccessTramRequest,
+  canMutateTramRequest,
+  isTramStaff,
+} from "@/lib/server/tram-auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
@@ -16,6 +22,10 @@ export async function GET(
   const tramRequest = await prisma.tramRequest.findUnique({ where: { id } });
 
   if (!tramRequest) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (!canAccessTramRequest(session, tramRequest)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -32,49 +42,51 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const body = await req.json();
-  const isPM = session.role === "pm" || session.role === "admin";
+  let body: {
+    status?: string;
+    driverName?: string;
+    vehicleId?: string;
+    driverNotes?: string;
+    estimatedPickup?: string;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
 
   const existing = await prisma.tramRequest.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Members can only cancel their own requests
-  if (!isPM && existing.memberEmail !== session.email) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const mutate = canMutateTramRequest(session, existing, body.status);
+  if (!mutate.ok) {
+    // Hide cross-tenant ids as 404
+    if (!canAccessTramRequest(session, existing)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ error: mutate.error }, { status: mutate.status });
   }
 
-  // Members can only cancel, not update other fields
-  if (!isPM && body.status !== "cancelled") {
-    return NextResponse.json(
-      { error: "Members can only cancel requests" },
-      { status: 403 }
-    );
-  }
-
+  const staff = isSuperAdmin(session) || isTramStaff(session);
   const updateData: Record<string, unknown> = {};
 
-  // PM can update all fields
-  if (isPM) {
+  if (staff) {
     if (body.status) updateData.status = body.status;
     if (body.driverName !== undefined) updateData.driverName = body.driverName;
     if (body.vehicleId !== undefined) updateData.vehicleId = body.vehicleId;
     if (body.driverNotes !== undefined) updateData.driverNotes = body.driverNotes;
     if (body.estimatedPickup) updateData.estimatedPickup = new Date(body.estimatedPickup);
-    
-    // Auto-set timestamps based on status
+
     if (body.status === "arrived" && !existing.actualPickup) {
       updateData.actualPickup = new Date();
     }
     if (body.status === "completed" && !existing.completedAt) {
       updateData.completedAt = new Date();
     }
-  } else {
-    // Member cancelling
-    if (body.status === "cancelled") {
-      updateData.status = "cancelled";
-    }
+  } else if (body.status === "cancelled") {
+    updateData.status = "cancelled";
   }
 
   const updated = await prisma.tramRequest.update({
@@ -82,7 +94,6 @@ export async function PATCH(
     data: updateData,
   });
 
-  // Send SMS to driver when dispatched
   if (body.status === "dispatched" && body.driverName && isSmsConfigured()) {
     const driver = await prisma.tramDriver.findFirst({
       where: {
@@ -114,7 +125,6 @@ View: ${process.env.NEXTAUTH_URL || ""}/driver/${driver.id}`;
     }
   }
 
-  // Notify resident when tram is en route
   if (body.status === "en_route" && existing.phone && isSmsConfigured()) {
     const smsBody = `🚐 Your tram is on the way!
 Driver: ${updated.driverName || "Staff"}
@@ -130,7 +140,7 @@ Please be ready at the pickup location.`;
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
@@ -138,12 +148,20 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const isPM = session.role === "pm" || session.role === "admin";
-  if (!isPM) {
+  if (!isSuperAdmin(session) && !isTramStaff(session)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
+  const existing = await prisma.tramRequest.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (!canAccessTramRequest(session, existing)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   await prisma.tramRequest.delete({ where: { id } });
 
   return NextResponse.json({ success: true });
