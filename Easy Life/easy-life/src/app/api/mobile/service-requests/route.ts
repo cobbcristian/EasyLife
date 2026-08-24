@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifySessionToken } from "@/lib/server/auth";
+import { verifyActiveSessionToken } from "@/lib/server/auth";
 import {
   createServiceRequest,
   ensureRecordsSeeded,
@@ -14,7 +14,7 @@ function bearer(request: Request): string | undefined {
 }
 
 export async function GET(request: Request) {
-  const session = await verifySessionToken(bearer(request));
+  const session = await verifyActiveSessionToken(bearer(request));
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await verifySessionToken(bearer(request));
+  const session = await verifyActiveSessionToken(bearer(request));
   if (!session || session.role !== "member") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifySessionToken } from "@/lib/server/auth";
+import { verifyActiveSessionToken } from "@/lib/server/auth";
 import { ensureRecordsSeeded, listAmenities } from "@/lib/server/records";
 
 function bearer(request: Request): string | undefined {
@@ -8,7 +8,7 @@ function bearer(request: Request): string | undefined {
 }
 
 export async function GET(request: Request) {
-  const session = await verifySessionToken(bearer(request));
+  const session = await verifyActiveSessionToken(bearer(request));
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

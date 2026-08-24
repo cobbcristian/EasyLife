@@ -4,7 +4,7 @@ import {
   homeForRole,
   maybeRefreshSessionToken,
   setSessionCookie,
-  verifySessionToken,
+  verifyActiveSessionToken,
 } from "@/lib/server/auth";
 import { publicAbsoluteUrl, publicRequestOrigin } from "@/lib/server/app-url";
 import { canAccessPath, forbiddenRedirect } from "@/lib/server/permissions";
@@ -154,7 +154,7 @@ async function stagingApiBlock(request: NextRequest) {
   const token =
     request.cookies.get(SESSION_COOKIE)?.value ?? bearerToken(request);
   if (!token) return null;
-  const session = await verifySessionToken(token);
+  const session = await verifyActiveSessionToken(token);
   if (session && (await isSessionBlockedByStaging(session))) {
     return NextResponse.json(
       { error: "This club is in staging mode. Member access is not open yet." },
@@ -241,7 +241,7 @@ export async function proxy(request: NextRequest) {
     }
     const token =
       request.cookies.get(SESSION_COOKIE)?.value ?? bearerToken(request);
-    const session = await verifySessionToken(token);
+    const session = await verifyActiveSessionToken(token);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -266,12 +266,20 @@ export async function proxy(request: NextRequest) {
   }
 
   const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const session = await verifySessionToken(token);
+  const session = await verifyActiveSessionToken(token);
 
   if (!session) {
     const loginUrl = publicAbsoluteUrl(request, "/login");
     loginUrl.searchParams.set("redirect", pathname);
     const redirect = NextResponse.redirect(loginUrl);
+    if (token) {
+      // Drop stale cookies for frozen/pending/deleted accounts.
+      redirect.cookies.set(SESSION_COOKIE, "", {
+        httpOnly: true,
+        path: "/",
+        maxAge: 0,
+      });
+    }
     if (tenant) applyDemoTenantCookies(redirect, tenant);
     return redirect;
   }

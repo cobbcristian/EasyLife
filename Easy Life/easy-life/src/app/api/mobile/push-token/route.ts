@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifySessionToken } from "@/lib/server/auth";
+import { verifyActiveSessionToken } from "@/lib/server/auth";
 import {
   removeExpoPushToken,
   saveExpoPushToken,
@@ -11,7 +11,7 @@ function bearer(request: Request): string | undefined {
 }
 
 export async function POST(request: Request) {
-  const session = await verifySessionToken(bearer(request));
+  const session = await verifyActiveSessionToken(bearer(request));
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
