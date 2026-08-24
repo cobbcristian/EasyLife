@@ -11,6 +11,14 @@ export type UnlockMethod =
   | "app_remote"
   | "rfid";
 
+/**
+ * Grab & Go close must never mark a charge paid from unlock method alone.
+ * `card_tap` previously returned paid with no Stripe (or other) capture.
+ */
+export function grabGoChargeStatusOnClose(_unlockMethod: UnlockMethod): "due" {
+  return "due";
+}
+
 export class GrabGoError extends Error {
   constructor(message: string) {
     super(message);
@@ -515,7 +523,8 @@ export async function closeGrabGoSession(sessionId: string) {
   let chargeId: string | null = null;
   if (total > 0) {
     const itemLabel = items.map((i) => `${i.qty}× ${i.name}`).join(", ");
-    const paidByCard = session.unlockMethod === "card_tap";
+    // Always bill to club account as due. Never mark paid here — card_tap used
+    // to set status "paid" with no Stripe (or other) capture, which was free walk-out.
     const charge = await prisma.memberCharge.create({
       data: {
         communityId: session.communityId,
@@ -524,7 +533,7 @@ export async function closeGrabGoSession(sessionId: string) {
         category: "grab_go",
         description: `${session.machine.name}: ${itemLabel}`,
         amount: total,
-        status: paidByCard ? "paid" : "due",
+        status: grabGoChargeStatusOnClose(session.unlockMethod as UnlockMethod),
         dueDate: new Date().toISOString().slice(0, 10),
         referenceType: "grab_go_session",
         referenceId: session.id,

@@ -174,9 +174,7 @@ export async function POST(request: Request) {
           items: JSON.parse(result.session.itemsJson),
           message:
             result.session.total > 0
-              ? result.session.unlockMethod === "card_tap"
-                ? "Walk-out complete. Card charged."
-                : "Walk-out complete. Charged to your club account."
+              ? "Walk-out complete. Charged to your club account."
               : "Visit ended — nothing taken.",
         });
       }

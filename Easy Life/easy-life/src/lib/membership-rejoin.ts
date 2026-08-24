@@ -73,3 +73,14 @@ export function rejoinWaitMessage(input: {
   }
   return `This club requires a ${input.waitDays}-day wait after resignation before rejoining.${remain}${when}.`;
 }
+
+/**
+ * Whether a resigned member email belongs to the club whose rejoin cron is running.
+ * Cron must never apply Club A's policy notices to Club B's resigned members.
+ */
+export function isResignedMemberInCommunityScope(
+  userEmail: string,
+  communityMemberEmails: ReadonlySet<string>,
+): boolean {
+  return communityMemberEmails.has(userEmail.trim().toLowerCase());
+}

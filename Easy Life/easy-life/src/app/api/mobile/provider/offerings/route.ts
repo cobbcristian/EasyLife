@@ -61,6 +61,9 @@ export async function POST(request: Request) {
     priceLabel: body.priceLabel,
     priceCents: body.priceCents,
   });
+  if (!offering) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   return NextResponse.json({ ok: true, offering });
 }
 
