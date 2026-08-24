@@ -333,6 +333,18 @@ export async function listProviderOfferings(
   });
 }
 
+/** True when the offering row belongs to this provider (email match). */
+export function offeringOwnedByProvider(
+  offering: { providerEmail: string } | null | undefined,
+  providerEmail: string,
+): boolean {
+  if (!offering) return false;
+  return (
+    offering.providerEmail.trim().toLowerCase() ===
+    providerEmail.trim().toLowerCase()
+  );
+}
+
 export async function upsertProviderOffering(input: {
   id?: string;
   providerEmail: string;
@@ -345,8 +357,14 @@ export async function upsertProviderOffering(input: {
 }) {
   const email = input.providerEmail.trim().toLowerCase();
   if (input.id) {
+    // Must bind update to the caller's email — delete already did; update by id alone
+    // let any provider overwrite another provider's catalog/prices.
+    const existing = await prisma.providerOffering.findFirst({
+      where: { id: input.id, providerEmail: email },
+    });
+    if (!existing) return null;
     return prisma.providerOffering.update({
-      where: { id: input.id },
+      where: { id: existing.id },
       data: {
         name: input.name,
         description: input.description ?? "",
