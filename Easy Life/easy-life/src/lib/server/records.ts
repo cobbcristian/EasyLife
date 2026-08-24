@@ -38,6 +38,10 @@ import { ensureGrabGoSeeded } from "@/lib/server/grab-go";
 import {
   ensureDemoDependents,
 } from "@/lib/server/dependent-membership";
+import {
+  isOptionForSurvey,
+  isSurveyInCommunity,
+} from "@/lib/server/survey-auth";
 import { ensureDemoRejoinCase } from "@/lib/server/membership-rejoin";
 import { ensureHeritageBayDemoSeeded } from "@/lib/server/heritage-bay-seed";
 import { ensureHuntersRidgeDemoSeeded } from "@/lib/server/hunters-ridge-seed";
@@ -1628,14 +1632,46 @@ export async function castVote(input: {
   surveyId: string;
   optionId: string;
   voterEmail: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  const existing = await prisma.surveyVote.findUnique({
-    where: { surveyId_voterEmail: { surveyId: input.surveyId, voterEmail: input.voterEmail } },
+  /** Caller's club — required so members cannot vote on other communities' surveys. */
+  communityId?: string | null;
+}): Promise<{ ok: boolean; error?: string; status?: number }> {
+  const survey = await prisma.survey.findUnique({
+    where: { id: input.surveyId },
+    select: { id: true, communityId: true },
   });
-  if (existing) return { ok: false, error: "You have already voted on this survey" };
+  if (!survey) {
+    return { ok: false, error: "Survey not found", status: 404 };
+  }
+  if (!isSurveyInCommunity(survey.communityId, input.communityId)) {
+    return { ok: false, error: "Survey not found", status: 404 };
+  }
+
+  const option = await prisma.surveyOption.findUnique({
+    where: { id: input.optionId },
+    select: { id: true, surveyId: true },
+  });
+  if (!option || !isOptionForSurvey(option.surveyId, input.surveyId)) {
+    return { ok: false, error: "Invalid option", status: 400 };
+  }
+
+  const existing = await prisma.surveyVote.findUnique({
+    where: {
+      surveyId_voterEmail: {
+        surveyId: input.surveyId,
+        voterEmail: input.voterEmail,
+      },
+    },
+  });
+  if (existing) {
+    return { ok: false, error: "You have already voted on this survey", status: 409 };
+  }
   await prisma.$transaction([
     prisma.surveyVote.create({
-      data: { surveyId: input.surveyId, optionId: input.optionId, voterEmail: input.voterEmail },
+      data: {
+        surveyId: input.surveyId,
+        optionId: input.optionId,
+        voterEmail: input.voterEmail,
+      },
     }),
     prisma.surveyOption.update({
       where: { id: input.optionId },

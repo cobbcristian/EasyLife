@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { isSuperAdmin } from "@/lib/server/community-context";
 import { getRoleMatrix, saveRoleMatrix } from "@/lib/server/records";
 
 export async function GET() {
@@ -10,9 +11,14 @@ export async function GET() {
   return NextResponse.json({ matrix: await getRoleMatrix() });
 }
 
+/**
+ * Platform-wide permission matrix (no community column).
+ * Only platform super-admins may rewrite it — club admins must not
+ * lock other clubs out of Pay dues / documents / etc.
+ */
 export async function PUT(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || !isSuperAdmin(session)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: { matrix?: Record<string, string[]> };
