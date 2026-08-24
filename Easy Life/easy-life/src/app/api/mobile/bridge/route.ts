@@ -8,7 +8,7 @@ import {
   createSessionToken,
   homeForRole,
   setSessionCookie,
-  verifySessionToken,
+  verifyActiveSessionToken,
 } from "@/lib/server/auth";
 
 /**
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login", origin));
   }
 
-  const session = await verifySessionToken(token);
+  const session = await verifyActiveSessionToken(token);
   if (!session) {
     return NextResponse.redirect(new URL("/login?error=session", origin));
   }

@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
+import { prisma } from "@/lib/server/prisma";
 import type { SessionPayload } from "@/lib/types";
 
 export const SESSION_COOKIE = "el_session";
@@ -77,6 +78,27 @@ export async function verifySessionToken(
   }
 }
 
+/**
+ * Verify JWT and ensure the underlying account is still allowed to use the app.
+ * Freeze / pending only blocked new logins before — long-lived JWTs kept working.
+ * Keeps JWT role/communityId (multi-club switch); only rejects inactive accounts.
+ */
+export async function verifyActiveSessionToken(
+  token: string | undefined,
+): Promise<SessionPayload | null> {
+  const session = await verifySessionToken(token);
+  if (!session?.sub) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub },
+    select: { status: true },
+  });
+  if (!user) return null;
+  if (user.status === "frozen" || user.status === "pending") return null;
+
+  return session;
+}
+
 export async function getSessionTokenExpiry(
   token: string,
 ): Promise<number | null> {
@@ -99,7 +121,10 @@ export async function maybeRefreshSessionToken(
   if (remaining > SESSION_REFRESH_THRESHOLD_SECONDS) {
     return currentToken;
   }
-  return createSessionToken(session);
+  // Re-check account is still active before extending the cookie.
+  const live = await verifyActiveSessionToken(currentToken);
+  if (!live) return currentToken;
+  return createSessionToken(live);
 }
 
 export function setSessionCookie(response: NextResponse, token: string) {
@@ -128,7 +153,7 @@ export async function verifyPasswordResetToken(token: string): Promise<string | 
 
 export async function getSession(): Promise<SessionPayload | null> {
   const store = await cookies();
-  return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  return verifyActiveSessionToken(store.get(SESSION_COOKIE)?.value);
 }
 
 export function homeForRole(

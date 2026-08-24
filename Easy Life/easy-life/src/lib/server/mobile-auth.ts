@@ -1,4 +1,4 @@
-import { verifySessionToken } from "@/lib/server/auth";
+import { verifyActiveSessionToken } from "@/lib/server/auth";
 import type { SessionPayload } from "@/lib/types";
 
 export function bearerToken(request: Request): string | undefined {
@@ -9,5 +9,5 @@ export function bearerToken(request: Request): string | undefined {
 export async function getMobileSession(
   request: Request,
 ): Promise<SessionPayload | null> {
-  return verifySessionToken(bearerToken(request));
+  return verifyActiveSessionToken(bearerToken(request));
 }
