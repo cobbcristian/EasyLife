@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDaysIso,
   evaluateRejoinEligibility,
+  isResignedMemberInCommunityScope,
   rejoinWaitMessage,
 } from "@/lib/membership-rejoin";
 
@@ -56,5 +57,12 @@ describe("membership rejoin wait", () => {
     expect(msg).toContain("Jordan Hayes");
     expect(msg).toContain("65 day");
     expect(msg).toContain("2026-09-21");
+  });
+
+  it("scopes rejoin cron subjects to the club member set", () => {
+    const clubA = new Set(["alice@a.com", "bob@a.com"]);
+    expect(isResignedMemberInCommunityScope("alice@a.com", clubA)).toBe(true);
+    expect(isResignedMemberInCommunityScope("ALICE@A.COM", clubA)).toBe(true);
+    expect(isResignedMemberInCommunityScope("eve@b.com", clubA)).toBe(false);
   });
 });

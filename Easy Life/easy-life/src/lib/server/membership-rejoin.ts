@@ -4,6 +4,7 @@ import { listClubStaff } from "@/lib/server/residency";
 import {
   addDaysIso,
   evaluateRejoinEligibility,
+  isResignedMemberInCommunityScope,
   rejoinWaitMessage,
 } from "@/lib/membership-rejoin";
 import { MembershipAccessError } from "@/lib/server/membership";
@@ -472,6 +473,20 @@ export async function getMembershipSnapshot(
   };
 }
 
+/** Active / primary accounts for a club (cached communityId or memberships). */
+async function listCommunityMemberEmails(communityId: string): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: {
+      OR: [
+        { communityId },
+        { memberships: { some: { communityId, status: "active" } } },
+      ],
+    },
+    select: { email: true },
+  });
+  return users.map((u) => u.email.toLowerCase());
+}
+
 /** Daily: remind members nearing eligibility; warn staff with remaining wait time. */
 export async function processRejoinReminders(
   communityId?: string,
@@ -494,12 +509,22 @@ export async function processRejoinReminders(
   const policy = await ensureRejoinPolicy(cid);
   if (!policy.enabled) return 0;
 
+  const memberEmails = await listCommunityMemberEmails(cid);
+  if (memberEmails.length === 0) return 0;
+  const memberEmailSet = new Set(memberEmails);
+
+  // Must scope to this club — MemberProfileExt is global by email (same bug class as
+  // processDependentMembershipAging applying Club A policy to every dependent).
   const profiles = await prisma.memberProfileExt.findMany({
-    where: { membershipStatus: "resigned" },
+    where: {
+      membershipStatus: "resigned",
+      userEmail: { in: memberEmails },
+    },
   });
   let count = 0;
 
   for (const p of profiles) {
+    if (!isResignedMemberInCommunityScope(p.userEmail, memberEmailSet)) continue;
     const evalResult = evaluateRejoinEligibility({
       policyEnabled: true,
       waitDays: policy.waitDays,
