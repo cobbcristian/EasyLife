@@ -5,12 +5,20 @@ import {
   markHoaChargePaid,
   resolveHoaPaymentForMember,
 } from "@/lib/server/hoa-dues";
+import {
+  activateSharedCalendarByCharge,
+  markEscrowHeldByCharge,
+} from "@/lib/server/local-pros";
+import { confirmLessonBookingByCharge } from "@/lib/server/lessons";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe, isWalletPayConfigured } from "@/lib/server/stripe";
 
 async function markPaid(chargeId?: string) {
   if (!chargeId) return;
   await updateMemberChargeStatus(chargeId, "paid");
+  await activateSharedCalendarByCharge(chargeId);
+  await markEscrowHeldByCharge(chargeId);
+  await confirmLessonBookingByCharge(chargeId);
 }
 
 /**
