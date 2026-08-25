@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canManageCommunity } from "@/lib/server/community-context";
 import { addProviderToCommunity } from "@/lib/server/db";
 
 export async function POST(
@@ -13,6 +14,10 @@ export async function POST(
   }
 
   const { id } = await params;
+  if (!canManageCommunity(session, id)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   let body: {
     businessName?: string;
     type?: "service" | "activity";
@@ -51,6 +56,9 @@ export async function POST(
 
   if (!result) {
     return NextResponse.json({ error: "Community not found" }, { status: 404 });
+  }
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 409 });
   }
 
   revalidatePath(`/communities/${id}`);

@@ -512,6 +512,7 @@ export async function addProviderToCommunity(
       emailSent?: boolean;
       emailError?: string;
     }
+  | { error: string }
   | undefined
 > {
   await ensureSeeded();
@@ -522,6 +523,22 @@ export async function addProviderToCommunity(
 
   const email = input.email?.trim().toLowerCase() || null;
   const phone = input.phone?.trim() || null;
+  const contactName =
+    [input.firstName, input.lastName].filter(Boolean).join(" ").trim() ||
+    input.businessName;
+
+  // Never hijack an existing login: overwriting password/role/communityId
+  // would let any club admin take over another user's account by email.
+  if (email) {
+    const existing = await prisma.user.findFirst({ where: { email } });
+    if (existing) {
+      return {
+        error:
+          "An account with this email already exists. Use a different email for the provider invite.",
+      };
+    }
+  }
+
   const created = await prisma.provider.create({
     data: {
       communityId,
@@ -557,33 +574,16 @@ export async function addProviderToCommunity(
 
   if (email) {
     otp = randomBytes(4).toString("hex");
-    const existing = await prisma.user.findFirst({ where: { email } });
-    const contactName =
-      [input.firstName, input.lastName].filter(Boolean).join(" ").trim() ||
-      input.businessName;
-    if (!existing) {
-      await prisma.user.create({
-        data: {
-          email,
-          password: hashPassword(otp),
-          role: "provider",
-          name: contactName,
-          communityId,
-          status: "active",
-        },
-      });
-    } else {
-      await prisma.user.update({
-        where: { id: existing.id },
-        data: {
-          password: hashPassword(otp),
-          role: "provider",
-          name: contactName,
-          communityId,
-          status: "active",
-        },
-      });
-    }
+    await prisma.user.create({
+      data: {
+        email,
+        password: hashPassword(otp),
+        role: "provider",
+        name: contactName,
+        communityId,
+        status: "active",
+      },
+    });
 
     const sent = await sendBusinessInvitationEmail({
       to: email,
