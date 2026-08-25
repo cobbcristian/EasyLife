@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/server/mobile-auth";
+import { eventBelongsToSessionCommunity } from "@/lib/server/event-auth";
 import { logEvent, toggleEventRsvp } from "@/lib/server/records";
 import { prisma } from "@/lib/server/prisma";
 
@@ -27,6 +28,9 @@ export async function POST(
 
   const event = await prisma.communityEvent.findUnique({ where: { id } });
   if (!event) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+  if (!eventBelongsToSessionCommunity(event.communityId, session.communityId)) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
