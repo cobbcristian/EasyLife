@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { resolveScopedCommunityId } from "@/lib/server/community-context";
-import { diningProviderEmail } from "@/lib/server/dining";
+import { resolvePosSyncProviderEmail } from "@/lib/server/pos-sync-auth";
 import { posStatus, syncPosMenu } from "@/lib/server/pos/micros";
 import { prisma } from "@/lib/server/prisma";
 
@@ -49,30 +49,19 @@ export async function POST(request: Request) {
   }
 
   const targetCommunityId = communityId;
-  let providerEmail = body.providerEmail;
+  const providerEmail = await resolvePosSyncProviderEmail({
+    communityId: targetCommunityId,
+    requestedEmail: body.providerEmail,
+  });
   if (!providerEmail) {
-    const provider = await prisma.provider.findFirst({
-      where: { communityId: targetCommunityId, category: { contains: "Restaurant" } },
-    });
-    providerEmail = provider
-      ? (await prisma.user.findFirst({
-          where: { role: "provider", communityId: targetCommunityId },
-          select: { email: true },
-        }))?.email
-      : undefined;
-    providerEmail ??=
-      (await prisma.user.findFirst({
-        where: { role: "provider", communityId: targetCommunityId },
-        select: { email: true },
-      }))?.email ||
-      diningProviderEmail(targetCommunityId) ||
-      undefined;
-    if (!providerEmail) {
-      return NextResponse.json(
-        { error: "No dining provider configured for this club" },
-        { status: 400 },
-      );
-    }
+    return NextResponse.json(
+      {
+        error: body.providerEmail?.trim()
+          ? "Provider email is not part of this club"
+          : "No dining provider configured for this club",
+      },
+      { status: body.providerEmail?.trim() ? 403 : 400 },
+    );
   }
 
   const result = await syncPosMenu({

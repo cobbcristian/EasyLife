@@ -3094,8 +3094,12 @@ export async function createHelpTicket(input: {
 }
 
 export async function listHelpTickets(communityId?: string | null) {
+  // Club admins see only their club. Super-admin (no communityId) sees all,
+  // including platform marketing leads under `__platform_leads__`.
+  // Do NOT merge `communityId: null` into club scopes — that leaked landing leads
+  // (and any unscoped ticket) into every club's help desk.
   return prisma.helpTicket.findMany({
-    where: communityId ? { OR: [{ communityId }, { communityId: null }] } : undefined,
+    where: communityId ? { communityId } : undefined,
     orderBy: { createdAt: "desc" },
     take: 100,
   });

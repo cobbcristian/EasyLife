@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 import {
+  hoaCheckoutIdempotencyKey,
+  isMemberChargePayable,
   markHoaChargePaid,
   resolveHoaPaymentForMember,
 } from "@/lib/server/hoa-dues";
@@ -36,6 +38,13 @@ export async function POST(request: Request) {
   }
 
   const { payment } = resolved;
+  if (!(await isMemberChargePayable(payment.chargeId))) {
+    return NextResponse.json(
+      { error: "This HOA balance is already paid." },
+      { status: 400 },
+    );
+  }
+
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
   const returnPath = "/member/payments";
 
@@ -62,35 +71,38 @@ export async function POST(request: Request) {
   }
 
   try {
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "payment",
-      ...stripeCheckoutPaymentOptions,
-      customer_email: session.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: payment.productName,
-              description: `${payment.productDescription} · Unit ${payment.unit}`,
+    const checkout = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        ...stripeCheckoutPaymentOptions,
+        customer_email: session.email,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: payment.productName,
+                description: `${payment.productDescription} · Unit ${payment.unit}`,
+              },
+              unit_amount: Math.round(payment.amount * 100),
             },
-            unit_amount: Math.round(payment.amount * 100),
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        success_url: `${origin}${returnPath}?payment=success&chargeId=${payment.chargeId}`,
+        cancel_url: `${origin}${returnPath}?payment=cancelled`,
+        metadata: {
+          type: "hoa",
+          chargeId: payment.chargeId,
+          userEmail: session.email,
+          communityId: payment.communityId,
+          unit: payment.unit,
+          periodId: payment.periodId,
+          amountCents: String(Math.round(payment.amount * 100)),
         },
-      ],
-      success_url: `${origin}${returnPath}?payment=success&chargeId=${payment.chargeId}`,
-      cancel_url: `${origin}${returnPath}?payment=cancelled`,
-      metadata: {
-        type: "hoa",
-        chargeId: payment.chargeId,
-        userEmail: session.email,
-        communityId: payment.communityId,
-        unit: payment.unit,
-        periodId: payment.periodId,
-        amountCents: String(Math.round(payment.amount * 100)),
       },
-    });
+      { idempotencyKey: hoaCheckoutIdempotencyKey(payment.chargeId) },
+    );
 
     return NextResponse.json({
       url: checkout.url,

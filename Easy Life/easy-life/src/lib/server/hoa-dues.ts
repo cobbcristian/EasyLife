@@ -261,18 +261,24 @@ export async function resolveHoaPaymentForMember(opts: {
 
 export async function markHoaChargePaid(chargeId: string): Promise<void> {
   const charge = await prisma.memberCharge.findUnique({ where: { id: chargeId } });
-  if (!charge || charge.category !== "hoa") {
+  if (!charge) return;
+
+  if (charge.category !== "hoa") {
+    if (charge.status !== "paid") {
+      await prisma.memberCharge.update({
+        where: { id: chargeId },
+        data: { status: "paid" },
+      });
+    }
+    return;
+  }
+
+  if (charge.status !== "paid") {
     await prisma.memberCharge.update({
       where: { id: chargeId },
       data: { status: "paid" },
     });
-    return;
   }
-
-  await prisma.memberCharge.update({
-    where: { id: chargeId },
-    data: { status: "paid" },
-  });
 
   const profile = charge.memberEmail
     ? await prisma.memberProfileExt.findUnique({
@@ -292,4 +298,22 @@ export async function markHoaChargePaid(chargeId: string): Promise<void> {
     where: { id: fee.id },
     data: { currentBalance: null },
   });
+}
+
+/** True when a MemberCharge may still be collected (not already paid). */
+export async function isMemberChargePayable(chargeId: string): Promise<boolean> {
+  const charge = await prisma.memberCharge.findUnique({
+    where: { id: chargeId },
+    select: { status: true },
+  });
+  return !!charge && charge.status !== "paid";
+}
+
+/** Stripe idempotency key so concurrent HOA checkouts cannot create two charges. */
+export function hoaCheckoutIdempotencyKey(chargeId: string): string {
+  return `hoa-checkout-${chargeId}`;
+}
+
+export function hoaWalletIdempotencyKey(chargeId: string): string {
+  return `hoa-wallet-${chargeId}`;
 }

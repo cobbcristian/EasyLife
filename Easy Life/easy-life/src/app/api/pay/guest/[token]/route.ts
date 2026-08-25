@@ -68,33 +68,37 @@ export async function POST(request: Request, { params }: Params) {
     });
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    ...stripeCheckoutPaymentOptions,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: Math.round(charge.amount * 100),
-          product_data: {
-            name: charge.description.slice(0, 120),
-            description: isClinic
-              ? `Clinic guest fee — ${charge.memberName}`
-              : `Court guest fee — ${charge.memberName}`,
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "payment",
+      ...stripeCheckoutPaymentOptions,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: Math.round(charge.amount * 100),
+            product_data: {
+              name: charge.description.slice(0, 120),
+              description: isClinic
+                ? `Clinic guest fee — ${charge.memberName}`
+                : `Court guest fee — ${charge.memberName}`,
+            },
           },
         },
+      ],
+      customer_email: charge.memberEmail ?? undefined,
+      metadata: {
+        chargeId: charge.id,
+        payToken: token,
+        kind: charge.referenceType,
+        amountCents: String(Math.round(charge.amount * 100)),
       },
-    ],
-    customer_email: charge.memberEmail ?? undefined,
-    metadata: {
-      chargeId: charge.id,
-      payToken: token,
-      kind: charge.referenceType,
+      success_url: `${origin}/pay/guest/${token}?payment=success`,
+      cancel_url: `${origin}/pay/guest/${token}?payment=cancelled`,
     },
-    success_url: `${origin}/pay/guest/${token}?payment=success`,
-    cancel_url: `${origin}/pay/guest/${token}?payment=cancelled`,
-  });
+    { idempotencyKey: `guest-pay-${charge.id}` },
+  );
 
   return NextResponse.json({ url: session.url, mode: "stripe" });
 }

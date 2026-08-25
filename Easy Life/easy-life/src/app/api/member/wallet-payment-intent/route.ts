@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 import {
+  hoaWalletIdempotencyKey,
+  isMemberChargePayable,
   markHoaChargePaid,
   resolveHoaPaymentForMember,
 } from "@/lib/server/hoa-dues";
+import { prisma } from "@/lib/server/prisma";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe, isWalletPayConfigured } from "@/lib/server/stripe";
 
@@ -41,6 +44,7 @@ export async function POST(request: Request) {
   let description = body.description ?? "Club payment";
   let chargeId: string | undefined = body.chargeId;
   const metadata: Record<string, string> = { userEmail: session.email };
+  let stripeIdempotencyKey: string | undefined;
 
   if (kind === "hoa") {
     if (!session.communityId) {
@@ -55,6 +59,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     }
     const { payment } = resolved;
+    if (!(await isMemberChargePayable(payment.chargeId))) {
+      return NextResponse.json(
+        { error: "This HOA balance is already paid." },
+        { status: 400 },
+      );
+    }
     amountCents = Math.round(payment.amount * 100);
     description = payment.productName;
     chargeId = payment.chargeId;
@@ -63,8 +73,8 @@ export async function POST(request: Request) {
     metadata.communityId = payment.communityId;
     metadata.unit = payment.unit;
     metadata.periodId = payment.periodId;
+    stripeIdempotencyKey = hoaWalletIdempotencyKey(payment.chargeId);
   } else if (kind === "charge" && body.chargeId) {
-    const { prisma } = await import("@/lib/server/prisma");
     const charge = await prisma.memberCharge.findFirst({
       where: { id: body.chargeId, memberEmail: session.email.toLowerCase() },
     });
@@ -78,6 +88,7 @@ export async function POST(request: Request) {
     description = charge.description;
     chargeId = charge.id;
     metadata.chargeId = charge.id;
+    stripeIdempotencyKey = `charge-wallet-${charge.id}`;
   } else {
     const amount = Number(body.amount);
     if (!amount || amount <= 0) {
@@ -112,14 +123,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    const intent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: "usd",
-      description,
-      receipt_email: session.email,
-      metadata,
-      automatic_payment_methods: { enabled: true },
-    });
+    const intent = await stripe.paymentIntents.create(
+      {
+        amount: amountCents,
+        currency: "usd",
+        description,
+        receipt_email: session.email,
+        metadata,
+        automatic_payment_methods: { enabled: true },
+      },
+      stripeIdempotencyKey ? { idempotencyKey: stripeIdempotencyKey } : undefined,
+    );
 
     if (!intent.client_secret) {
       return NextResponse.json({ error: "Could not start wallet payment" }, { status: 502 });
