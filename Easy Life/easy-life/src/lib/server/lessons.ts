@@ -5,6 +5,7 @@ import {
 } from "@/lib/server/membership";
 import { assignUnitNumber, countOverlappingBookings, timeRangesOverlap } from "@/lib/scheduling";
 import { hoursClosedMessage, isOpenAt, parseWeeklyHours } from "@/lib/hours";
+import { initialLessonStatus } from "@/lib/lesson-booking-policy";
 
 function addMinutes(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
@@ -414,6 +415,8 @@ export async function createLessonBooking(input: {
     },
   });
 
+  const status = initialLessonStatus(fee);
+
   const lesson = await prisma.lessonBooking.create({
     data: {
       communityId: input.communityId,
@@ -428,7 +431,7 @@ export async function createLessonBooking(input: {
       startTime: input.startTime,
       endTime,
       amenityId: amenity.id,
-      status: "confirmed",
+      status,
       fee,
       chargeId: charge.id,
       notes: input.notes ?? null,
@@ -446,7 +449,7 @@ export async function createLessonBooking(input: {
       date: input.date,
       startTime: input.startTime,
       endTime,
-      status: "confirmed",
+      status,
       bookingKind: "lesson_hold",
       providerId: provider.id,
       lessonBookingId: lesson.id,
@@ -464,6 +467,27 @@ export async function createLessonBooking(input: {
   });
 
   return { lesson, amenityBooking: hold, charge };
+}
+
+/** After a lesson MemberCharge is paid, confirm the lesson and amenity hold. */
+export async function confirmLessonBookingByCharge(chargeId: string) {
+  const lesson = await prisma.lessonBooking.findFirst({
+    where: { chargeId },
+  });
+  if (!lesson) return null;
+  if (lesson.status === "cancelled") return lesson;
+
+  const updated = await prisma.lessonBooking.update({
+    where: { id: lesson.id },
+    data: { status: "confirmed" },
+  });
+  if (lesson.amenityBookingId) {
+    await prisma.booking.update({
+      where: { id: lesson.amenityBookingId },
+      data: { status: "confirmed" },
+    });
+  }
+  return updated;
 }
 
 export async function listMemberLessons(memberEmail: string) {

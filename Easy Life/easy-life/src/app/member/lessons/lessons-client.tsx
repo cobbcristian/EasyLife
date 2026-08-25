@@ -146,6 +146,18 @@ export function MemberLessonsClient() {
       toast({ variant: "warning", title: data.error ?? t("Could not book lesson") });
       return;
     }
+    const lessonStatus = data.lesson?.status as string | undefined;
+    const chargeId = data.charge?.id as string | undefined;
+    if (lessonStatus === "pending" && chargeId) {
+      toast({
+        variant: "success",
+        title: t("Lesson reserved — payment due"),
+      });
+      window.location.assign(
+        `/member/payments?chargeId=${encodeURIComponent(chargeId)}`,
+      );
+      return;
+    }
     const successTitle =
       sport === "tennis" || sport === "pickleball"
         ? t("Lesson booked — court reserved")

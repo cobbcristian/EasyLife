@@ -3,6 +3,7 @@ import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
+import { confirmLessonBookingByCharge } from "@/lib/server/lessons";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
         await updateMemberChargeStatus(chargeId, "paid");
         await activateSharedCalendarByCharge(chargeId);
         await markEscrowHeldByCharge(chargeId);
+        await confirmLessonBookingByCharge(chargeId);
       }
     }
   }
@@ -61,6 +63,7 @@ export async function POST(request: Request) {
         await updateMemberChargeStatus(chargeId, "paid");
         await activateSharedCalendarByCharge(chargeId);
         await markEscrowHeldByCharge(chargeId);
+        await confirmLessonBookingByCharge(chargeId);
       }
     }
   }
