@@ -4,6 +4,10 @@ import {
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
+import {
+  providerSubscriptionFromCheckoutSession,
+  upsertProviderSubscription,
+} from "@/lib/server/provider-subscriptions";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
@@ -39,6 +43,22 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+    const providerSub = providerSubscriptionFromCheckoutSession({
+      mode: session.mode,
+      payment_status: session.payment_status,
+      metadata: session.metadata as Record<string, string> | null,
+      customer: session.customer,
+      subscription: session.subscription,
+    });
+    if (providerSub) {
+      await upsertProviderSubscription({
+        userEmail: providerSub.userEmail,
+        planId: providerSub.planId,
+        status: "active",
+        stripeCustomerId: providerSub.stripeCustomerId,
+        stripeSubscriptionId: providerSub.stripeSubscriptionId,
+      });
+    }
     const chargeId = session.metadata?.chargeId;
     if (chargeId) {
       if (session.metadata?.type === "hoa") {

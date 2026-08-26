@@ -7,7 +7,11 @@ import {
   FEATURED_PLACEMENT_CENTS,
   createPromotion,
 } from "@/lib/server/records";
-import { upsertProviderSubscription } from "@/lib/server/provider-subscriptions";
+import {
+  initialProviderSubscriptionStatus,
+  upsertProviderSubscription,
+} from "@/lib/server/provider-subscriptions";
+import { isStripeConfigured } from "@/lib/server/stripe";
 import type { AuthUser } from "@/lib/types";
 import { upsertMembership } from "@/lib/server/memberships";
 import { recordProviderActivation } from "@/lib/server/commissions";
@@ -128,8 +132,8 @@ export async function registerServiceProvider(input: {
     userEmail: email,
     businessName,
     planId: input.planId ?? "starter",
-    // Instant go-live for self-serve — payment can upgrade later.
-    status: "active",
+    // When Stripe is configured, require Checkout before unlocking the portal.
+    status: initialProviderSubscriptionStatus(isStripeConfigured()),
   });
 
   const wantFeatured = input.featured !== false;
