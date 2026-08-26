@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CheckoutButton } from "@/components/payments/checkout-button";
 import { PaymentMethodsSettings } from "@/components/payments/payment-methods-settings";
 import { WalletPayButtons } from "@/components/payments/wallet-pay-buttons";
-import { HarborPageHeader } from "@/components/harbor/harbor-page-header";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { communityIsResidentialHoa } from "@/lib/community-features";
@@ -259,21 +258,37 @@ export function PaymentsClient() {
   const showPaymentMethods = !hideClubLedger;
 
   return (
-    <div
-      className="min-h-screen bg-[var(--harbor-sand)] font-[family-name:var(--font-sora)] text-[var(--harbor-ink)] md:bg-[var(--harbor-sand)]"
-      data-theme="harbor"
-    >
-      <HarborPageHeader
-        eyebrow={t("Money")}
-        title={t("Payments")}
-        lead={
-          membershipName
-            ? `${t("Membership")}: ${membershipName}`
-            : t("Pay assessments and review receipts.")
-        }
-      />
-      <div className="mx-auto w-full max-w-lg md:max-w-2xl md:px-6 md:pb-10">
-        <div className="space-y-5 px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[var(--harbor-line)] md:bg-[var(--harbor-surface)] md:px-5 md:py-6 md:shadow-[var(--harbor-shadow)]">
+    <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink md:bg-[linear-gradient(180deg,#f7f8fa_0%,#ffffff_28%)]">
+      <div className="mx-auto w-full max-w-lg md:max-w-2xl md:px-6 md:pb-10 md:pt-8">
+        <header className="sticky top-0 z-20 border-b border-[#eceff3] bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:static md:rounded-2xl md:border md:border-[#e8ebf0] md:px-5 md:py-4 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-grey">
+            {t("Member")}
+          </p>
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink md:text-[26px]">
+            {t("Payments")}
+          </h1>
+          {membershipName ? (
+            <p className="mt-1 text-xs text-grey">
+              {t("Membership")}: {membershipName}
+              {!communityIsResidentialHoa(communityId) ? (
+                <>
+                  {residencyStatus === "resident"
+                    ? ` · ${t("Resident")}`
+                    : residencyStatus
+                      ? ` · ${t("Non-resident")}`
+                      : ""}
+                  {paysHoa === false
+                    ? ` · ${t("No HOA")}`
+                    : paysHoa
+                      ? ` · ${t("HOA dues apply")}`
+                      : ""}
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </header>
+
+        <div className="space-y-5 px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:py-6 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
           {/* Condo HOA pays externally (ClickPay) — no in-app club ledger yet. */}
           {showClubLedgerSummary ? (
             <div

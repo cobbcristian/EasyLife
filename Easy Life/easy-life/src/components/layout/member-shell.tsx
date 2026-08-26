@@ -10,7 +10,7 @@ import {
 import { Logo } from "@/components/ui/logo";
 import { ClubSwitcher } from "@/components/layout/club-switcher";
 import { MemberSidebar } from "@/components/layout/member-sidebar";
-import { HarborBottomNav } from "@/components/harbor/harbor-bottom-nav";
+import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 
@@ -88,11 +88,7 @@ export function MemberShell({
     : undefined;
 
   return (
-    <div
-      className="flex min-h-screen bg-[var(--harbor-sand)] md:bg-white"
-      data-theme="harbor"
-      style={brandStyle}
-    >
+    <div className="flex min-h-screen bg-white" style={brandStyle}>
       <MemberSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -144,7 +140,7 @@ export function MemberShell({
           {children}
         </main>
         {/* Always available on mobile so members can jump Home / Calendar / Messages from any page (including DM + Newsletter). */}
-        <HarborBottomNav />
+        <MemberMvpBottomNav />
       </div>
     </div>
   );

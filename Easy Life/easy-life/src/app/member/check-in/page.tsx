@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HarborPageHeader } from "@/components/harbor/harbor-page-header";
+import { useI18n } from "@/lib/i18n";
 
 const FACILITIES = [
   "Fitness Center",
@@ -19,6 +19,7 @@ type CheckIn = {
 };
 
 export default function MemberCheckInPage() {
+  const { t } = useI18n();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [checkingIn, setCheckingIn] = useState(false);
   const [facility, setFacility] = useState(FACILITIES[0]);
@@ -42,7 +43,10 @@ export default function MemberCheckInPage() {
         body: JSON.stringify({
           facility,
           method,
-          beaconId: method === "beacon" ? `beacon-${facility.toLowerCase().replace(/\s+/g, "-")}-1` : undefined,
+          beaconId:
+            method === "beacon"
+              ? `beacon-${facility.toLowerCase().replace(/\s+/g, "-")}-1`
+              : undefined,
         }),
       });
       load();
@@ -52,15 +56,16 @@ export default function MemberCheckInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-28">
-      <HarborPageHeader
-        eyebrow="Member"
-        title="Check in"
-        lead="Track your visits to fitness, pool, and club facilities."
-      />
-      <div className="mx-auto max-w-lg px-4">
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">{t("Check in")}</h1>
+        <p className="mt-1 text-grey">
+          {t("Track your visits to fitness, pool, and club facilities.")}
+        </p>
+      </div>
+      <div>
         <label className="block text-xs font-medium uppercase tracking-wide text-grey">
-          Facility
+          {t("Facility")}
         </label>
         <select
           value={facility}
@@ -78,20 +83,22 @@ export default function MemberCheckInPage() {
             type="button"
             disabled={checkingIn}
             onClick={() => handleCheckIn("app")}
-            className="h-12 rounded-xl bg-[var(--harbor-ink,#1a2332)] text-sm font-semibold text-white disabled:opacity-60"
+            className="h-12 rounded-xl bg-[var(--mvp-blue)] text-sm font-semibold text-white disabled:opacity-60"
           >
-            Check in (app)
+            {t("Check in (app)")}
           </button>
           <button
             type="button"
             disabled={checkingIn}
             onClick={() => handleCheckIn("beacon")}
-            className="h-12 rounded-xl border border-[var(--harbor-ink,#1a2332)] text-sm font-semibold text-[var(--harbor-ink,#1a2332)] disabled:opacity-60"
+            className="h-12 rounded-xl border border-[var(--mvp-blue)] text-sm font-semibold text-[var(--mvp-blue)] disabled:opacity-60"
           >
-            Beacon nearby
+            {t("Beacon nearby")}
           </button>
         </div>
-        <h2 className="mt-8 text-sm font-semibold text-ink">Recent visits</h2>
+      </div>
+      <div>
+        <h2 className="text-sm font-semibold text-ink">{t("Recent visits")}</h2>
         <ul className="mt-3 space-y-2">
           {checkIns.map((c) => (
             <li
@@ -105,7 +112,7 @@ export default function MemberCheckInPage() {
             </li>
           ))}
           {checkIns.length === 0 && (
-            <li className="text-sm text-grey">No check-ins yet.</li>
+            <li className="text-sm text-grey">{t("No check-ins yet.")}</li>
           )}
         </ul>
       </div>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Fraunces, Poppins, Roboto, Sora } from "next/font/google";
+import { Poppins, Roboto } from "next/font/google";
 import "./globals.css";
 import { AccessiBe } from "@/components/accessibility/accessibe";
 import { PwaRegister } from "@/components/pwa/pwa-register";
@@ -22,18 +22,6 @@ const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -136,10 +124,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${roboto.variable} ${poppins.variable} ${fraunces.variable} ${sora.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${roboto.variable} ${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <BrandFavicon />
         <a
