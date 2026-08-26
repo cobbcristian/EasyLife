@@ -65,6 +65,11 @@ model Community {
   stagingMode    Boolean           @default(false)
   posProvider    String?
   posLastSyncAt  DateTime?
+  /// QuickBooks Online company/realm id when connected.
+  quickbooksRealmId String?
+  /// Public club website published at /site/{id}
+  websitePublished  Boolean @default(false)
+  websiteHeroJson   String  @default("{}")
   /// Demo / ops weather state: { rainAdvisories:[{date,active,message}], rainUntil? }
   weatherJson    String            @default("{}")
   /// When set, community contract is closed for sales commission.
@@ -911,6 +916,10 @@ model MemberProfileExt {
   rejoinEligibleOn   String?
   /// YYYY-MM-DD — membership year end / renewal due. Past + not renewed → deactivated.
   membershipExpiresOn String?
+  /// Auto-pay monthly statement / dues on this day (1–28).
+  autopayEnabled      Boolean @default(false)
+  autopayDay          Int     @default(1)
+  stripeSubscriptionId String?
 }
 
 model StoredPaymentMethod {
@@ -1629,3 +1638,270 @@ model CommissionLine {
   @@index([eventId])
 }
 
+// ============================================================================
+// COMPETITOR PARITY — autopay, waitlists, POS, GL, CRM, website, etc.
+// ============================================================================
+
+/// Tee time / amenity / dining waitlist when slots are full.
+model BookingWaitlist {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  memberEmail String
+  memberName  String
+  /// amenity | dining
+  waitlistKind String  @default("amenity")
+  amenityId   String?
+  amenity     String
+  restaurant  String?
+  date        String
+  startTime   String
+  endTime     String?
+  partySize   Int      @default(1)
+  /// waiting | notified | booked | expired | cancelled
+  status      String   @default("waiting")
+  position    Int      @default(1)
+  notifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([communityId, amenityId, date, status])
+  @@index([memberEmail, status])
+}
+
+/// POS member chit — charge-to-account dining / pro shop.
+model PosChit {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  memberEmail String
+  memberName  String
+  location    String   @default("Clubhouse")
+  serverName  String?
+  /// open | posted | paid | void
+  status      String   @default("open")
+  subtotal    Float    @default(0)
+  tax         Float    @default(0)
+  tip         Float    @default(0)
+  total       Float    @default(0)
+  chargeId    String?
+  postedAt    DateTime?
+  createdAt   DateTime @default(now())
+  lines       PosChitLine[]
+
+  @@index([communityId, memberEmail, status])
+}
+
+model PosChitLine {
+  id         String  @id @default(cuid())
+  chitId     String
+  chit       PosChit @relation(fields: [chitId], references: [id], onDelete: Cascade)
+  menuItemId String?
+  name       String
+  qty        Int     @default(1)
+  unitPrice  Float
+  total      Float
+
+  @@index([chitId])
+}
+
+/// Chart of accounts for club accounting / QuickBooks export.
+model GlAccount {
+  id          String @id @default(cuid())
+  communityId String @default("golden-ocala")
+  code        String
+  name        String
+  /// asset | liability | equity | revenue | expense
+  type        String
+  active      Boolean @default(true)
+
+  @@unique([communityId, code])
+  @@index([communityId, type])
+}
+
+model GlJournalEntry {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  entryDate   String
+  memo        String   @default("")
+  sourceType  String?
+  sourceId    String?
+  postedBy    String
+  createdAt   DateTime @default(now())
+  lines       GlJournalLine[]
+
+  @@index([communityId, entryDate])
+}
+
+model GlJournalLine {
+  id        String @id @default(cuid())
+  entryId   String
+  entry     GlJournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  debit     Float  @default(0)
+  credit    Float  @default(0)
+  memo      String @default("")
+
+  @@index([entryId])
+  @@index([accountId])
+}
+
+/// Member / prospect CRM pipeline (Club Automation style).
+model CrmProspect {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  name        String
+  email       String?
+  phone       String?
+  /// lead | prospect | tour | application | member | lost
+  stage       String   @default("lead")
+  source      String   @default("website")
+  notes       String   @default("")
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  activities  CrmActivity[]
+
+  @@index([communityId, stage])
+  @@index([communityId, email])
+}
+
+model CrmActivity {
+  id         String   @id @default(cuid())
+  prospectId String
+  prospect   CrmProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  /// call | email | meeting | note
+  type       String   @default("note")
+  subject    String
+  body       String   @default("")
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@index([prospectId, createdAt])
+}
+
+/// Drag-and-drop club website pages (Clubspot-style).
+model ClubWebsitePage {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  slug        String
+  title       String
+  published   Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  /// JSON array of blocks: { type, props }
+  blocksJson  String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([communityId, slug])
+  @@index([communityId, published])
+}
+
+/// Fitness / facility check-in (beacon, app, kiosk).
+model ActivityCheckIn {
+  id          String   @id @default(cuid())
+  communityId String   @default("golden-ocala")
+  memberEmail String
+  memberName  String
+  facility    String
+  /// manual | app | beacon | kiosk
+  method      String   @default("app")
+  beaconId    String?
+  checkedInAt DateTime @default(now())
+
+  @@index([communityId, memberEmail, checkedInAt])
+  @@index([communityId, facility, checkedInAt])
+}
+
+/// Dynamic tee-time pricing rules (Supreme Golf style).
+model TeePricingRule {
+  id             String  @id @default(cuid())
+  communityId    String  @default("golden-ocala")
+  amenityId      String?
+  name           String
+  /// 0–6 (Sun–Sat) or * for all days
+  dayOfWeek      String  @default("*")
+  startTime      String  @default("06:00")
+  endTime        String  @default("18:00")
+  /// Multiplier on base fee (1.0 = no change)
+  multiplier     Float   @default(1)
+  flatAdjustment Float   @default(0)
+  active         Boolean @default(true)
+
+  @@index([communityId, amenityId, active])
+}
+
+/// Full inventory beyond grab-and-go.
+model InventoryItem {
+  id           String  @id @default(cuid())
+  communityId  String  @default("golden-ocala")
+  sku          String
+  name         String
+  category     String  @default("General")
+  qtyOnHand    Int     @default(0)
+  reorderLevel Int     @default(5)
+  unitCost     Float   @default(0)
+  location     String  @default("Pro Shop")
+  active       Boolean @default(true)
+
+  @@unique([communityId, sku])
+  @@index([communityId, category])
+}
+
+model InventoryTransaction {
+  id        String   @id @default(cuid())
+  itemId    String
+  /// receive | sale | adjustment | transfer
+  type      String
+  qty       Int
+  note      String   @default("")
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([itemId, createdAt])
+}
+
+/// Golf event fundraising / crowdfunding (GolfRegistrations style).
+model FundraisingCampaign {
+  id           String   @id @default(cuid())
+  communityId  String   @default("golden-ocala")
+  title        String
+  description  String   @default("")
+  goalAmount   Float
+  raisedAmount Float    @default(0)
+  eventDate    String?
+  /// draft | active | completed
+  status       String   @default("draft")
+  imageUrl     String?
+  createdAt    DateTime @default(now())
+  donations    FundraisingDonation[]
+
+  @@index([communityId, status])
+}
+
+model FundraisingDonation {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   FundraisingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  donorName  String
+  donorEmail String?
+  amount     Float
+  message    String   @default("")
+  anonymous  Boolean  @default(false)
+  chargeId   String?
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+/// Per-club native app configuration (multi-club shell).
+model NativeAppConfig {
+  id          String   @id @default(cuid())
+  communityId String   @unique
+  bundleId    String
+  appName     String
+  primaryColor String  @default("#1a3a52")
+  logoUrl     String?
+  /// ios | android | both
+  platform    String   @default("both")
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

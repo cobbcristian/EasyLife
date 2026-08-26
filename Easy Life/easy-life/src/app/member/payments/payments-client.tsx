@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CheckoutButton } from "@/components/payments/checkout-button";
 import { PaymentMethodsSettings } from "@/components/payments/payment-methods-settings";
 import { WalletPayButtons } from "@/components/payments/wallet-pay-buttons";
+import { HarborPageHeader } from "@/components/harbor/harbor-page-header";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { communityIsResidentialHoa } from "@/lib/community-features";
@@ -66,6 +67,38 @@ export function PaymentsClient() {
   } | null>(null);
   const [statementLines, setStatementLines] = useState<StatementLine[]>([]);
   const [totals, setTotals] = useState({ due: 0, paid: 0, dining: 0 });
+  const [autopay, setAutopay] = useState({ enabled: false, day: 1 });
+  const [autopaySaving, setAutopaySaving] = useState(false);
+
+  function loadAutopay() {
+    fetch("/api/member/autopay")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings) {
+          setAutopay({ enabled: d.settings.enabled, day: d.settings.day });
+        }
+      })
+      .catch(() => {});
+  }
+
+  async function saveAutopay(enabled: boolean, day: number) {
+    setAutopaySaving(true);
+    try {
+      const res = await fetch("/api/member/autopay", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled, day }),
+      });
+      const d = await res.json();
+      if (d.settings) setAutopay({ enabled: d.settings.enabled, day: d.settings.day });
+      toast({
+        variant: "success",
+        title: enabled ? t("Auto-pay enabled") : t("Auto-pay disabled"),
+      });
+    } finally {
+      setAutopaySaving(false);
+    }
+  }
 
   function loadCharges() {
     fetch("/api/member/charges")
@@ -182,6 +215,7 @@ export function PaymentsClient() {
     loadCharges();
     loadStatement();
     loadHoaDues();
+    loadAutopay();
   }, []);
 
   useEffect(() => {
@@ -225,37 +259,21 @@ export function PaymentsClient() {
   const showPaymentMethods = !hideClubLedger;
 
   return (
-    <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink md:bg-[linear-gradient(180deg,#f7f8fa_0%,#ffffff_28%)]">
-      <div className="mx-auto w-full max-w-lg md:max-w-2xl md:px-6 md:pb-10 md:pt-8">
-        <header className="sticky top-0 z-20 border-b border-[#eceff3] bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:static md:rounded-2xl md:border md:border-[#e8ebf0] md:px-5 md:py-4 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-grey">
-            {t("Member")}
-          </p>
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink md:text-[26px]">
-            {t("Payments")}
-          </h1>
-          {membershipName ? (
-            <p className="mt-1 text-xs text-grey">
-              {t("Membership")}: {membershipName}
-              {!communityIsResidentialHoa(communityId) ? (
-                <>
-                  {residencyStatus === "resident"
-                    ? ` · ${t("Resident")}`
-                    : residencyStatus
-                      ? ` · ${t("Non-resident")}`
-                      : ""}
-                  {paysHoa === false
-                    ? ` · ${t("No HOA")}`
-                    : paysHoa
-                      ? ` · ${t("HOA dues apply")}`
-                      : ""}
-                </>
-              ) : null}
-            </p>
-          ) : null}
-        </header>
-
-        <div className="space-y-5 px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:py-6 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
+    <div
+      className="min-h-screen bg-[var(--harbor-sand)] font-[family-name:var(--font-sora)] text-[var(--harbor-ink)] md:bg-[var(--harbor-sand)]"
+      data-theme="harbor"
+    >
+      <HarborPageHeader
+        eyebrow={t("Money")}
+        title={t("Payments")}
+        lead={
+          membershipName
+            ? `${t("Membership")}: ${membershipName}`
+            : t("Pay assessments and review receipts.")
+        }
+      />
+      <div className="mx-auto w-full max-w-lg md:max-w-2xl md:px-6 md:pb-10">
+        <div className="space-y-5 px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[var(--harbor-line)] md:bg-[var(--harbor-surface)] md:px-5 md:py-6 md:shadow-[var(--harbor-shadow)]">
           {/* Condo HOA pays externally (ClickPay) — no in-app club ledger yet. */}
           {showClubLedgerSummary ? (
             <div
@@ -591,7 +609,43 @@ export function PaymentsClient() {
           ) : null}
 
           {showPaymentMethods ? (
-            <PaymentMethodsSettings returnPath="/member/payments" />
+            <>
+              <section className="rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] p-4">
+                <h2 className="text-[15px] font-semibold text-ink">{t("Auto-pay")}</h2>
+                <p className="mt-1 text-xs text-grey">
+                  {t("Pay your statement automatically each month on your chosen day.")}
+                </p>
+                <label className="mt-3 flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={autopay.enabled}
+                    disabled={autopaySaving}
+                    onChange={(e) => saveAutopay(e.target.checked, autopay.day)}
+                  />
+                  {t("Enable auto-pay")}
+                </label>
+                {autopay.enabled ? (
+                  <div className="mt-3 flex items-center gap-2">
+                    <label className="text-xs text-grey">{t("Bill on day")}</label>
+                    <select
+                      value={autopay.day}
+                      disabled={autopaySaving}
+                      onChange={(e) =>
+                        saveAutopay(true, parseInt(e.target.value, 10))
+                      }
+                      className="rounded-lg border border-[#e8ebf0] px-2 py-1 text-sm"
+                    >
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </section>
+              <PaymentMethodsSettings returnPath="/member/payments" />
+            </>
           ) : null}
         </div>
       </div>

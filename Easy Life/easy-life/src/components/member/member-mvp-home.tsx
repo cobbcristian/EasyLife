@@ -292,28 +292,54 @@ export function MemberMvpHome({
       ? t("Resident · pays HOA")
       : t("Club member · no HOA");
 
+  const nextUp = upcoming[0];
+  const harborEyebrow = isResidentialHoa
+    ? `${clubName ? clubName.split(" at ").pop() ?? clubName : "Today"} · Unit`
+    : clubName ?? t("Today");
+  const harborTitle = nextUp
+    ? `${t("Next up")}: ${nextUp.title.split(":")[0]?.split(" · ")[0] ?? nextUp.title}`
+    : `${t("Hi")}, ${firstName}`;
+  const harborLead = nextUp
+    ? `${formatDate(nextUp.date)} · ${nextUp.time} · ${t(nextUp.statusLabel)}`
+    : isResidentialHoa
+      ? t("Book amenities, pay assessments, and clear building to-dos.")
+      : t("Your schedule and club activity in one place.");
+
   return (
-    <div className="font-[family-name:var(--font-poppins)]">
-      {/* Blue header — greeting + actions (community name lives in native/portal chrome) */}
-      <div className="relative bg-[var(--mvp-blue)] px-3 pb-7 pt-3 lg:rounded-t-2xl">
-        <div className="mx-auto max-w-lg">
+    <div className="font-[family-name:var(--font-sora)] text-[var(--harbor-ink)]">
+      {/* Harbor header — sellable first impression for demos + residents */}
+      <header
+        className="harbor-rise relative overflow-hidden px-5 pb-6 pt-3 text-[var(--harbor-sand)] lg:rounded-t-2xl"
+        style={{
+          background: "var(--harbor-ink)",
+          borderBottomLeftRadius: 32,
+          borderBottomRightRadius: 32,
+        }}
+      >
+        <div
+          aria-hidden
+          className="harbor-atmosphere pointer-events-none absolute inset-0 opacity-55"
+        />
+        <div className="relative z-[1] mx-auto max-w-lg">
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="shrink-0 rounded-lg p-1 text-white hover:bg-white/10 lg:hidden"
+              className="shrink-0 rounded-lg p-1 text-white/90 hover:bg-white/10 lg:hidden"
               aria-label={t("Open menu")}
               onClick={() => window.dispatchEvent(new Event("member:open-sidebar"))}
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="min-w-0 flex-1 text-center">
-              <h1 className="truncate text-[22px] font-medium leading-tight text-white">
-                {t("Hi")}, {firstName}
+            <div className="min-w-0 flex-1">
+              <p className="m-0 truncate text-[11px] font-semibold uppercase tracking-[0.2em] opacity-65">
+                {harborEyebrow}
+              </p>
+              <h1 className="font-harbor-display m-0 mt-2 text-[1.65rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2rem]">
+                {harborTitle}
               </h1>
+              <p className="m-0 mt-2 text-[14px] leading-snug opacity-75">{harborLead}</p>
               {accessLabel ? (
-                <p className="mt-0.5 truncate text-[12px] font-medium text-white/85">
-                  {accessLabel}
-                </p>
+                <p className="m-0 mt-1 text-[12px] font-medium opacity-60">{accessLabel}</p>
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -342,8 +368,26 @@ export function MemberMvpHome({
               />
             </div>
           </div>
+          {isResidentialHoa ? (
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { href: "/member/amenities", label: t("Book"), bg: "var(--harbor-sea)" },
+                { href: "/member/payments", label: t("Pay"), bg: "var(--harbor-signal)" },
+                { href: "/member/packages", label: t("Packages"), bg: "var(--harbor-ink-soft)" },
+              ].map((tile) => (
+                <Link
+                  key={tile.href}
+                  href={tile.href}
+                  className="grid min-h-[64px] place-items-center rounded-[14px] text-[13px] font-bold text-[var(--harbor-sand)]"
+                  style={{ background: tile.bg }}
+                >
+                  {tile.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </div>
-      </div>
+      </header>
 
       {/* Search overlaps header */}
       <div className="relative z-10 mx-auto -mt-4 max-w-lg px-4">
@@ -351,6 +395,58 @@ export function MemberMvpHome({
       </div>
 
       <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-5 md:pb-10">
+        {isResidentialHoa ? (
+          <section className="harbor-rise harbor-rise-delay-1">
+            <h2 className="m-0 mb-3 text-[13px] font-bold uppercase tracking-[0.14em] text-[var(--harbor-mute)]">
+              {t("Needs you")}
+            </h2>
+            <div className="grid gap-2">
+              {[
+                {
+                  href: "/member/packages",
+                  title: t("Package ready"),
+                  meta: t("Locker pickup · tap for code"),
+                  accent: "var(--harbor-sea)",
+                },
+                {
+                  href: "/member/payments",
+                  title: t("August assessment"),
+                  meta: t("Pay dues · Apple Pay & Google Pay"),
+                  accent: "var(--harbor-warn)",
+                },
+                {
+                  href: "/member/assistant",
+                  title: t("Ask Easy Life"),
+                  meta: t("Hours, bookings, packages"),
+                  accent: "var(--harbor-signal)",
+                },
+              ].map((row) => (
+                <Link
+                  key={row.href}
+                  href={row.href}
+                  className="flex min-h-[var(--harbor-tap)] items-center justify-between gap-3 rounded-[var(--harbor-radius-lg)] border border-[var(--harbor-line)] bg-[var(--harbor-surface)] px-4 py-3.5"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="h-10 w-1 shrink-0 rounded-full"
+                      style={{ background: row.accent }}
+                    />
+                    <span>
+                      <span className="block text-[15px] font-semibold">{row.title}</span>
+                      <span className="mt-0.5 block text-[13px] text-[var(--harbor-mute)]">
+                        {row.meta}
+                      </span>
+                    </span>
+                  </span>
+                  <span aria-hidden className="text-xl text-[var(--harbor-mute)]">
+                    ›
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
         {/* Categories — size so ~3 tiles + HOA peek (scroll cue) */}
         <section>
           <div className="mb-3 flex items-center justify-between gap-2">

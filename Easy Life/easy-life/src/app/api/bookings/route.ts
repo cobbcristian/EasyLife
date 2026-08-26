@@ -43,7 +43,14 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     if (err instanceof BookingConflictError) {
-      return NextResponse.json({ error: err.message }, { status: 409 });
+      return NextResponse.json(
+        {
+          error: err.message,
+          waitlistAvailable: true,
+          waitlistHint: "Join the waitlist and we'll notify you when a slot opens.",
+        },
+        { status: 409 },
+      );
     }
     if (err instanceof MembershipAccessError) {
       return NextResponse.json({ error: err.message }, { status: 403 });

@@ -19,6 +19,9 @@ import {
   communityHasTournaments,
   communityHasTramService,
   communityHasVendors,
+  communityHasBookingWaitlist,
+  communityHasActivityCheckIn,
+  communityHasFundraising,
   communityIsResidentialHoa,
 } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
@@ -33,6 +36,9 @@ const rentalsHrefs = new Set(["/member/rentals"]);
 const householdMembershipHrefs = new Set(["/member/household"]);
 const tramHrefs = new Set(["/member/tram"]);
 const rewardsHrefs = new Set(["/member/rewards"]);
+const waitlistHrefs = new Set(["/member/waitlist"]);
+const checkInHrefs = new Set(["/member/check-in"]);
+const fundraisingHrefs = new Set(["/member/fundraising"]);
 
 /** Primary life-first nav — matches mobile: Home / Book / Calendar / Connect / Payments. */
 const primaryNav = [
@@ -67,6 +73,9 @@ const moreNav = [
   { label: "Violations", href: "/member/violations", icon: "AlertTriangle" },
   { label: "Help & FAQ", href: "/member/faq", icon: "HelpCircle" },
   { label: "Dining", href: "/member/dining", icon: "Utensils" },
+  { label: "Waitlist", href: "/member/waitlist", icon: "Clock" },
+  { label: "Check in", href: "/member/check-in", icon: "MapPin" },
+  { label: "Fundraising", href: "/member/fundraising", icon: "Heart" },
   { label: "Activities", href: "/member/activities", icon: "Sparkles" },
   { label: "Grab & Go", href: "/member/grab-go", icon: "ShoppingBag" },
   { label: "Local Pros", href: "/member/local-pros", icon: "Sparkles" },
@@ -172,6 +181,9 @@ export function MemberSidebar({
   const hasHouseholdMembership = communityHasHouseholdMembership(communityId);
   const hasTram = communityHasTramService(communityId);
   const hasRewards = communityHasRewards(communityId);
+  const hasWaitlist = communityHasBookingWaitlist(communityId);
+  const hasCheckIn = communityHasActivityCheckIn(communityId);
+  const hasFundraising = communityHasFundraising(communityId);
   const productName = appName?.trim() || "Easy Life";
   const isWhiteLabel = Boolean(productName !== "Easy Life" && logoUrl);
   // Prefer DB/session community id; also treat Oceanside white-label as residential
@@ -217,6 +229,9 @@ export function MemberSidebar({
     if (!hasRentals && rentalsHrefs.has(item.href)) return false;
     if (!tramEnabled && tramHrefs.has(item.href)) return false;
     if (!hasRewards && rewardsHrefs.has(item.href)) return false;
+    if (!hasWaitlist && waitlistHrefs.has(item.href)) return false;
+    if (!hasCheckIn && checkInHrefs.has(item.href)) return false;
+    if (!hasFundraising && fundraisingHrefs.has(item.href)) return false;
     return true;
   });
   const hoaActive = visibleHoaNav.some(

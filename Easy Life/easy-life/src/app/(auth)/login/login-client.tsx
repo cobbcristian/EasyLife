@@ -35,7 +35,13 @@ type LoginBranding = {
 
 const SUPER_ADMIN_EMAIL = "superadmin@gmail.com";
 
-function LoginForm({ branding }: { branding: LoginBranding | null }) {
+function LoginForm({
+  branding,
+  harborMobile = false,
+}: {
+  branding: LoginBranding | null;
+  harborMobile?: boolean;
+}) {
   const searchParams = useSearchParams();
   const { t } = useI18n();
   const unlockedDefaultEmail = branding?.locked
@@ -191,9 +197,18 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
     : t("Super Admin Login");
   const productLabel = branding?.productName ?? "Easy Life";
 
+  const harborFieldClass =
+    "h-[52px] w-full rounded-[14px] border border-[var(--harbor-line)] bg-white px-4 text-[15px] text-[var(--harbor-ink)] placeholder:text-[var(--harbor-mute)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--harbor-signal)]";
+
   return (
-    <div className="mx-auto w-full max-w-[514px] px-6 font-[family-name:var(--font-poppins)] lg:ml-[30%] lg:px-0">
-      {branding?.locked && branding.loginHeroSrc ? (
+    <div
+      className={
+        harborMobile
+          ? "harbor-rise harbor-rise-delay-1 mx-auto w-full max-w-md"
+          : "mx-auto w-full max-w-[514px] px-6 font-[family-name:var(--font-poppins)] lg:ml-[30%] lg:px-0"
+      }
+    >
+      {branding?.locked && branding.loginHeroSrc && !harborMobile ? (
         <div className="mb-6 overflow-hidden rounded-2xl bg-[#0a0a0a] lg:hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -208,18 +223,27 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
           />
         </div>
       ) : null}
-      <h1 className="text-[28px] font-semibold leading-normal text-black">
-        {loginTitle}
-      </h1>
-      {branding?.locked ? (
+      {!harborMobile ? (
+        <h1 className="text-[28px] font-semibold leading-normal text-black">
+          {loginTitle}
+        </h1>
+      ) : null}
+      {branding?.locked && !harborMobile ? (
         <p className="mt-1 text-sm text-grey">{t("Sign in to continue")}</p>
-      ) : (
+      ) : !harborMobile ? (
         <p className="mt-1 text-sm text-grey">
           {t("Platform master access · oversee all communities")}
         </p>
-      )}
+      ) : null}
 
-      <form className="mt-8 space-y-[20px]" onSubmit={handleSubmit}>
+      <form
+        className={
+          harborMobile
+            ? "mt-0 grid gap-3 rounded-[24px] bg-[rgba(246,241,232,0.97)] p-[18px] text-[var(--harbor-ink)] shadow-[0_28px_70px_rgba(0,0,0,0.2)]"
+            : "mt-8 space-y-[20px]"
+        }
+        onSubmit={handleSubmit}
+      >
         {error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
@@ -241,7 +265,7 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
               value={mfaCode}
               onChange={(e) => setMfaCode(e.target.value)}
               required
-              className={fieldClass}
+              className={harborMobile ? harborFieldClass : fieldClass}
             />
             <button
               type="button"
@@ -265,7 +289,7 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className={fieldClass}
+              className={harborMobile ? harborFieldClass : fieldClass}
             />
             <div className="relative">
               <input
@@ -276,7 +300,7 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className={`${fieldClass} pr-14`}
+                className={`${harborMobile ? harborFieldClass : fieldClass} pr-14`}
               />
               <button
                 type="button"
@@ -307,8 +331,12 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
           disabled={!canSubmit}
           className={
             canSubmit
-              ? "mt-5 flex h-[50px] w-full items-center justify-center rounded-lg bg-[#007aff] text-base font-medium text-white transition hover:opacity-95 disabled:opacity-60"
-              : "mt-5 flex h-[50px] w-full cursor-not-allowed items-center justify-center rounded-lg bg-[#eee] text-base font-medium text-[#c4c4c4]"
+              ? harborMobile
+                ? "mt-2 flex h-[52px] w-full items-center justify-center rounded-[14px] bg-[var(--harbor-signal)] text-base font-semibold text-[var(--harbor-signal-ink)] transition hover:opacity-95 disabled:opacity-60"
+                : "mt-5 flex h-[50px] w-full items-center justify-center rounded-lg bg-[#007aff] text-base font-medium text-white transition hover:opacity-95 disabled:opacity-60"
+              : harborMobile
+                ? "mt-2 flex h-[52px] w-full cursor-not-allowed items-center justify-center rounded-[14px] bg-[#eee] text-base font-medium text-[#c4c4c4]"
+                : "mt-5 flex h-[50px] w-full cursor-not-allowed items-center justify-center rounded-lg bg-[#eee] text-base font-medium text-[#c4c4c4]"
           }
         >
           {loading
@@ -375,6 +403,7 @@ export default function LoginClient({
 }: {
   branding?: LoginBranding | null;
 }) {
+  const { t } = useI18n();
   const productName = branding?.productName ?? "Easy Life";
   const communityName = branding?.communityName ?? "";
   // Prefer tenant logo; avoid the stacked IronCrest PNG lockup when SVG is available.
@@ -430,47 +459,106 @@ export default function LoginClient({
   ]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white font-[family-name:var(--font-poppins)]">
-      <header className="relative flex items-center justify-between border-b border-[#eee] px-6 py-5 lg:px-7">
-        <div className="flex min-w-0 flex-col items-start gap-1.5">
-          {wordmarkSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={wordmarkSrc}
-              alt={productName}
-              className="h-11 w-auto max-w-[min(100%,280px)] object-contain object-left sm:h-12"
+    <div
+      className="flex min-h-screen flex-col bg-[var(--harbor-sand)] font-[family-name:var(--font-sora)] text-[var(--harbor-ink)]"
+      data-theme="harbor"
+    >
+      {branding?.locked ? (
+        <>
+          <header
+            className="harbor-rise relative overflow-hidden px-5 pb-8 pt-[max(1rem,env(safe-area-inset-top))] text-[var(--harbor-sand)] lg:hidden"
+            style={{
+              background:
+                "linear-gradient(168deg, var(--harbor-ink) 0%, var(--harbor-ink-soft) 48%, var(--harbor-sea) 100%)",
+            }}
+          >
+            <div
+              aria-hidden
+              className="harbor-atmosphere pointer-events-none absolute inset-0 opacity-50"
             />
-          ) : (
-            <div className="flex items-center gap-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={brandAssets.logoIcon}
-                alt=""
-                className="h-9 w-9 rounded-md object-contain"
-              />
-              <p className="text-[22px] font-semibold tracking-[-0.02em] text-[#002856]">
-                {productName}
-              </p>
+            <div className="relative z-[1] flex items-start justify-between gap-3">
+              <div>
+                {wordmarkSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={wordmarkSrc}
+                    alt={productName}
+                    className="mb-3 h-10 w-auto max-w-[200px] object-contain brightness-0 invert"
+                  />
+                ) : (
+                  <p className="font-harbor-display m-0 text-xl font-semibold">{productName}</p>
+                )}
+                {communityName ? (
+                  <p className="m-0 mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">
+                    {communityName}
+                  </p>
+                ) : null}
+                <h1 className="font-harbor-display m-0 mt-4 max-w-[14ch] text-[2rem] font-medium leading-[1.08] tracking-[-0.03em]">
+                  {t("Your building, one tap away.")}
+                </h1>
+                <p className="m-0 mt-3 max-w-xs text-[14px] leading-relaxed opacity-75">
+                  {t("Book amenities, pay assessments, message the desk.")}
+                </p>
+              </div>
+              <LanguageSwitcher />
             </div>
-          )}
-          {communityName ? (
-            <p className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[#002856] sm:text-[20px]">
-              {communityName}
-            </p>
-          ) : null}
-        </div>
-        <LanguageSwitcher />
-      </header>
-
-      <div className="relative flex flex-1 items-center overflow-hidden">
-        <div className="pointer-events-none absolute left-0 top-1/2 hidden -translate-x-[18%] -translate-y-1/2 lg:block">
-          <LoginHero centerSrc={heroSrc} />
-        </div>
-
-        <Suspense fallback={null}>
-          <LoginForm branding={branding ?? null} />
-        </Suspense>
-      </div>
+          </header>
+          <div className="relative z-10 -mt-5 flex flex-1 flex-col px-4 pb-8 lg:hidden">
+            <Suspense fallback={null}>
+              <LoginForm branding={branding ?? null} harborMobile />
+            </Suspense>
+          </div>
+          <div className="relative hidden flex-1 items-center overflow-hidden lg:flex">
+            <div className="pointer-events-none absolute left-0 top-1/2 -translate-x-[18%] -translate-y-1/2">
+              <LoginHero centerSrc={heroSrc} />
+            </div>
+            <Suspense fallback={null}>
+              <LoginForm branding={branding ?? null} />
+            </Suspense>
+          </div>
+        </>
+      ) : (
+        <>
+          <header className="relative flex items-center justify-between border-b border-[#eee] bg-white px-6 py-5 lg:px-7">
+            <div className="flex min-w-0 flex-col items-start gap-1.5">
+              {wordmarkSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={wordmarkSrc}
+                  alt={productName}
+                  className="h-11 w-auto max-w-[min(100%,280px)] object-contain object-left sm:h-12"
+                />
+              ) : (
+                <div className="flex items-center gap-2.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={brandAssets.logoIcon}
+                    alt=""
+                    className="h-9 w-9 rounded-md object-contain"
+                  />
+                  <p className="text-[22px] font-semibold tracking-[-0.02em] text-[#002856]">
+                    {productName}
+                  </p>
+                </div>
+              )}
+              {communityName ? (
+                <p className="text-[18px] font-semibold leading-tight tracking-[-0.01em] text-[#002856] sm:text-[20px]">
+                  {communityName}
+                </p>
+              ) : null}
+            </div>
+            <LanguageSwitcher />
+          </header>
+          <div className="relative flex flex-1 items-center overflow-hidden bg-white">
+            <div className="pointer-events-none absolute left-0 top-1/2 hidden -translate-x-[18%] -translate-y-1/2 lg:block">
+              <LoginHero centerSrc={heroSrc} />
+            </div>
+            <Suspense fallback={null}>
+              <LoginForm branding={branding ?? null} />
+            </Suspense>
+          </div>
+        </>
+      )}
     </div>
   );
 }

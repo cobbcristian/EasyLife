@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { ensureRecordsSeeded, getAmenityAvailability } from "@/lib/server/records";
+import { calculateDynamicPrice } from "@/lib/server/tee-pricing";
+import { communityHasDynamicPricing } from "@/lib/community-features";
+import { prisma } from "@/lib/server/prisma";
 
 export async function GET(
   request: Request,
@@ -22,5 +25,20 @@ export async function GET(
   const result = await getAmenityAvailability(id, date, startTime, endTime);
   if (!result) return NextResponse.json({ error: "Amenity not found" }, { status: 404 });
 
-  return NextResponse.json(result);
+  const communityId = session.communityId ?? "golden-ocala";
+  let dynamicPricing: { finalFee: number; appliedRule: string | null } | null = null;
+  if (communityHasDynamicPricing(communityId) && startTime) {
+    const amenity = await prisma.amenity.findUnique({ where: { id } });
+    if (amenity && amenity.fee > 0) {
+      dynamicPricing = await calculateDynamicPrice({
+        communityId,
+        amenityId: id,
+        baseFee: amenity.fee,
+        date,
+        startTime,
+      });
+    }
+  }
+
+  return NextResponse.json({ ...result, dynamicPricing });
 }

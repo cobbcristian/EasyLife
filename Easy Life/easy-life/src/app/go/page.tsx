@@ -43,10 +43,10 @@ export default function GoSalesIndexPage() {
               Easy Life · Sales
             </p>
             <Link
-              href="/go/guide"
+              href="/sell/showcase?club=oceanside"
               className="text-[13px] font-semibold text-[#007aff] hover:underline"
             >
-              Onboarding guide →
+              8-screen preview →
             </Link>
           </div>
           <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.02em]">

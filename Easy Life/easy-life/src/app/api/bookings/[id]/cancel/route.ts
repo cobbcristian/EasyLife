@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
 import { cancelBooking } from "@/lib/server/records";
+import { notifyNextOnWaitlist } from "@/lib/server/booking-waitlist";
 
 export async function POST(
   _request: Request,
@@ -14,6 +15,12 @@ export async function POST(
   const { id } = await params;
   const result = await cancelBooking(id, session.email);
   if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  await notifyNextOnWaitlist({
+    communityId: result.communityId,
+    amenityId: result.amenityId ?? undefined,
+    date: result.date,
+    startTime: result.startTime,
+  });
   revalidatePath("/member/bookings");
   revalidatePath("/member/calendar");
   revalidatePath(`/member/reservations/${id}`);

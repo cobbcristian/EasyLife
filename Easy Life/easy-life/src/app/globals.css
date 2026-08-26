@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "../styles/harbor-tokens.css";
+@import "../styles/harbor-motion.css";
 
 :root {
   --background: #ffffff;

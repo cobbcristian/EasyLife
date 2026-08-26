@@ -66,6 +66,7 @@ const STAGING_EXEMPT_API_PREFIXES = [
   "/api/mobile/communities",
   "/api/health",
   "/api/calendar/feed",
+  "/api/leads",
 ];
 
 function isStagingExemptApi(pathname: string) {
@@ -180,7 +181,12 @@ export async function proxy(request: NextRequest) {
     pathname === "/sell/story" ||
     pathname === "/sell/story/" ||
     pathname === "/sell/tour" ||
-    pathname === "/sell/tour/"
+    pathname === "/sell/tour/" ||
+    pathname === "/sell/showcase" ||
+    pathname.startsWith("/sell/showcase/") ||
+    pathname === "/inquiry" ||
+    pathname === "/inquiry/" ||
+    pathname.startsWith("/site/")
   ) {
     const response = NextResponse.next({
       request: { headers: withPathnameHeader(request, pathname) },
@@ -288,7 +294,13 @@ export async function proxy(request: NextRequest) {
   const stagingBlocked = await isSessionBlockedByStaging(session);
   if (stagingBlocked) {
     const stagingPath = "/staging";
-    const allowedWhileStaging = [stagingPath, "/login", "/register", "/signup"];
+    const allowedWhileStaging = [
+      stagingPath,
+      "/login",
+      "/register",
+      "/signup",
+      "/inquiry",
+    ];
     const ok = allowedWhileStaging.some(
       (p) => pathname === p || pathname.startsWith(`${p}/`),
     );
@@ -333,6 +345,12 @@ export const config = {
     "/sell/story/",
     "/sell/tour",
     "/sell/tour/",
+    "/sell/showcase",
+    "/sell/showcase/",
+    "/inquiry",
+    "/inquiry/",
+    "/site/:path*",
+    "/api/leads",
     "/go/ironcrest",
     "/go/ironcrest/",
     "/go/goldenocala",

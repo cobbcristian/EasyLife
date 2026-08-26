@@ -147,9 +147,17 @@ export function communityIsResidentialHoa(
  * fees are ready — Oceanside uses ClickPay in the meantime.
  */
 export function communitySupportsInAppHoaCheckout(
-  _communityId: string | null | undefined,
+  communityId: string | null | undefined,
 ): boolean {
-  return false;
+  if (!communityId) return false;
+  // Enable when Stripe is configured and community is Oceanside HOA.
+  if (
+    communityId === "oceanside-residents" ||
+    communityId === "oceansideresidents"
+  ) {
+    return Boolean(process.env.STRIPE_SECRET_KEY);
+  }
+  return Boolean(process.env.STRIPE_SECRET_KEY);
 }
 
 /**
@@ -166,4 +174,89 @@ export function communityHoaPaymentPortal(
     };
   }
   return null;
+}
+
+/** Auto-pay for monthly statements / dues. */
+export function communityHasAutopay(
+  _communityId: string | null | undefined,
+): boolean {
+  return true;
+}
+
+/** Tee / dining waitlist when slots are full. */
+export function communityHasBookingWaitlist(
+  _communityId: string | null | undefined,
+): boolean {
+  return true;
+}
+
+/** Mobile POS + member chits. */
+export function communityHasPosChits(
+  communityId: string | null | undefined,
+): boolean {
+  if (!communityId) return true;
+  if (communityId === "oceanside-residents") return false;
+  return true;
+}
+
+/** GL / QuickBooks export. */
+export function communityHasAccounting(
+  _communityId: string | null | undefined,
+): boolean {
+  return true;
+}
+
+/** Member CRM pipeline. */
+export function communityHasMemberCrm(
+  _communityId: string | null | undefined,
+): boolean {
+  return true;
+}
+
+/** Club website builder + public /site pages. */
+export function communityHasWebsiteBuilder(
+  _communityId: string | null | undefined,
+): boolean {
+  return true;
+}
+
+/** Fitness / beacon activity check-in. */
+export function communityHasActivityCheckIn(
+  _communityId: string | null | undefined,
+): boolean {
+  return true;
+}
+
+/** Dynamic tee-time pricing. */
+export function communityHasDynamicPricing(
+  communityId: string | null | undefined,
+): boolean {
+  if (!communityId) return true;
+  if (communityId === "oceanside-residents") return false;
+  return true;
+}
+
+/** Pro shop / F&B inventory beyond grab-and-go. */
+export function communityHasInventory(
+  communityId: string | null | undefined,
+): boolean {
+  if (!communityId) return true;
+  if (communityId === "oceanside-residents") return false;
+  return true;
+}
+
+/** Golf fundraising / crowdfunding campaigns. */
+export function communityHasFundraising(
+  communityId: string | null | undefined,
+): boolean {
+  if (!communityId) return true;
+  if (communityId === "oceanside-residents") return false;
+  return true;
+}
+
+/** Per-club native app configuration. */
+export function communityHasNativeAppConfig(
+  _communityId: string | null | undefined,
+): boolean {
+  return true;
 }
