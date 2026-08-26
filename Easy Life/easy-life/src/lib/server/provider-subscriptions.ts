@@ -148,6 +148,51 @@ export function isSubscriptionAccessGranted(
   return status === "active" || status === "past_due";
 }
 
+/**
+ * Self-serve signup must not mark the plan paid when Stripe billing is on.
+ * Demo / Stripe-off environments still go live immediately.
+ */
+export function initialProviderSubscriptionStatus(
+  stripeConfigured: boolean = isStripeConfigured(),
+): SubscriptionStatus {
+  return stripeConfigured ? "pending" : "active";
+}
+
+/**
+ * Activate provider billing after a paid Stripe Checkout subscription session.
+ */
+export function providerSubscriptionFromCheckoutSession(session: {
+  mode?: string | null;
+  payment_status?: string | null;
+  metadata?: Record<string, string> | null;
+  customer?: string | { id?: string } | null;
+  subscription?: string | { id?: string } | null;
+}): {
+  userEmail: string;
+  planId: ProviderPlanId;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+} | null {
+  if (session.mode !== "subscription") return null;
+  if (session.payment_status && session.payment_status !== "paid") return null;
+  const userEmail = session.metadata?.userEmail?.trim().toLowerCase();
+  if (!userEmail) return null;
+  const planRaw = session.metadata?.plan;
+  const planId =
+    planRaw && planRaw in PROVIDER_PLANS
+      ? (planRaw as ProviderPlanId)
+      : "starter";
+  const stripeCustomerId =
+    typeof session.customer === "string"
+      ? session.customer
+      : (session.customer?.id ?? null);
+  const stripeSubscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : (session.subscription?.id ?? null);
+  return { userEmail, planId, stripeCustomerId, stripeSubscriptionId };
+}
+
 export async function syncProviderSubscriptionFromStripe(
   userEmail: string,
 ): Promise<ProviderSubscriptionRow | null> {
