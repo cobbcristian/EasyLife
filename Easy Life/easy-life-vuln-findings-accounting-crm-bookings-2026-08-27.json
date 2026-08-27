@@ -1,0 +1,111 @@
+{
+  "scan": "accounting-crm-inventory-sales-messages-bookings-provider-plaza",
+  "date": "2026-08-27",
+  "path": "/workspace/Easy Life/easy-life",
+  "branch": "cursor/finding-memory-persistence-8a1a",
+  "verdict": "2_new_medium_plus",
+  "findings": [
+    {
+      "id": "EL-BOOKING-INVITE-CROSS-USER",
+      "severity": "high",
+      "title": "Booking invites accept arbitrary emails and inject MemberInbox + email + push with no community membership check",
+      "file": "src/lib/server/records.ts",
+      "lines": "718-785",
+      "also": [
+        "src/app/api/bookings/[id]/invites/route.ts:7-57",
+        "src/app/api/bookings/route.ts:15-78",
+        "src/app/api/admin/bookings/route.ts:84-168"
+      ],
+      "evidence": [
+        "createBookingInvites maps invites without emailBelongsToCommunity / same-community check",
+        "addMemberInboxItem({ userEmail: email }) for each invitee (cross-tenant inbox write)",
+        "sendEmail + sendPushToUser to arbitrary addresses with club-branded copy and /member/reservations/{id} link",
+        "Host/staff auth only binds booking ownership or staff role — not invitee membership"
+      ],
+      "attack_path": [
+        "Entry A (no prior vuln): POST /api/auth/register mode=setup → club admin; POST /api/admin/users create a member in that club; POST /api/admin/bookings with invites[{email:victim@...}] OR login as that member and POST /api/bookings/[id]/invites",
+        "Entry B (uses known inviteCode leak): join victim club as member → create booking → invite arbitrary emails",
+        "Victims (any platform user email or external) receive inbox item + email + push"
+      ],
+      "impact": "Cross-user / cross-tenant notification and inbox injection; phishing via club-branded reservation invites.",
+      "oracle": "Target emails (directory dump known, or arbitrary external); booking id returned to attacker as host/staff",
+      "distinct_from": "Not the known communities/[id] inviteCode leak itself; not events RSVP. This is bookings invite fan-out lacking community scoping on invitees."
+    },
+    {
+      "id": "EL-PROVIDER-CONTACT-UNSCOPED",
+      "severity": "medium",
+      "title": "Provider messages and /api/contact write ContactMessage to any recipient email without community check",
+      "file": "src/app/api/provider/messages/route.ts",
+      "lines": "74-150",
+      "also": [
+        "src/app/api/contact/route.ts:5-34",
+        "src/lib/server/records.ts:3104-3121",
+        "src/lib/server/records.ts:3132-3138"
+      ],
+      "evidence": [
+        "createContactMessage stores body.recipient with no community membership assertion",
+        "DM bridge may throw ChatCommunityScopeError cross-club, but contact row is written first",
+        "listContactMessagesForProviderInbox matches recipient OR sender by email globally"
+      ],
+      "attack_path": [
+        "1. GET /api/communities/public → pick HOA",
+        "2. POST /api/auth/register mode=provider + communityId (invite-free; known enrollment primitive)",
+        "3. POST /api/provider/messages { toEmail: victim, message, subject }",
+        "4. Victim provider sees the thread in provider messages inbox"
+      ],
+      "impact": "Cross-tenant phishing/spam into provider inboxes without sharing a community.",
+      "oracle": "Recipient email",
+      "distinct_from": "notifications/send (admin email relay); group message/invite IDORs"
+    }
+  ],
+  "candidates_failed": [
+    {
+      "area": "accounting",
+      "why": "Already assessed (memory 67): pm|admin|board + session.communityId; journal accountId unvalidated but no account-id oracle; golden-ocala fallback only when communityId null (not reachable via register as staff)."
+    },
+    {
+      "area": "crm prospectId / inventory itemId IDOR",
+      "why": "Missing community checks confirmed but already flagged as unscoped staff writes / no reliable oracle (memory 67/70)."
+    },
+    {
+      "area": "sales / commissions",
+      "why": "Mutations superadmin-gated; sales cannot self-register."
+    },
+    {
+      "area": "leads / budget / bids / reports / search / templates",
+      "why": "leads=public form only; budget/bids/reports scoped; search scoped when communityId set; templates low-sensitivity global list already noted."
+    },
+    {
+      "area": "messages threads / createGroupChat",
+      "why": "assertEmailsBelongToCommunity + assertChatParticipantInCommunity."
+    },
+    {
+      "area": "admin/subscriptions / admin/users",
+      "why": "subscriptions superadmin-only; club admin users POST forced to session.communityId."
+    },
+    {
+      "area": "guest-fees / reservations / orders / marketplace / real-estate / rentals",
+      "why": "guest-fees staff+own community; reservations/marketplace/RE self-scoped; orders/rentals client totals same family as known checkout/wallet underpay / orders F&B finding."
+    },
+    {
+      "area": "provider/offerings update-by-id",
+      "why": "Ownership skip on update (project-management.ts:347-358) but offering ids not exposed to other principals — incomplete without ID oracle."
+    },
+    {
+      "area": "GET /api/communities/[id] inviteCode",
+      "why": "Already CRITICAL in memory 67/76 — not re-reported; only used as optional entry for booking-invite chain."
+    },
+    {
+      "area": "bookings leave/cancel / [id] GET",
+      "why": "Bound to session.email."
+    },
+    {
+      "area": "ai/** / push/subscribe / newsletters / announcements / gallery",
+      "why": "AI amenity confirm scoped; push subscribe self; content routes community-scoped; push/test already vs notifications/send."
+    },
+    {
+      "area": "plaza-oceanside token storage",
+      "why": "expo-secure-store for JWT; bridge query token is known mobile-bridge class."
+    }
+  ]
+}
