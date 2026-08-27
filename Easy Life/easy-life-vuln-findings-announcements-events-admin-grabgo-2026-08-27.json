@@ -1,0 +1,79 @@
+{
+  "scan": "announcements-events-templates-reports-budget-realestate-maintenance-messages-approvals-guestfees-checkout-mobile-invoices-admin-grabgo-calendar-payguest-driver",
+  "date": "2026-08-27",
+  "path": "/workspace/Easy Life/easy-life",
+  "verdict": "3_new_medium_plus",
+  "findings": [
+    {
+      "severity": "high",
+      "id": "EL-GRABGO-PROVIDER-REMOTE-UNLOCK",
+      "title": "Invite-free provider can remotely unlock a victim club Grab & Go stand via /api/grab-go (no machine key, no member role)",
+      "location": "src/app/api/grab-go/route.ts:16-136; src/lib/server/grab-go.ts:225-336",
+      "distinct_from": "Grab & Go kiosk fail-open + unsigned unlock — kiosk is gated by GRAB_GO_MACHINE_KEY when set; this member/provider route never checks that key or role",
+      "attack": [
+        "GET /api/communities/public → victim communityId (e.g. iron-lake)",
+        "POST /api/auth/register mode=provider + that communityId",
+        "GET /api/grab-go → machine codes, stock, unsigned unlockToken, memberNumber, rfidUid",
+        "POST /api/grab-go { machineCode, unlockMethod implied app_remote } → openGrabGoSession creates unlock event ('Door unlocked via the club app')"
+      ]
+    },
+    {
+      "severity": "medium",
+      "id": "EL-KNOWLEDGE-UNPUBLISHED-PROVIDER",
+      "title": "includeUnpublished=true dumps unpublished knowledge drafts to invite-free providers (staff-only intended)",
+      "location": "src/app/api/knowledge/route.ts:15-20",
+      "attack": [
+        "Register provider on public communityId",
+        "GET /api/knowledge?includeUnpublished=true",
+        "published filter is skipped unless session.role === 'member'; provider is not member"
+      ],
+      "id_oracle": "none required — list returns full articles including ids"
+    },
+    {
+      "severity": "medium",
+      "id": "EL-ADMIN-BACKFILL-GLOBAL",
+      "title": "Any throwaway club admin can reset every community logo and every provider image via backfillBrandImages",
+      "location": "src/app/api/admin/backfill-brand-images/route.ts:6-13; src/lib/server/db.ts:134-157",
+      "attack": [
+        "POST /api/auth/register default mode=setup → role=admin with own communityId",
+        "POST /api/admin/backfill-brand-images — checks role==='admin' only, not isSuperAdmin",
+        "backfillBrandImages() writes all mapped community logos and all provider imageUrls"
+      ]
+    }
+  ],
+  "checked_not_reportable": {
+    "announcements_POST": "admin/board/pm only; broadcast emails scoped to session.communityId — throwaway admin hits only own members",
+    "events_POST_create": "isPromoted/category=community auto-RSVP and invites[] Resend relay already reported (scan 74)",
+    "events_GET_list_rsvps": "same PII class as known event RSVP GET leak / directory dumps",
+    "events_[id]_GET": "known unscoped reservation dump",
+    "templates": "global list/create but schema is only name/channel/subject — no secrets, no send sink",
+    "reports_budget": "scoped via resolveScopedCommunityId / session.communityId; cookie hop requires known membership-join bug",
+    "real-estate_gallery_properties": "writes bind to session.communityId/email; provider-in-tenant content spam not above known blog/provider write class; upload XSS known",
+    "maintenance-tasks": "POST is pm-only; setup register creates admin not pm",
+    "contact": "known unscoped ContactMessage",
+    "messages_threads": "createGroupChat/DM assertEmailsBelongToCommunity; group invite known",
+    "messages_recipients": "staff-named helper but any auth user; overlaps known directory dump (opt-out bypass is product comment)",
+    "member-approvals": "approve/reject enforce communityId unless superadmin",
+    "guest-fees": "staff-only; charges scoped; client amount is staff-issued invoice not payment bypass",
+    "rewards": "member-only; demo points gated by isDemoSeedAllowed",
+    "sales": "superadmin/sales only",
+    "reservations_waitlist_bookings": "bookings POST member-only; invites known; GET booking detail requires host/invitee; waitlist/reservations self-scoped",
+    "checkout": "known client amount + chargeId",
+    "mobile_bridge": "known JWT-in-URL; nextPath open-redirect blocked for //",
+    "mobile_issue-token": "mints from existing session only",
+    "mobile_payment": "known fake paid",
+    "invoices_list_create": "scoped to session.communityId",
+    "invoices_[id]_PATCH": "known unscoped IDOR",
+    "knowledge_[id]": "known IDOR; PATCH/DELETE admin/pm unscoped but needs CUID oracle",
+    "admin_users_freeze": "community check at users/[id] PATCH:49-51",
+    "admin_overview": "known cross-tenant",
+    "admin_subscriptions": "isSuperAdmin only",
+    "admin_bookings": "staff + canStaffBookInCommunity",
+    "communities_[id]_GET": "known unauth inviteCode",
+    "communities_[id]_PATCH": "canManageCommunity",
+    "calendar_feed": "verifies purpose=calendar_feed; JWT-as-session is known purpose-confusion class",
+    "pay_guest": "32-byte hex payToken, no oracle; demo mark-paid only when ALLOW_DEMO_PAYMENTS",
+    "driver_*": "GET/PATCH unauthenticated but tramDriver.id is CUID; seed has no fixed ids; tram dump is request rows not driver ids — no oracle",
+    "plaza-oceanside": "Expo client only; calls existing easy-life APIs"
+  }
+}
