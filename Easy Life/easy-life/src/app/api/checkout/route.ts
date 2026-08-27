@@ -8,14 +8,15 @@ import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
 } from "@/lib/server/payment-methods";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import {
+  getOwnedOpenCharge,
+  settleChargeIfAuthorized,
+} from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
 
-async function afterChargePaid(chargeId: string | undefined) {
-  if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
+async function afterOwnedChargePaid(chargeId: string) {
   await activateSharedCalendarByCharge(chargeId);
   await markEscrowHeldByCharge(chargeId);
 }
@@ -40,14 +41,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const amount = Number(body.amount);
-  if (!amount || amount <= 0) {
+  const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+  const returnPath = body.returnPath ?? "/member/payments";
+
+  let amount = Number(body.amount);
+  let description = body.description ?? "Club payment";
+  let chargeId: string | undefined = body.chargeId;
+
+  // When settling a ledger charge, ownership + amount come from the server —
+  // never trust a foreign chargeId or a client underpayment.
+  if (chargeId) {
+    const charge = await getOwnedOpenCharge(chargeId, session.email);
+    if (!charge) {
+      return NextResponse.json({ error: "Charge not found" }, { status: 404 });
+    }
+    amount = charge.amount;
+    description = charge.description;
+    chargeId = charge.id;
+  } else if (!amount || amount <= 0) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
-  const origin = request.headers.get("origin") ?? new URL(request.url).origin;
-  const returnPath = body.returnPath ?? "/member/payments";
-  const description = body.description ?? "Club payment";
+  if (!amount || amount <= 0) {
+    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  }
 
   const settings = await getPaymentSettings(session.email);
   const useStored =
@@ -79,8 +96,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ url: result.url, mode: "stored" });
       }
 
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (result.status !== "paid") {
+        return NextResponse.json({ error: "Payment failed" }, { status: 402 });
+      }
+
+      if (chargeId) {
+        const settled = await settleChargeIfAuthorized({
+          chargeId,
+          paidCents: Math.round(amount * 100),
+          payerEmail: session.email,
+        });
+        if (!settled) {
+          return NextResponse.json({ error: "Could not settle charge" }, { status: 400 });
+        }
+        await afterOwnedChargePaid(chargeId);
       }
 
       return NextResponse.json({
@@ -99,8 +128,16 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
     if (isDemoPaymentAllowed()) {
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (chargeId) {
+        const settled = await settleChargeIfAuthorized({
+          chargeId,
+          paidCents: Math.round(amount * 100),
+          payerEmail: session.email,
+        });
+        if (!settled) {
+          return NextResponse.json({ error: "Could not settle charge" }, { status: 400 });
+        }
+        await afterOwnedChargePaid(chargeId);
       }
       return NextResponse.json({
         ok: true,
@@ -132,9 +169,11 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${origin}${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
+      success_url: `${origin}${returnPath}?payment=success${chargeId ? `&chargeId=${chargeId}` : ""}`,
       cancel_url: `${origin}${returnPath}?payment=cancelled`,
-      metadata: body.chargeId ? { chargeId: body.chargeId, userEmail: session.email } : undefined,
+      metadata: chargeId
+        ? { chargeId, userEmail: session.email }
+        : { userEmail: session.email },
     });
     return NextResponse.json({ url: checkout.url, mode: "checkout" });
   } catch {

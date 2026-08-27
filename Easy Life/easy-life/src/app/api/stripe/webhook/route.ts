@@ -4,15 +4,15 @@ import {
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import { settleChargeIfAuthorized } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
 
 /**
  * Stripe webhook — confirms Checkout and wallet PaymentIntent payments; marks linked charges paid.
- * Requires STRIPE_WEBHOOK_SECRET. Amount was set server-side at session create;
- * residents cannot alter it on the Stripe hosted page.
+ * Requires STRIPE_WEBHOOK_SECRET. Settles only when paid cents cover the charge and
+ * metadata.userEmail matches the charge owner (when present).
  */
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -44,9 +44,17 @@ export async function POST(request: Request) {
       if (session.metadata?.type === "hoa") {
         await markHoaChargePaid(chargeId);
       } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
+        const paidCents =
+          typeof session.amount_total === "number" ? session.amount_total : 0;
+        const settled = await settleChargeIfAuthorized({
+          chargeId,
+          paidCents,
+          payerEmail: session.metadata?.userEmail,
+        });
+        if (settled) {
+          await activateSharedCalendarByCharge(chargeId);
+          await markEscrowHeldByCharge(chargeId);
+        }
       }
     }
   }
@@ -58,9 +66,16 @@ export async function POST(request: Request) {
       if (intent.metadata?.type === "hoa") {
         await markHoaChargePaid(chargeId);
       } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
+        const paidCents = typeof intent.amount === "number" ? intent.amount : 0;
+        const settled = await settleChargeIfAuthorized({
+          chargeId,
+          paidCents,
+          payerEmail: intent.metadata?.userEmail,
+        });
+        if (settled) {
+          await activateSharedCalendarByCharge(chargeId);
+          await markEscrowHeldByCharge(chargeId);
+        }
       }
     }
   }

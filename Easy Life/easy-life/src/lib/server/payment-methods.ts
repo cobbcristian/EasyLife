@@ -327,6 +327,8 @@ export async function chargeStoredPaymentMethod(input: {
   amount: number;
   description: string;
   paymentMethodId?: string;
+  /** When true, refuse demo/no-Stripe settle paths (autopay, etc.). */
+  requireLiveCharge?: boolean;
 }): Promise<{ status: "paid" | "action_required"; url?: string }> {
   const key = normalizeEmail(input.userEmail);
   const method =
@@ -341,11 +343,19 @@ export async function chargeStoredPaymentMethod(input: {
   }
 
   if (!method.stripePaymentMethodId || !isStripeConfigured()) {
+    if (input.requireLiveCharge) {
+      throw new Error("Live Stripe payment method required");
+    }
     return { status: "paid" };
   }
 
   const stripe = getStripe();
-  if (!stripe) return { status: "paid" };
+  if (!stripe) {
+    if (input.requireLiveCharge) {
+      throw new Error("Stripe is not configured");
+    }
+    return { status: "paid" };
+  }
 
   const ext = await ensureProfileExt(key);
   const customerId =

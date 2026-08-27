@@ -67,11 +67,16 @@ export async function processAutopayDueToday(): Promise<{ processed: number; fai
     if (totalDue <= 0) continue;
 
     try {
-      await chargeStoredPaymentMethod({
+      const result = await chargeStoredPaymentMethod({
         userEmail: profile.userEmail,
         amount: totalDue,
         description: `Auto-pay statement — ${today.toISOString().slice(0, 10)}`,
+        requireLiveCharge: true,
       });
+      if (result.status !== "paid") {
+        failed += 1;
+        continue;
+      }
       for (const charge of dueCharges) {
         await prisma.memberCharge.update({
           where: { id: charge.id },
