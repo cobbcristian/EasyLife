@@ -16,7 +16,10 @@ export async function GET(request: Request) {
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   const { searchParams } = new URL(request.url);
   const exportQb = searchParams.get("export") === "quickbooks";
 
@@ -43,7 +46,10 @@ export async function POST(request: Request) {
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   let body: {
     action?: "journal" | "connect_qb";
     entryDate?: string;

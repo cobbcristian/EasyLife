@@ -4,6 +4,7 @@ import {
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
+import { applyFundraisingDonationPaid } from "@/lib/server/fundraising";
 import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
@@ -37,17 +38,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  async function settleCharge(chargeId: string, type?: string) {
+    if (type === "hoa") {
+      await markHoaChargePaid(chargeId);
+      return;
+    }
+    await updateMemberChargeStatus(chargeId, "paid");
+    await activateSharedCalendarByCharge(chargeId);
+    await markEscrowHeldByCharge(chargeId);
+    await applyFundraisingDonationPaid(chargeId);
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const chargeId = session.metadata?.chargeId;
     if (chargeId) {
-      if (session.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
-      }
+      await settleCharge(chargeId, session.metadata?.type);
     }
   }
 
@@ -55,13 +61,7 @@ export async function POST(request: Request) {
     const intent = event.data.object;
     const chargeId = intent.metadata?.chargeId;
     if (chargeId) {
-      if (intent.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
-      }
+      await settleCharge(chargeId, intent.metadata?.type);
     }
   }
 

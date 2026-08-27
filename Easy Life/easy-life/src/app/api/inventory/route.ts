@@ -12,7 +12,10 @@ export async function GET(request: Request) {
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   const { searchParams } = new URL(request.url);
   if (searchParams.get("lowStock") === "1") {
     return NextResponse.json({ items: await getLowStockItems(communityId) });
@@ -25,7 +28,10 @@ export async function POST(request: Request) {
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   let body: {
     action?: "create" | "adjust";
     sku?: string;
@@ -44,14 +50,22 @@ export async function POST(request: Request) {
   }
 
   if (body.action === "adjust" && body.itemId && body.type && body.qty != null) {
-    const item = await adjustInventory({
-      itemId: body.itemId,
-      type: body.type,
-      qty: body.qty,
-      note: body.note,
-      createdBy: session.name,
-    });
-    return NextResponse.json({ item });
+    try {
+      const item = await adjustInventory({
+        itemId: body.itemId,
+        communityId,
+        type: body.type,
+        qty: body.qty,
+        note: body.note,
+        createdBy: session.name,
+      });
+      return NextResponse.json({ item });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Failed" },
+        { status: 404 },
+      );
+    }
   }
 
   if (!body.sku || !body.name) {

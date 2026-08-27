@@ -11,9 +11,14 @@ import {
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   if (session.role === "member") {
-    return NextResponse.json({ chits: await listMemberChits(session.email) });
+    return NextResponse.json({
+      chits: await listMemberChits(session.email, communityId),
+    });
   }
   return NextResponse.json({ chits: await listOpenChits(communityId) });
 }
@@ -22,6 +27,10 @@ export async function POST(request: Request) {
   const session = await getSession();
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
   }
   let body: {
     memberEmail: string;
@@ -36,7 +45,6 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
   const chit = await createPosChit({
     communityId,
     ...body,
@@ -49,6 +57,10 @@ export async function PATCH(request: Request) {
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   let body: { id: string; action: "post" | "void" };
   try {
     body = (await request.json()) as typeof body;
@@ -56,12 +68,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   if (body.action === "post") {
-    const chit = await postPosChitToAccount(body.id, session.name);
+    const chit = await postPosChitToAccount(body.id, session.name, communityId);
     if (!chit) return NextResponse.json({ error: "Cannot post chit" }, { status: 400 });
     return NextResponse.json({ chit });
   }
   if (body.action === "void") {
-    const ok = await voidPosChit(body.id);
+    const ok = await voidPosChit(body.id, communityId);
     if (!ok) return NextResponse.json({ error: "Cannot void chit" }, { status: 400 });
     return NextResponse.json({ ok: true });
   }

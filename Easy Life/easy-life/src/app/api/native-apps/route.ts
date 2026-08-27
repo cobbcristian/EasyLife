@@ -12,7 +12,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   await ensureKnownNativeApps();
-  const configs = await listNativeAppConfigs();
+  // Platform admin (no community) may list all; club staff only see their club.
+  if (session.role === "admin" && !session.communityId) {
+    const configs = await listNativeAppConfigs();
+    return NextResponse.json({ configs });
+  }
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
+  const configs = (await listNativeAppConfigs()).filter(
+    (c) => c.communityId === communityId,
+  );
   return NextResponse.json({ configs });
 }
 
@@ -35,6 +46,23 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const config = await upsertNativeAppConfig(body);
+
+  // Club admins may only mutate their own community; platform admin may set any.
+  const communityId =
+    session.communityId == null ? body.communityId : session.communityId;
+  if (!communityId || !body.bundleId || !body.appName) {
+    return NextResponse.json(
+      { error: "communityId, bundleId, and appName required" },
+      { status: 400 },
+    );
+  }
+  if (session.communityId && body.communityId && body.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const config = await upsertNativeAppConfig({
+    ...body,
+    communityId,
+  });
   return NextResponse.json({ config });
 }

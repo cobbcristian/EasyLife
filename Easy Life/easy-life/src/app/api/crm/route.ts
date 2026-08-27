@@ -13,7 +13,10 @@ export async function GET(request: Request) {
   if (!session || !["pm", "admin", "board", "sales"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   const { searchParams } = new URL(request.url);
   const stage = searchParams.get("stage") ?? undefined;
   const [prospects, pipeline] = await Promise.all([
@@ -28,7 +31,10 @@ export async function POST(request: Request) {
   if (!session || !["pm", "admin", "board", "sales"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   let body: {
     action?: "create" | "stage" | "activity";
     name?: string;
@@ -49,18 +55,29 @@ export async function POST(request: Request) {
   }
 
   if (body.action === "stage" && body.prospectId && body.stage) {
-    const prospect = await updateProspectStage(body.prospectId, body.stage);
+    const prospect = await updateProspectStage(
+      body.prospectId,
+      body.stage,
+      communityId,
+    );
+    if (!prospect) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     return NextResponse.json({ prospect });
   }
 
   if (body.action === "activity" && body.prospectId && body.subject) {
     const activity = await addCrmActivity({
       prospectId: body.prospectId,
+      communityId,
       type: body.type ?? "note",
       subject: body.subject,
       body: body.activityBody,
       createdBy: session.name,
     });
+    if (!activity) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     return NextResponse.json({ activity });
   }
 
