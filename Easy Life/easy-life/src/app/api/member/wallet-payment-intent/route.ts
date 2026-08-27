@@ -5,17 +5,15 @@ import {
   markHoaChargePaid,
   resolveHoaPaymentForMember,
 } from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import {
+  getOwnedOpenCharge,
+  settleChargeIfAuthorized,
+} from "@/lib/server/records";
 import { getStripe, isWalletPayConfigured } from "@/lib/server/stripe";
-
-async function markPaid(chargeId?: string) {
-  if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
-}
 
 /**
  * Creates a PaymentIntent for Apple Pay / Google Pay (Payment Request API).
- * Amount is always resolved server-side for HOA; generic charges validated by id.
+ * Amount is always resolved server-side for HOA and ledger charges.
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -63,16 +61,14 @@ export async function POST(request: Request) {
     metadata.communityId = payment.communityId;
     metadata.unit = payment.unit;
     metadata.periodId = payment.periodId;
-  } else if (kind === "charge" && body.chargeId) {
-    const { prisma } = await import("@/lib/server/prisma");
-    const charge = await prisma.memberCharge.findFirst({
-      where: { id: body.chargeId, memberEmail: session.email.toLowerCase() },
-    });
+  } else if (kind === "charge" || (kind === "amount" && body.chargeId)) {
+    // Any path that attaches a chargeId must prove ownership and use server amount.
+    if (!body.chargeId) {
+      return NextResponse.json({ error: "chargeId required" }, { status: 400 });
+    }
+    const charge = await getOwnedOpenCharge(body.chargeId, session.email);
     if (!charge) {
       return NextResponse.json({ error: "Charge not found" }, { status: 404 });
-    }
-    if (charge.status === "paid") {
-      return NextResponse.json({ error: "Already paid" }, { status: 400 });
     }
     amountCents = Math.round(charge.amount * 100);
     description = charge.description;
@@ -84,7 +80,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
     amountCents = Math.round(amount * 100);
-    if (chargeId) metadata.chargeId = chargeId;
+    // Do not attach an unverified chargeId on free-amount wallet pays.
+    chargeId = undefined;
   }
 
   const stripe = getStripe();
@@ -92,8 +89,15 @@ export async function POST(request: Request) {
     if (isDemoPaymentAllowed()) {
       if (kind === "hoa" && chargeId) {
         await markHoaChargePaid(chargeId);
-      } else {
-        await markPaid(chargeId);
+      } else if (chargeId) {
+        const settled = await settleChargeIfAuthorized({
+          chargeId,
+          paidCents: amountCents,
+          payerEmail: session.email,
+        });
+        if (!settled) {
+          return NextResponse.json({ error: "Could not settle charge" }, { status: 400 });
+        }
       }
       return NextResponse.json({
         ok: true,

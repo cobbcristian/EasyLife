@@ -1046,6 +1046,47 @@ export async function updateMemberChargeStatus(id: string, status: string) {
   return prisma.memberCharge.update({ where: { id }, data: { status } });
 }
 
+/** Open charge owned by this member email, or null. */
+export async function getOwnedOpenCharge(chargeId: string, memberEmail: string) {
+  return prisma.memberCharge.findFirst({
+    where: {
+      id: chargeId,
+      memberEmail: memberEmail.toLowerCase(),
+      status: { in: ["due", "overdue"] },
+    },
+  });
+}
+
+/**
+ * Mark a charge paid only when the paid amount covers it and (when provided)
+ * the payer email matches the charge owner. Prevents settling another member's
+ * bill via a foreign chargeId in checkout/wallet metadata.
+ */
+export async function settleChargeIfAuthorized(input: {
+  chargeId: string;
+  paidCents: number;
+  payerEmail?: string | null;
+}): Promise<boolean> {
+  const charge = await prisma.memberCharge.findUnique({
+    where: { id: input.chargeId },
+  });
+  if (!charge || charge.status === "paid") return false;
+
+  if (input.payerEmail) {
+    const payer = input.payerEmail.toLowerCase();
+    if (!charge.memberEmail || charge.memberEmail.toLowerCase() !== payer) {
+      return false;
+    }
+  }
+
+  const dueCents = Math.round(charge.amount * 100);
+  // Allow 1¢ rounding; reject underpayment that would clear a larger bill.
+  if (input.paidCents + 1 < dueCents) return false;
+
+  await updateMemberChargeStatus(charge.id, "paid");
+  return true;
+}
+
 /* ---------------- Gallery ---------------- */
 
 export async function listGallery(communityId?: string | null) {
