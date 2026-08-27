@@ -19,6 +19,7 @@ export default function MemberFundraisingPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [donating, setDonating] = useState<string | null>(null);
   const [amount, setAmount] = useState("25");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/fundraising")
@@ -30,8 +31,9 @@ export default function MemberFundraisingPage() {
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) return;
     setDonating(campaignId);
+    setError(null);
     try {
-      await fetch("/api/fundraising", {
+      const startRes = await fetch("/api/fundraising", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,6 +44,32 @@ export default function MemberFundraisingPage() {
           message: `Supporting ${title}`,
         }),
       });
+      const startData = await startRes.json();
+      if (!startRes.ok || !startData.charge?.id) {
+        setError(startData.error ?? "Could not start donation");
+        return;
+      }
+
+      const checkoutRes = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chargeId: startData.charge.id,
+          amount: startData.charge.amount,
+          description: startData.charge.description,
+          returnPath: "/member/fundraising",
+        }),
+      });
+      const checkoutData = await checkoutRes.json();
+      if (checkoutData.url) {
+        window.location.href = checkoutData.url;
+        return;
+      }
+      if (!checkoutRes.ok) {
+        setError(checkoutData.error ?? "Payment failed");
+        return;
+      }
+
       const res = await fetch("/api/fundraising");
       const d = await res.json();
       setCampaigns(d.campaigns ?? []);
@@ -58,6 +86,7 @@ export default function MemberFundraisingPage() {
           {t("Support club tournaments and charity golf events.")}
         </p>
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div>
         <label className="text-xs font-medium uppercase tracking-wide text-grey">
           {t("Donation amount")}

@@ -41,10 +41,22 @@ export async function createJournalEntry(input: {
   sourceId?: string;
 }) {
   await ensureRecordsSeeded();
+  if (!input.lines.length) {
+    throw new Error("Journal entry requires at least one line");
+  }
   const totalDebit = input.lines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = input.lines.reduce((s, l) => s + l.credit, 0);
   if (Math.abs(totalDebit - totalCredit) > 0.01) {
     throw new Error("Journal entry must balance (debits = credits)");
+  }
+
+  const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
+  const accounts = await prisma.glAccount.findMany({
+    where: { id: { in: accountIds }, communityId: input.communityId },
+    select: { id: true },
+  });
+  if (accounts.length !== accountIds.length) {
+    throw new Error("Journal lines must reference accounts in this community");
   }
 
   return prisma.glJournalEntry.create({

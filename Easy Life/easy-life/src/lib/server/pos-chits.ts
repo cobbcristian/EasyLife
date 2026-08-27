@@ -116,9 +116,15 @@ export async function listOpenChits(communityId: string): Promise<PosChitDTO[]> 
   return rows.map(toDto);
 }
 
-export async function listMemberChits(memberEmail: string): Promise<PosChitDTO[]> {
+export async function listMemberChits(
+  memberEmail: string,
+  communityId: string,
+): Promise<PosChitDTO[]> {
   const rows = await prisma.posChit.findMany({
-    where: { memberEmail: memberEmail.toLowerCase() },
+    where: {
+      memberEmail: memberEmail.toLowerCase(),
+      communityId,
+    },
     include: { lines: true },
     orderBy: { createdAt: "desc" },
     take: 20,
@@ -126,52 +132,78 @@ export async function listMemberChits(memberEmail: string): Promise<PosChitDTO[]
   return rows.map(toDto);
 }
 
-/** Post chit to member account as a charge. */
+/**
+ * Post chit to member account as a charge.
+ * Atomic status flip prevents double-post / double-charge races.
+ */
 export async function postPosChitToAccount(
   chitId: string,
   postedBy: string,
+  communityId: string,
 ): Promise<PosChitDTO | null> {
-  const chit = await prisma.posChit.findUnique({
-    where: { id: chitId },
+  const claimed = await prisma.posChit.updateMany({
+    where: { id: chitId, communityId, status: "open" },
+    data: { status: "posting" },
+  });
+  if (claimed.count !== 1) return null;
+
+  const chit = await prisma.posChit.findFirst({
+    where: { id: chitId, communityId },
     include: { lines: true },
   });
-  if (!chit || chit.status !== "open") return null;
+  if (!chit) return null;
 
-  const charge = await prisma.memberCharge.create({
-    data: {
-      communityId: chit.communityId,
-      memberEmail: chit.memberEmail,
-      memberName: chit.memberName,
-      category: "dining",
-      description: `POS — ${chit.location} (${chit.lines.length} items)`,
-      amount: chit.total,
-      status: "due",
-      referenceType: "pos_chit",
-      referenceId: chit.id,
-    },
-  });
+  try {
+    const charge = await prisma.memberCharge.create({
+      data: {
+        communityId: chit.communityId,
+        memberEmail: chit.memberEmail,
+        memberName: chit.memberName,
+        category: "dining",
+        description: `POS — ${chit.location} (${chit.lines.length} items)`,
+        amount: chit.total,
+        status: "due",
+        referenceType: "pos_chit",
+        referenceId: chit.id,
+      },
+    });
 
-  const updated = await prisma.posChit.update({
-    where: { id: chitId },
-    data: { status: "posted", chargeId: charge.id, postedAt: new Date() },
-    include: { lines: true },
-  });
+    const updated = await prisma.posChit.update({
+      where: { id: chitId },
+      data: { status: "posted", chargeId: charge.id, postedAt: new Date() },
+      include: { lines: true },
+    });
 
-  await prisma.accessLog.create({
-    data: {
-      communityId: chit.communityId,
-      userName: postedBy,
-      action: "POS Post",
-      detail: `Chit ${chitId} → $${chit.total.toFixed(2)}`,
-    },
-  });
+    await prisma.accessLog.create({
+      data: {
+        communityId: chit.communityId,
+        userName: postedBy,
+        action: "POS Post",
+        detail: `Chit ${chitId} → $${chit.total.toFixed(2)}`,
+      },
+    });
 
-  return toDto(updated);
+    return toDto(updated);
+  } catch (err) {
+    await prisma.posChit.updateMany({
+      where: { id: chitId, status: "posting" },
+      data: { status: "open" },
+    });
+    throw err;
+  }
 }
 
-export async function voidPosChit(chitId: string): Promise<boolean> {
-  const chit = await prisma.posChit.findUnique({ where: { id: chitId } });
-  if (!chit || chit.status === "paid") return false;
-  await prisma.posChit.update({ where: { id: chitId }, data: { status: "void" } });
-  return true;
+export async function voidPosChit(
+  chitId: string,
+  communityId: string,
+): Promise<boolean> {
+  const chit = await prisma.posChit.findFirst({
+    where: { id: chitId, communityId },
+  });
+  if (!chit || chit.status === "paid" || chit.status === "posted") return false;
+  const result = await prisma.posChit.updateMany({
+    where: { id: chitId, communityId, status: "open" },
+    data: { status: "void" },
+  });
+  return result.count === 1;
 }

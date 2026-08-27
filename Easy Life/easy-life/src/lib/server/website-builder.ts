@@ -125,6 +125,12 @@ export async function upsertWebsitePage(input: {
 }): Promise<WebsitePageDTO> {
   const blocksJson = JSON.stringify(input.blocks);
   if (input.id) {
+    const existing = await prisma.clubWebsitePage.findFirst({
+      where: { id: input.id, communityId: input.communityId },
+    });
+    if (!existing) {
+      throw new Error("Page not found");
+    }
     const row = await prisma.clubWebsitePage.update({
       where: { id: input.id },
       data: {

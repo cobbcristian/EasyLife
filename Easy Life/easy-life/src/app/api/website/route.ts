@@ -12,7 +12,10 @@ export async function GET() {
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   const pages = await listWebsitePages(communityId);
   return NextResponse.json({ pages });
 }
@@ -22,7 +25,10 @@ export async function POST(request: Request) {
   if (!session || !["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
   let body: {
     action?: "publish" | "save";
     published?: boolean;
@@ -50,14 +56,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "slug and title required" }, { status: 400 });
   }
 
-  const page = await upsertWebsitePage({
-    id: body.id,
-    communityId,
-    slug: body.slug,
-    title: body.title,
-    published: body.published,
-    sortOrder: body.sortOrder,
-    blocks: (body.blocks ?? []) as Parameters<typeof upsertWebsitePage>[0]["blocks"],
-  });
-  return NextResponse.json({ page });
+  try {
+    const page = await upsertWebsitePage({
+      id: body.id,
+      communityId,
+      slug: body.slug,
+      title: body.title,
+      published: body.published,
+      sortOrder: body.sortOrder,
+      blocks: (body.blocks ?? []) as Parameters<typeof upsertWebsitePage>[0]["blocks"],
+    });
+    return NextResponse.json({ page });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed" },
+      { status: 404 },
+    );
+  }
 }
