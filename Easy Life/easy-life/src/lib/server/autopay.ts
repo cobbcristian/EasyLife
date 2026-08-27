@@ -1,3 +1,4 @@
+import { shouldSettleAutopayCharges } from "@/lib/autopay-settle-policy";
 import { prisma } from "@/lib/server/prisma";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { chargeStoredPaymentMethod } from "@/lib/server/payment-methods";
@@ -67,11 +68,16 @@ export async function processAutopayDueToday(): Promise<{ processed: number; fai
     if (totalDue <= 0) continue;
 
     try {
-      await chargeStoredPaymentMethod({
+      const result = await chargeStoredPaymentMethod({
         userEmail: profile.userEmail,
         amount: totalDue,
         description: `Auto-pay statement — ${today.toISOString().slice(0, 10)}`,
       });
+      // 3DS / action_required must not wipe the statement — no money captured yet.
+      if (!shouldSettleAutopayCharges(result)) {
+        failed += 1;
+        continue;
+      }
       for (const charge of dueCharges) {
         await prisma.memberCharge.update({
           where: { id: charge.id },

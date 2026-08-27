@@ -4,6 +4,7 @@ import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
+import { confirmFundraisingDonationByCharge } from "@/lib/server/fundraising";
 import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
@@ -18,6 +19,7 @@ async function afterChargePaid(chargeId: string | undefined) {
   await updateMemberChargeStatus(chargeId, "paid");
   await activateSharedCalendarByCharge(chargeId);
   await markEscrowHeldByCharge(chargeId);
+  await confirmFundraisingDonationByCharge(chargeId);
 }
 
 export async function POST(request: Request) {

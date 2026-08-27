@@ -3,7 +3,7 @@ import { getSession } from "@/lib/server/auth";
 import {
   listCampaigns,
   createCampaign,
-  recordDonation,
+  startFundraisingDonation,
   getCampaignWithDonations,
 } from "@/lib/server/fundraising";
 
@@ -15,7 +15,9 @@ export async function GET(request: Request) {
   const campaignId = searchParams.get("id");
   if (campaignId) {
     const campaign = await getCampaignWithDonations(campaignId);
-    if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!campaign || campaign.communityId !== communityId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     return NextResponse.json({ campaign });
   }
   const activeOnly = session.role === "member";
@@ -25,6 +27,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: {
     action?: "create" | "donate";
     title?: string;
@@ -44,25 +50,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  const communityId = session.communityId ?? "golden-ocala";
+
   if (body.action === "donate") {
-    if (!body.campaignId || !body.amount || !body.donorName) {
+    if (!body.campaignId || !body.amount) {
       return NextResponse.json({ error: "Missing donation fields" }, { status: 400 });
     }
-    const donation = await recordDonation({
-      campaignId: body.campaignId,
-      donorName: body.donorName,
-      donorEmail: session?.email,
-      amount: body.amount,
-      message: body.message,
-      anonymous: body.anonymous,
-    });
-    return NextResponse.json({ donation });
+    try {
+      const result = await startFundraisingDonation({
+        communityId,
+        campaignId: body.campaignId,
+        donorName: body.donorName?.trim() || session.name,
+        donorEmail: session.email,
+        amount: body.amount,
+        message: body.message,
+        anonymous: body.anonymous,
+      });
+      return NextResponse.json({
+        charge: result.charge,
+        campaignId: result.campaign.id,
+        // Client must settle charge before raisedAmount increases.
+        paymentRequired: true,
+      });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Donation failed" },
+        { status: 400 },
+      );
+    }
   }
 
-  if (!session || !["pm", "admin", "board"].includes(session.role)) {
+  if (!["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
   if (!body.title || !body.goalAmount) {
     return NextResponse.json({ error: "title and goalAmount required" }, { status: 400 });
   }

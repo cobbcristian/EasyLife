@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
+import { confirmFundraisingDonationByCharge } from "@/lib/server/fundraising";
 import {
   markHoaChargePaid,
   resolveHoaPaymentForMember,
@@ -11,6 +12,7 @@ import { getStripe, isWalletPayConfigured } from "@/lib/server/stripe";
 async function markPaid(chargeId?: string) {
   if (!chargeId) return;
   await updateMemberChargeStatus(chargeId, "paid");
+  await confirmFundraisingDonationByCharge(chargeId);
 }
 
 /**
