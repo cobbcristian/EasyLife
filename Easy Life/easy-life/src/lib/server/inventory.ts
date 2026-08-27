@@ -35,12 +35,15 @@ export async function createInventoryItem(input: {
 
 export async function adjustInventory(input: {
   itemId: string;
+  communityId: string;
   type: "receive" | "sale" | "adjustment" | "transfer";
   qty: number;
   note?: string;
   createdBy: string;
 }) {
-  const item = await prisma.inventoryItem.findUnique({ where: { id: input.itemId } });
+  const item = await prisma.inventoryItem.findFirst({
+    where: { id: input.itemId, communityId: input.communityId },
+  });
   if (!item) throw new Error("Item not found");
 
   const delta =

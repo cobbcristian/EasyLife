@@ -55,13 +55,14 @@ export async function PATCH(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+  const communityId = session.communityId ?? "golden-ocala";
   if (body.action === "post") {
-    const chit = await postPosChitToAccount(body.id, session.name);
+    const chit = await postPosChitToAccount(body.id, session.name, communityId);
     if (!chit) return NextResponse.json({ error: "Cannot post chit" }, { status: 400 });
     return NextResponse.json({ chit });
   }
   if (body.action === "void") {
-    const ok = await voidPosChit(body.id);
+    const ok = await voidPosChit(body.id, communityId);
     if (!ok) return NextResponse.json({ error: "Cannot void chit" }, { status: 400 });
     return NextResponse.json({ ok: true });
   }

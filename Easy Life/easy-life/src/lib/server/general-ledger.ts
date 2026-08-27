@@ -47,6 +47,15 @@ export async function createJournalEntry(input: {
     throw new Error("Journal entry must balance (debits = credits)");
   }
 
+  const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
+  const owned = await prisma.glAccount.findMany({
+    where: { id: { in: accountIds }, communityId: input.communityId },
+    select: { id: true },
+  });
+  if (owned.length !== accountIds.length) {
+    throw new Error("Journal lines must use accounts from this club");
+  }
+
   return prisma.glJournalEntry.create({
     data: {
       communityId: input.communityId,

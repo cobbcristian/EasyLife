@@ -112,10 +112,37 @@ export async function upsertPricingRule(input: {
   active?: boolean;
 }) {
   if (input.id) {
+    const existing = await prisma.teePricingRule.findFirst({
+      where: { id: input.id, communityId: input.communityId },
+    });
+    if (!existing) {
+      throw new Error("Pricing rule not found");
+    }
     return prisma.teePricingRule.update({
       where: { id: input.id },
-      data: input,
+      data: {
+        amenityId: input.amenityId,
+        name: input.name,
+        dayOfWeek: input.dayOfWeek,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        multiplier: input.multiplier,
+        flatAdjustment: input.flatAdjustment,
+        active: input.active ?? true,
+      },
     });
   }
-  return prisma.teePricingRule.create({ data: { ...input, active: input.active ?? true } });
+  return prisma.teePricingRule.create({
+    data: {
+      communityId: input.communityId,
+      amenityId: input.amenityId,
+      name: input.name,
+      dayOfWeek: input.dayOfWeek,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      multiplier: input.multiplier,
+      flatAdjustment: input.flatAdjustment,
+      active: input.active ?? true,
+    },
+  });
 }

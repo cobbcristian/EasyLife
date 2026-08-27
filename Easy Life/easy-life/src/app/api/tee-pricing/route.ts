@@ -53,14 +53,21 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const rule = await upsertPricingRule({
-    ...body,
-    communityId,
-    dayOfWeek: body.dayOfWeek ?? "*",
-    startTime: body.startTime ?? "06:00",
-    endTime: body.endTime ?? "18:00",
-    multiplier: body.multiplier ?? 1,
-    flatAdjustment: body.flatAdjustment ?? 0,
-  });
-  return NextResponse.json({ rule });
+  try {
+    const rule = await upsertPricingRule({
+      ...body,
+      communityId,
+      dayOfWeek: body.dayOfWeek ?? "*",
+      startTime: body.startTime ?? "06:00",
+      endTime: body.endTime ?? "18:00",
+      multiplier: body.multiplier ?? 1,
+      flatAdjustment: body.flatAdjustment ?? 0,
+    });
+    return NextResponse.json({ rule });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed" },
+      { status: 404 },
+    );
+  }
 }
