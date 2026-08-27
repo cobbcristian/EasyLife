@@ -19,6 +19,7 @@ export default function MemberFundraisingPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [donating, setDonating] = useState<string | null>(null);
   const [amount, setAmount] = useState("25");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/fundraising")
@@ -26,24 +27,39 @@ export default function MemberFundraisingPage() {
       .then((d) => setCampaigns(d.campaigns ?? []));
   }, []);
 
-  async function donate(campaignId: string, title: string) {
+  async function donate(campaignId: string) {
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) return;
     setDonating(campaignId);
+    setError(null);
     try {
-      await fetch("/api/fundraising", {
+      const res = await fetch("/api/fundraising", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "donate",
           campaignId,
           amount: parsed,
-          donorName: "Member",
-          message: `Supporting ${title}`,
         }),
       });
-      const res = await fetch("/api/fundraising");
-      const d = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        charge?: { id: string };
+        paymentRequired?: boolean;
+      };
+      if (!res.ok) {
+        setError(data.error ?? t("Donation failed"));
+        return;
+      }
+      const chargeId = data.charge?.id;
+      if (data.paymentRequired && chargeId) {
+        window.location.assign(
+          `/member/payments?chargeId=${encodeURIComponent(chargeId)}`,
+        );
+        return;
+      }
+      const refreshed = await fetch("/api/fundraising");
+      const d = await refreshed.json();
       setCampaigns(d.campaigns ?? []);
     } finally {
       setDonating(null);
@@ -69,6 +85,7 @@ export default function MemberFundraisingPage() {
           className="mt-1 w-full rounded-xl border border-[#e8ebf0] px-3 py-2 text-sm"
         />
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <ul className="space-y-4">
         {campaigns.map((c) => {
           const pct = Math.min(100, (c.raisedAmount / c.goalAmount) * 100);
@@ -91,7 +108,7 @@ export default function MemberFundraisingPage() {
               <button
                 type="button"
                 disabled={donating === c.id}
-                onClick={() => donate(c.id, c.title)}
+                onClick={() => donate(c.id)}
                 className="mt-3 h-10 w-full rounded-xl bg-[var(--mvp-blue)] text-sm font-semibold text-white disabled:opacity-60"
               >
                 {donating === c.id ? t("Processing…") : t("Donate")}
