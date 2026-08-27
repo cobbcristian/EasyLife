@@ -82,7 +82,13 @@ export async function createProspect(input: {
 export async function updateProspectStage(
   id: string,
   stage: string,
+  communityId: string,
 ): Promise<CrmProspectDTO | null> {
+  const existing = await prisma.crmProspect.findFirst({
+    where: { id, communityId },
+  });
+  if (!existing) return null;
+
   const row = await prisma.crmProspect.update({
     where: { id },
     data: { stage },
@@ -93,11 +99,18 @@ export async function updateProspectStage(
 
 export async function addCrmActivity(input: {
   prospectId: string;
+  communityId: string;
   type: string;
   subject: string;
   body?: string;
   createdBy: string;
 }) {
+  const prospect = await prisma.crmProspect.findFirst({
+    where: { id: input.prospectId, communityId: input.communityId },
+  });
+  if (!prospect) {
+    throw new Error("Prospect not found");
+  }
   return prisma.crmActivity.create({
     data: {
       prospectId: input.prospectId,

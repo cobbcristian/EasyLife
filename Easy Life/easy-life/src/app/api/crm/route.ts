@@ -49,19 +49,34 @@ export async function POST(request: Request) {
   }
 
   if (body.action === "stage" && body.prospectId && body.stage) {
-    const prospect = await updateProspectStage(body.prospectId, body.stage);
+    const prospect = await updateProspectStage(
+      body.prospectId,
+      body.stage,
+      communityId,
+    );
+    if (!prospect) {
+      return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
+    }
     return NextResponse.json({ prospect });
   }
 
   if (body.action === "activity" && body.prospectId && body.subject) {
-    const activity = await addCrmActivity({
-      prospectId: body.prospectId,
-      type: body.type ?? "note",
-      subject: body.subject,
-      body: body.activityBody,
-      createdBy: session.name,
-    });
-    return NextResponse.json({ activity });
+    try {
+      const activity = await addCrmActivity({
+        prospectId: body.prospectId,
+        communityId,
+        type: body.type ?? "note",
+        subject: body.subject,
+        body: body.activityBody,
+        createdBy: session.name,
+      });
+      return NextResponse.json({ activity });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Failed" },
+        { status: 404 },
+      );
+    }
   }
 
   if (!body.name) {

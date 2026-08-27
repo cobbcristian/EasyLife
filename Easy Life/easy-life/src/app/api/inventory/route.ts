@@ -44,14 +44,22 @@ export async function POST(request: Request) {
   }
 
   if (body.action === "adjust" && body.itemId && body.type && body.qty != null) {
-    const item = await adjustInventory({
-      itemId: body.itemId,
-      type: body.type,
-      qty: body.qty,
-      note: body.note,
-      createdBy: session.name,
-    });
-    return NextResponse.json({ item });
+    try {
+      const item = await adjustInventory({
+        itemId: body.itemId,
+        communityId,
+        type: body.type,
+        qty: body.qty,
+        note: body.note,
+        createdBy: session.name,
+      });
+      return NextResponse.json({ item });
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Adjust failed" },
+        { status: 404 },
+      );
+    }
   }
 
   if (!body.sku || !body.name) {

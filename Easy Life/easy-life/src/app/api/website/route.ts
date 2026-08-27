@@ -50,14 +50,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "slug and title required" }, { status: 400 });
   }
 
-  const page = await upsertWebsitePage({
-    id: body.id,
-    communityId,
-    slug: body.slug,
-    title: body.title,
-    published: body.published,
-    sortOrder: body.sortOrder,
-    blocks: (body.blocks ?? []) as Parameters<typeof upsertWebsitePage>[0]["blocks"],
-  });
-  return NextResponse.json({ page });
+  try {
+    const page = await upsertWebsitePage({
+      id: body.id,
+      communityId,
+      slug: body.slug,
+      title: body.title,
+      published: body.published,
+      sortOrder: body.sortOrder,
+      blocks: (body.blocks ?? []) as Parameters<typeof upsertWebsitePage>[0]["blocks"],
+    });
+    return NextResponse.json({ page });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed" },
+      { status: 404 },
+    );
+  }
 }

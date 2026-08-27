@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const campaignId = searchParams.get("id");
   if (campaignId) {
-    const campaign = await getCampaignWithDonations(campaignId);
+    const campaign = await getCampaignWithDonations(campaignId, communityId);
     if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ campaign });
   }
@@ -25,6 +25,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: {
     action?: "create" | "donate";
     title?: string;
@@ -44,25 +48,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  const communityId = session.communityId ?? "golden-ocala";
+
   if (body.action === "donate") {
-    if (!body.campaignId || !body.amount || !body.donorName) {
+    if (!body.campaignId || body.amount == null) {
       return NextResponse.json({ error: "Missing donation fields" }, { status: 400 });
     }
-    const donation = await recordDonation({
-      campaignId: body.campaignId,
-      donorName: body.donorName,
-      donorEmail: session?.email,
-      amount: body.amount,
-      message: body.message,
-      anonymous: body.anonymous,
-    });
-    return NextResponse.json({ donation });
+    try {
+      const result = await recordDonation({
+        communityId,
+        campaignId: body.campaignId,
+        donorName: body.donorName?.trim() || session.name,
+        donorEmail: session.email,
+        amount: body.amount,
+        message: body.message,
+        anonymous: body.anonymous,
+      });
+      return NextResponse.json(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Donation failed";
+      const status = message === "Campaign not found" ? 404 : 400;
+      return NextResponse.json({ error: message }, { status });
+    }
   }
 
-  if (!session || !["pm", "admin", "board"].includes(session.role)) {
+  if (!["pm", "admin", "board"].includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const communityId = session.communityId ?? "golden-ocala";
   if (!body.title || !body.goalAmount) {
     return NextResponse.json({ error: "title and goalAmount required" }, { status: 400 });
   }

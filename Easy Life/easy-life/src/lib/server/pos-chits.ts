@@ -126,13 +126,14 @@ export async function listMemberChits(memberEmail: string): Promise<PosChitDTO[]
   return rows.map(toDto);
 }
 
-/** Post chit to member account as a charge. */
+/** Post chit to member account as a charge (scoped to caller's club). */
 export async function postPosChitToAccount(
   chitId: string,
   postedBy: string,
+  communityId: string,
 ): Promise<PosChitDTO | null> {
-  const chit = await prisma.posChit.findUnique({
-    where: { id: chitId },
+  const chit = await prisma.posChit.findFirst({
+    where: { id: chitId, communityId },
     include: { lines: true },
   });
   if (!chit || chit.status !== "open") return null;
@@ -169,9 +170,37 @@ export async function postPosChitToAccount(
   return toDto(updated);
 }
 
-export async function voidPosChit(chitId: string): Promise<boolean> {
-  const chit = await prisma.posChit.findUnique({ where: { id: chitId } });
+/**
+ * Void a chit in the caller's club.
+ * If the chit was already posted, cancel the linked open charge so the member
+ * is not left owing a voided ticket.
+ */
+export async function voidPosChit(
+  chitId: string,
+  communityId: string,
+): Promise<boolean> {
+  const chit = await prisma.posChit.findFirst({
+    where: { id: chitId, communityId },
+  });
   if (!chit || chit.status === "paid") return false;
+
+  if (chit.chargeId && (chit.status === "posted" || chit.status === "open")) {
+    const charge = await prisma.memberCharge.findFirst({
+      where: {
+        id: chit.chargeId,
+        communityId,
+        referenceType: "pos_chit",
+        referenceId: chit.id,
+      },
+    });
+    if (charge && charge.status === "due") {
+      await prisma.memberCharge.update({
+        where: { id: charge.id },
+        data: { status: "void" },
+      });
+    }
+  }
+
   await prisma.posChit.update({ where: { id: chitId }, data: { status: "void" } });
   return true;
 }
