@@ -3,6 +3,7 @@ import { getStripe, isStripeConfigured, getStripePublishableKey, isWalletPayConf
 import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
+import { storedChargeIntentOptions } from "@/lib/server/settle-charge";
 
 export type PaymentPreference = "always_prompt" | "store";
 
@@ -327,6 +328,9 @@ export async function chargeStoredPaymentMethod(input: {
   amount: number;
   description: string;
   paymentMethodId?: string;
+  /** Linked MemberCharge — required so SCA success can settle via webhook/return URL. */
+  chargeId?: string;
+  chargeCategory?: string | null;
 }): Promise<{ status: "paid" | "action_required"; url?: string }> {
   const key = normalizeEmail(input.userEmail);
   const method =
@@ -352,6 +356,13 @@ export async function chargeStoredPaymentMethod(input: {
     ext.stripeCustomerId ?? (await ensureStripeCustomer(input.userEmail));
   if (!customerId) throw new Error("No Stripe customer");
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const settleOpts = storedChargeIntentOptions({
+    chargeId: input.chargeId,
+    chargeCategory: input.chargeCategory,
+    appUrl,
+  });
+
   const intent = await stripe.paymentIntents.create({
     amount: Math.round(input.amount * 100),
     currency: "usd",
@@ -361,7 +372,8 @@ export async function chargeStoredPaymentMethod(input: {
     confirm: true,
     off_session: false,
     payment_method_types: ["card"],
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/member/payments?payment=success`,
+    metadata: settleOpts.metadata,
+    return_url: settleOpts.returnUrl,
   });
 
   if (intent.status === "succeeded") {

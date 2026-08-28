@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/server/prisma";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { chargeStoredPaymentMethod } from "@/lib/server/payment-methods";
+import { settleMemberChargePaid } from "@/lib/server/settle-charge";
 import { isStripeConfigured } from "@/lib/server/stripe";
 
 function normalizeEmail(email: string): string {
@@ -73,10 +74,7 @@ export async function processAutopayDueToday(): Promise<{ processed: number; fai
         description: `Auto-pay statement — ${today.toISOString().slice(0, 10)}`,
       });
       for (const charge of dueCharges) {
-        await prisma.memberCharge.update({
-          where: { id: charge.id },
-          data: { status: "paid" },
-        });
+        await settleMemberChargePaid(charge.id);
       }
       processed += 1;
     } catch {

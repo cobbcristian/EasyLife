@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
-import {
-  markHoaChargePaid,
-  resolveHoaPaymentForMember,
-} from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import { resolveHoaPaymentForMember } from "@/lib/server/hoa-dues";
+import { prisma } from "@/lib/server/prisma";
+import { settleMemberChargePaid } from "@/lib/server/settle-charge";
 import { getStripe, isWalletPayConfigured } from "@/lib/server/stripe";
-
-async function markPaid(chargeId?: string) {
-  if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
-}
 
 /**
  * Creates a PaymentIntent for Apple Pay / Google Pay (Payment Request API).
@@ -64,7 +57,6 @@ export async function POST(request: Request) {
     metadata.unit = payment.unit;
     metadata.periodId = payment.periodId;
   } else if (kind === "charge" && body.chargeId) {
-    const { prisma } = await import("@/lib/server/prisma");
     const charge = await prisma.memberCharge.findFirst({
       where: { id: body.chargeId, memberEmail: session.email.toLowerCase() },
     });
@@ -78,6 +70,9 @@ export async function POST(request: Request) {
     description = charge.description;
     chargeId = charge.id;
     metadata.chargeId = charge.id;
+    if (charge.category === "hoa") {
+      metadata.type = "hoa";
+    }
   } else {
     const amount = Number(body.amount);
     if (!amount || amount <= 0) {
@@ -90,10 +85,8 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe || !isWalletPayConfigured()) {
     if (isDemoPaymentAllowed()) {
-      if (kind === "hoa" && chargeId) {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await markPaid(chargeId);
+      if (chargeId) {
+        await settleMemberChargePaid(chargeId);
       }
       return NextResponse.json({
         ok: true,

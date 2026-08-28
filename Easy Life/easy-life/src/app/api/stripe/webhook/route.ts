@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
-import { markHoaChargePaid } from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+  checkoutSessionIsPaid,
+  settleMemberChargePaid,
+} from "@/lib/server/settle-charge";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
@@ -13,6 +11,10 @@ export const runtime = "nodejs";
  * Stripe webhook — confirms Checkout and wallet PaymentIntent payments; marks linked charges paid.
  * Requires STRIPE_WEBHOOK_SECRET. Amount was set server-side at session create;
  * residents cannot alter it on the Stripe hosted page.
+ *
+ * Checkout with async methods (ACH/bank) can emit checkout.session.completed while
+ * payment_status is still "unpaid". Only settle when funds are paid, and also handle
+ * checkout.session.async_payment_succeeded.
  */
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -37,17 +39,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
     const session = event.data.object;
     const chargeId = session.metadata?.chargeId;
-    if (chargeId) {
-      if (session.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
-      }
+    if (
+      chargeId &&
+      (event.type === "checkout.session.async_payment_succeeded" ||
+        checkoutSessionIsPaid(session.payment_status))
+    ) {
+      await settleMemberChargePaid(chargeId);
     }
   }
 
@@ -55,13 +58,7 @@ export async function POST(request: Request) {
     const intent = event.data.object;
     const chargeId = intent.metadata?.chargeId;
     if (chargeId) {
-      if (intent.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
-      }
+      await settleMemberChargePaid(chargeId);
     }
   }
 
