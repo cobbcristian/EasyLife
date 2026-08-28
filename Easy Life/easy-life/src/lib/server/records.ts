@@ -20,6 +20,7 @@ import { sendEmail } from "@/lib/server/notify";
 import { addMemberInboxItem } from "@/lib/server/project-management";
 import { appPath } from "@/lib/server/app-url";
 import { initialBookingStatus } from "@/lib/amenity-booking-policy";
+import { planLessonHoldCancel } from "@/lib/lesson-hold-cancel-policy";
 import { serializeTiebreakers, DEFAULT_TIEBREAKERS } from "@/lib/tournament-tiebreakers";
 import { DEFAULT_NO_START_POLICY } from "@/lib/tournament-no-start";
 import type { TiebreakerCriterion } from "@/lib/tournament-tiebreakers";
@@ -846,7 +847,43 @@ export async function processDueReminders() {
 export async function cancelBooking(id: string, memberEmail: string) {
   const booking = await prisma.booking.findUnique({ where: { id } });
   if (!booking || booking.memberEmail !== memberEmail) return null;
-  return prisma.booking.update({ where: { id }, data: { status: "cancelled" } });
+
+  const updated = await prisma.booking.update({
+    where: { id },
+    data: { status: "cancelled" },
+  });
+
+  // Lesson holds share the member's email, so /api/bookings/[id]/cancel can
+  // free the court. Cascade the LessonBooking + unpaid fee or the pro stays
+  // booked and the member is still charged.
+  if (booking.bookingKind === "lesson_hold" && booking.lessonBookingId) {
+    const lesson = await prisma.lessonBooking.findUnique({
+      where: { id: booking.lessonBookingId },
+    });
+    const charge = lesson?.chargeId
+      ? await prisma.memberCharge.findUnique({ where: { id: lesson.chargeId } })
+      : null;
+    const plan = planLessonHoldCancel({
+      bookingKind: booking.bookingKind,
+      lessonBookingId: booking.lessonBookingId,
+      lessonStatus: lesson?.status,
+      chargeStatus: charge?.status,
+    });
+    if (plan.cancelLesson && lesson) {
+      await prisma.lessonBooking.update({
+        where: { id: lesson.id },
+        data: { status: "cancelled" },
+      });
+    }
+    if (plan.cancelDueCharge && lesson?.chargeId) {
+      await prisma.memberCharge.update({
+        where: { id: lesson.chargeId },
+        data: { status: "cancelled" },
+      });
+    }
+  }
+
+  return updated;
 }
 
 /* ---------------- Service Requests ---------------- */
@@ -1877,12 +1914,21 @@ export async function getAmenityAvailability(
   date: string,
   startTime?: string,
   endTime?: string,
+  communityId?: string | null,
 ) {
-  const amenity = await prisma.amenity.findUnique({ where: { id: amenityId } });
+  const amenity = await prisma.amenity.findFirst({
+    where: {
+      id: amenityId,
+      ...(communityId ? { communityId } : {}),
+    },
+  });
   if (!amenity) return null;
 
+  // Always scope by amenity.communityId — name-only legacy rows from other
+  // clubs must not occupy this club's availability grid.
   const bookings = await prisma.booking.findMany({
     where: {
+      communityId: amenity.communityId,
       date,
       status: { not: "cancelled" },
       OR: [{ amenityId: amenity.id }, { amenity: amenity.name, amenityId: null }],

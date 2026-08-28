@@ -22,13 +22,24 @@ export async function GET(
   await ensureRecordsSeeded();
   const startTime = url.searchParams.get("startTime") ?? undefined;
   const endTime = url.searchParams.get("endTime") ?? undefined;
-  const result = await getAmenityAvailability(id, date, startTime, endTime);
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "Community required" }, { status: 400 });
+  }
+  const result = await getAmenityAvailability(
+    id,
+    date,
+    startTime,
+    endTime,
+    communityId,
+  );
   if (!result) return NextResponse.json({ error: "Amenity not found" }, { status: 404 });
 
-  const communityId = session.communityId ?? "golden-ocala";
   let dynamicPricing: { finalFee: number; appliedRule: string | null } | null = null;
   if (communityHasDynamicPricing(communityId) && startTime) {
-    const amenity = await prisma.amenity.findUnique({ where: { id } });
+    const amenity = await prisma.amenity.findFirst({
+      where: { id, communityId },
+    });
     if (amenity && amenity.fee > 0) {
       dynamicPricing = await calculateDynamicPrice({
         communityId,
