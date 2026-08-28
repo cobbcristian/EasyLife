@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
-import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
-import { listMemberCharges, updateMemberChargeStatus } from "@/lib/server/records";
+import { listMemberCharges } from "@/lib/server/records";
+import { settleMemberChargePaid } from "@/lib/server/settle-charge";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -30,8 +27,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Charge not found" }, { status: 404 });
   }
 
-  await updateMemberChargeStatus(body.chargeId, "paid");
-  await activateSharedCalendarByCharge(body.chargeId);
-  await markEscrowHeldByCharge(body.chargeId);
+  await settleMemberChargePaid(body.chargeId);
   return NextResponse.json({ ok: true });
 }

@@ -1,24 +1,14 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
-import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
 } from "@/lib/server/payment-methods";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import { prisma } from "@/lib/server/prisma";
+import { settleMemberChargePaid } from "@/lib/server/settle-charge";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
-
-async function afterChargePaid(chargeId: string | undefined) {
-  if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
-  await activateSharedCalendarByCharge(chargeId);
-  await markEscrowHeldByCharge(chargeId);
-}
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -49,6 +39,20 @@ export async function POST(request: Request) {
   const returnPath = body.returnPath ?? "/member/payments";
   const description = body.description ?? "Club payment";
 
+  let chargeCategory: string | null | undefined;
+  if (body.chargeId) {
+    const linked = await prisma.memberCharge.findUnique({
+      where: { id: body.chargeId },
+      select: { category: true, memberEmail: true },
+    });
+    if (
+      linked &&
+      linked.memberEmail?.toLowerCase() === session.email.toLowerCase()
+    ) {
+      chargeCategory = linked.category;
+    }
+  }
+
   const settings = await getPaymentSettings(session.email);
   const useStored =
     !body.forceCheckout &&
@@ -73,14 +77,17 @@ export async function POST(request: Request) {
         amount,
         description,
         paymentMethodId: defaultMethod.id,
+        chargeId: body.chargeId,
+        chargeCategory,
       });
 
       if (result.status === "action_required" && result.url) {
+        // Do not settle yet — webhook / success return URL settles after SCA.
         return NextResponse.json({ url: result.url, mode: "stored" });
       }
 
       if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+        await settleMemberChargePaid(body.chargeId);
       }
 
       return NextResponse.json({
@@ -100,7 +107,7 @@ export async function POST(request: Request) {
   if (!stripe) {
     if (isDemoPaymentAllowed()) {
       if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+        await settleMemberChargePaid(body.chargeId);
       }
       return NextResponse.json({
         ok: true,
@@ -119,6 +126,14 @@ export async function POST(request: Request) {
   }
 
   try {
+    const metadata: Record<string, string> = {
+      userEmail: session.email,
+    };
+    if (body.chargeId) {
+      metadata.chargeId = body.chargeId;
+      if (chargeCategory === "hoa") metadata.type = "hoa";
+    }
+
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
       ...stripeCheckoutPaymentOptions,
@@ -134,7 +149,7 @@ export async function POST(request: Request) {
       ],
       success_url: `${origin}${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
       cancel_url: `${origin}${returnPath}?payment=cancelled`,
-      metadata: body.chargeId ? { chargeId: body.chargeId, userEmail: session.email } : undefined,
+      metadata: body.chargeId ? metadata : undefined,
     });
     return NextResponse.json({ url: checkout.url, mode: "checkout" });
   } catch {
