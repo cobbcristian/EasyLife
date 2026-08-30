@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import {
+  canManageCommunityEvent,
+  eventBelongsToSessionCommunity,
+  resolveOrganizerEmail,
+} from "@/lib/server/event-auth";
 import { createEventInvites } from "@/lib/server/project-management";
 import { prisma } from "@/lib/server/prisma";
 
@@ -32,12 +37,29 @@ export async function POST(
     return NextResponse.json({ error: "Invite at least one member" }, { status: 400 });
   }
 
-  const event = await prisma.communityEvent.findUnique({ where: { id } });
+  const event = await prisma.communityEvent.findUnique({
+    where: { id },
+    include: {
+      rsvps: { select: { memberEmail: true, memberName: true } },
+    },
+  });
   if (!event) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  if (!eventBelongsToSessionCommunity(event.communityId, session.communityId)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const organizerEmail = resolveOrganizerEmail(event.rsvps, event.createdBy);
   if (
-    event.createdBy.trim().toLowerCase() !== session.name.trim().toLowerCase()
+    !canManageCommunityEvent({
+      eventCreatedBy: event.createdBy,
+      actor: {
+        email: session.email,
+        name: session.name,
+        role: session.role,
+      },
+      organizerEmail,
+    })
   ) {
     return NextResponse.json(
       { error: "Only the organizer can invite" },

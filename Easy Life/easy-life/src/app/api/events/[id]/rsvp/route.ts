@@ -11,6 +11,7 @@ import {
   isClinicCategory,
   isClubMemberEmail,
 } from "@/lib/server/clinics";
+import { eventBelongsToSessionCommunity } from "@/lib/server/event-auth";
 
 export async function POST(
   request: Request,
@@ -34,6 +35,9 @@ export async function POST(
 
   const event = await prisma.communityEvent.findUnique({ where: { id } });
   if (!event) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!eventBelongsToSessionCommunity(event.communityId, session.communityId)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

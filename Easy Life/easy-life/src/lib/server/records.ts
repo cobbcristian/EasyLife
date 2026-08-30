@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/server/prisma";
 import {
+  canManageCommunityEvent,
+  eventBelongsToSessionCommunity,
+  isEventOrganizer,
+  resolveOrganizerEmail,
+} from "@/lib/server/event-auth";
+import {
   assignUnitNumber,
   availabilityWindows,
   countOverlappingBookings,
@@ -365,6 +371,8 @@ export async function getEventReservationDetail(
   eventId: string,
   memberEmail: string,
   memberName: string,
+  communityId?: string | null,
+  role?: string,
 ): Promise<EventReservationDetail | null> {
   const email = memberEmail.trim().toLowerCase();
   const event = await prisma.communityEvent.findUnique({
@@ -372,6 +380,9 @@ export async function getEventReservationDetail(
     include: { rsvps: true },
   });
   if (!event) return null;
+  if (!eventBelongsToSessionCommunity(event.communityId, communityId)) {
+    return null;
+  }
 
   const [invites, community] = await Promise.all([
     prisma.eventInvite.findMany({
@@ -384,8 +395,21 @@ export async function getEventReservationDetail(
     }),
   ]);
 
-  const isOrganizer =
-    event.createdBy.trim().toLowerCase() === memberName.trim().toLowerCase();
+  const organizerEmailResolved = resolveOrganizerEmail(
+    event.rsvps,
+    event.createdBy,
+  );
+  const isOrganizer = isEventOrganizer({
+    eventCreatedBy: event.createdBy,
+    actorEmail: email,
+    actorName: memberName,
+    organizerEmail: organizerEmailResolved,
+  });
+  const canManage = canManageCommunityEvent({
+    eventCreatedBy: event.createdBy,
+    actor: { email, name: memberName, role: role ?? "member" },
+    organizerEmail: organizerEmailResolved,
+  });
   const myInvite = invites.find(
     (i) => i.memberEmail.trim().toLowerCase() === email,
   );
@@ -397,11 +421,7 @@ export async function getEventReservationDetail(
 
   // Organizer row first when we can identify them via RSVP matching name,
   // otherwise synthesize from createdBy.
-  const organizerRsvp = event.rsvps.find(
-    (r) =>
-      r.memberName.trim().toLowerCase() === event.createdBy.trim().toLowerCase(),
-  );
-  const organizerEmail = organizerRsvp?.memberEmail ?? "";
+  const organizerEmail = organizerEmailResolved ?? "";
   guestMap.set(organizerEmail || `host:${event.createdBy}`, {
     email: organizerEmail,
     name: event.createdBy,
@@ -448,7 +468,7 @@ export async function getEventReservationDetail(
   }
 
   const guests = [...guestMap.values()];
-  const role: EventReservationDetail["role"] = isOrganizer
+  const reservationRole: EventReservationDetail["role"] = isOrganizer
     ? "host"
     : myInvite
       ? "invitee"
@@ -477,10 +497,10 @@ export async function getEventReservationDetail(
     requirePayment: event.requirePayment,
     feeCents: event.feeCents,
     capacity: event.capacity,
-    role,
-    canCancel: isOrganizer,
+    role: reservationRole,
+    canCancel: canManage,
     canLeave: Boolean(myRsvp) && !isOrganizer,
-    canInviteMore: isOrganizer,
+    canInviteMore: canManage,
     canRsvp: true,
     userRsvped: Boolean(myRsvp),
     yourInviteStatus: myRsvp
@@ -500,12 +520,30 @@ export async function getEventReservationDetail(
 
 export async function cancelCommunityEvent(
   eventId: string,
-  memberName: string,
+  actor: {
+    email: string;
+    name: string;
+    role: string;
+    communityId?: string | null;
+  },
 ) {
-  const event = await prisma.communityEvent.findUnique({ where: { id: eventId } });
+  const event = await prisma.communityEvent.findUnique({
+    where: { id: eventId },
+    include: {
+      rsvps: { select: { memberEmail: true, memberName: true } },
+    },
+  });
   if (!event) return null;
+  if (!eventBelongsToSessionCommunity(event.communityId, actor.communityId)) {
+    return null;
+  }
+  const organizerEmail = resolveOrganizerEmail(event.rsvps, event.createdBy);
   if (
-    event.createdBy.trim().toLowerCase() !== memberName.trim().toLowerCase()
+    !canManageCommunityEvent({
+      eventCreatedBy: event.createdBy,
+      actor,
+      organizerEmail,
+    })
   ) {
     return null;
   }
@@ -3094,8 +3132,12 @@ export async function createHelpTicket(input: {
 }
 
 export async function listHelpTickets(communityId?: string | null) {
+  // Club admins see only their club. Super-admin (no communityId) sees all,
+  // including platform marketing leads under `__platform_leads__`.
+  // Do NOT merge `communityId: null` into club scopes — that leaked landing leads
+  // (and any unscoped ticket) into every club's help desk.
   return prisma.helpTicket.findMany({
-    where: communityId ? { OR: [{ communityId }, { communityId: null }] } : undefined,
+    where: communityId ? { communityId } : undefined,
     orderBy: { createdAt: "desc" },
     take: 100,
   });

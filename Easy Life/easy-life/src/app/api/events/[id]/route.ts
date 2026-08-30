@@ -15,6 +15,8 @@ export async function GET(
     id,
     session.email,
     session.name,
+    session.communityId,
+    session.role,
   );
   if (!detail) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

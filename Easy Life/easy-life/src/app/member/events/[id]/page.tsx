@@ -24,6 +24,8 @@ export default async function MemberEventDetailPage({
     id,
     session.email,
     session.name,
+    session.communityId,
+    session.role,
   );
   if (!detail) notFound();
 
