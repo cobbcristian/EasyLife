@@ -84,3 +84,35 @@ body {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+.plaza-chrome {
+  background: linear-gradient(168deg, #ff7a00 0%, #ff9f1a 22%, #f6c445 48%, #d4e04a 72%, #8ed63a 100%);
+  color: #fff;
+}
+.plaza-chrome .text-ink,
+.plaza-chrome .text-gray-2,
+.plaza-chrome .text-grey {
+  color: #fff;
+}
+/* Menus and white panels that open from the bar keep dark text. */
+.plaza-chrome [role="menu"],
+.plaza-chrome .bg-white {
+  color: var(--ink);
+}
+
+.plaza-chrome [role='menu'] .text-ink,
+.plaza-chrome .bg-white .text-ink {
+  color: var(--ink);
+}
+.plaza-chrome [role='menu'] .text-grey,
+.plaza-chrome [role='menu'] .text-gray-2,
+.plaza-chrome .bg-white .text-grey,
+.plaza-chrome .bg-white .text-gray-2 {
+  color: var(--grey);
+}
+.plaza-chrome button.text-slate-500 {
+  color: rgba(255, 255, 255, 0.92);
+}
+.plaza-chrome button.text-slate-500:hover {
+  color: #fff;
+}

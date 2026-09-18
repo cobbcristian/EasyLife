@@ -78,7 +78,7 @@ function MemberMvpHomeSkeleton() {
   const { t } = useI18n();
   return (
     <div className="font-[family-name:var(--font-poppins)]">
-      <div className="bg-[var(--mvp-blue)] px-4 pb-14 pt-6 lg:rounded-t-2xl">
+      <div className="bg-gradient-to-b from-[#ff7a00] via-[#f6c445] to-[#8ed63a] px-4 pb-14 pt-6 lg:rounded-t-2xl">
         <div className="mx-auto h-8 max-w-lg animate-pulse rounded bg-white/20" />
       </div>
       <div className="mx-auto -mt-6 max-w-lg px-4">
@@ -94,13 +94,19 @@ export function MemberHomeClient() {
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(brandAssets.memberAvatar);
   const [profileEmail, setProfileEmail] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let on = true;
     fetch("/api/member/home")
       .then((r) => r.json())
       .then((home) => {
-        if (!on || home.error) return;
+        if (!on) return;
+        if (home?.error) {
+          setError("Could not load home.");
+          return;
+        }
+        setError(null);
         setData(home);
         const name = home?.profile?.name;
         if (home?.profile?.email) setProfileEmail(home.profile.email);
@@ -112,12 +118,29 @@ export function MemberHomeClient() {
           setAvatarSrc(brandAssets.memberAvatar);
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (on) setError("Could not load home.");
+      })
       .finally(() => on && setLoading(false));
     return () => {
       on = false;
     };
   }, []);
+
+  if (error && !data) {
+    return (
+      <div className="px-6 py-16 text-center">
+        <p className="text-sm text-ink">{error}</p>
+        <button
+          type="button"
+          className="mt-4 text-sm font-semibold text-[var(--mvp-blue)]"
+          onClick={() => window.location.reload()}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !data) {
     return <MemberMvpHomeSkeleton />;

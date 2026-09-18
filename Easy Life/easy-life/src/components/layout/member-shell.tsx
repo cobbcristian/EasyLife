@@ -101,10 +101,10 @@ export function MemberShell({
       <div className="flex min-w-0 flex-1 flex-col">
         {!hideShellHeader ? (
           <>
-            <header className="sticky top-0 z-30 flex h-[72px] items-center gap-4 bg-white px-4 sm:px-6 lg:hidden">
+            <header className="plaza-chrome sticky top-0 z-30 flex h-[72px] items-center gap-4 px-4 text-white sm:px-6 lg:hidden">
               <button
                 type="button"
-                className="rounded-lg p-2 text-gray-2 hover:bg-slate-100"
+                className="rounded-lg p-2 text-white hover:bg-white/15"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open menu"
               >
@@ -125,7 +125,7 @@ export function MemberShell({
                 links={accountLinks}
               />
             </header>
-            <div className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-border-2 bg-white px-8 lg:flex">
+            <div className="plaza-chrome sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 px-8 text-white lg:flex">
               <ClubSwitcher />
               <UserAvatarMenu
                 name={accountName}

@@ -282,7 +282,7 @@ export function MemberSidebar({
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex shrink-0 items-start justify-between gap-2 px-5 pb-2 pt-5">
+        <div className="plaza-chrome flex shrink-0 items-start justify-between gap-2 px-5 pb-4 pt-5">
           <div className="min-w-0">
             <UserAvatarMenu
               name={userName}
@@ -310,7 +310,7 @@ export function MemberSidebar({
           </div>
           <button
             type="button"
-            className="rounded-lg p-1.5 text-grey hover:bg-white/60 lg:hidden"
+            className="rounded-lg p-1.5 text-white hover:bg-white/20 lg:hidden"
             onClick={onClose}
             aria-label="Close menu"
           >

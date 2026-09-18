@@ -1,11 +1,9 @@
 "use client";
 
-import { useRef } from "react";
 import Link from "next/link";
-import { Bell, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { Bell, Calendar, Info, Map, Menu, Wrench } from "lucide-react";
 import {
   brandAssets,
-  homeCategoryTiles,
   imageForBookingRow,
   imageForEvent,
   imageForTournament,
@@ -20,7 +18,6 @@ import {
   communityHasClubDining,
   communityHasLocalPros,
   communityHasTournaments,
-  communityHasVendors,
   communityIsResidentialHoa,
 } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
@@ -220,7 +217,6 @@ export function MemberMvpHome({
   notificationCount = 0,
 }: MemberMvpHomeProps) {
   const { t } = useI18n();
-  const categoryScrollerRef = useRef<HTMLDivElement>(null);
   const firstName = profileName.split(" ")[0] ?? profileName;
   const accountLinks = communityIsResidentialHoa(communityId)
     ? RESIDENTIAL_HOA_ACCOUNT_LINKS
@@ -239,7 +235,6 @@ export function MemberMvpHome({
     communityIsResidentialHoa(communityId) || /oceanside/i.test(clubName ?? "");
   const hasClubDining = communityHasClubDining(communityId);
   const hasLocalPros = communityHasLocalPros(communityId);
-  const hasVendors = communityHasVendors(communityId);
   const emptyScheduleCta = isResidentialHoa
     ? "Book an amenity or service"
     : "Book a court or service";
@@ -251,41 +246,6 @@ export function MemberMvpHome({
         ? "/member/dining"
         : "/member/amenities";
   const showHoa = paysHoa && residencyStatus !== "non_resident";
-  const categoryTiles = homeCategoryTiles
-    .filter((tile) => {
-      if (!showHoa && tile.key === "hoa") return false;
-      if (!hasClubDining && tile.key === "food") return false;
-      // Club vendors / Local Pros: hide Services when neither marketplace is on.
-      // Condo HOAs still get Services → maintenance / service requests.
-      if (
-        tile.key === "services" &&
-        !isResidentialHoa &&
-        !hasLocalPros &&
-        !hasVendors
-      ) {
-        return false;
-      }
-      return true;
-    })
-    .map((tile) => {
-      if (tile.key === "services" && isResidentialHoa) {
-        return {
-          ...tile,
-          // Sponsored Local Pros marketplace for condo HOAs.
-          href: hasLocalPros ? "/member/local-pros" : "/member/service-requests",
-        };
-      }
-      if (tile.key === "hoa" && isResidentialHoa) {
-        return {
-          ...tile,
-          // Plaza tower — never the generic golf clubhouse manor.
-          image: brandAssets.communityOceansideBuilding,
-          href: "/member/payments",
-        };
-      }
-      if (tile.key !== "hoa" || !isGolfClub) return tile;
-      return { ...tile, label: "Dues", href: "/member/payments" };
-    });
   const accessLabel = isResidentialHoa
     ? null
     : showHoa
@@ -294,32 +254,27 @@ export function MemberMvpHome({
 
   return (
     <div className="font-[family-name:var(--font-poppins)]">
-      {/* Blue header — greeting + actions (community name lives in native/portal chrome) */}
-      <div className="relative bg-[var(--mvp-blue)] px-3 pb-7 pt-3 lg:rounded-t-2xl">
+      <div
+        className="relative px-3 pb-8 pt-3 lg:rounded-t-2xl"
+        style={{
+          background:
+            "linear-gradient(168deg, #ff7a00 0%, #ff9f1a 22%, #f6c445 48%, #d4e04a 72%, #8ed63a 100%)",
+        }}
+      >
         <div className="mx-auto max-w-lg">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               className="shrink-0 rounded-lg p-1 text-white hover:bg-white/10 lg:hidden"
               aria-label={t("Open menu")}
               onClick={() => window.dispatchEvent(new Event("member:open-sidebar"))}
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" />
             </button>
-            <div className="min-w-0 flex-1 text-center">
-              <h1 className="truncate text-[22px] font-medium leading-tight text-white">
-                {t("Hi")}, {firstName}
-              </h1>
-              {accessLabel ? (
-                <p className="mt-0.5 truncate text-[12px] font-medium text-white/85">
-                  {accessLabel}
-                </p>
-              ) : null}
-            </div>
             <div className="flex shrink-0 items-center gap-2">
               <Link
                 href="/member/notifications"
-                className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white/15"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/25"
                 aria-label={
                   badgeCount > 0
                     ? `${badgeCount} ${t("Notifications")}`
@@ -338,82 +293,60 @@ export function MemberMvpHome({
                 email={profileEmail}
                 avatarSrc={avatarSrc ?? brandAssets.memberAvatar}
                 links={accountLinks}
-                className="[&_button]:ring-2 [&_button]:ring-white/40"
+                className="[&_button]:ring-2 [&_button]:ring-white/70"
               />
             </div>
           </div>
+          <div className="mt-3">
+            <MemberMvpHomeSearch communityId={communityId} />
+          </div>
+          <h1 className="mt-5 text-center text-[34px] font-semibold leading-tight text-white">
+            {t("Hey")}, {firstName}
+          </h1>
         </div>
       </div>
 
-      {/* Search overlaps header */}
-      <div className="relative z-10 mx-auto -mt-4 max-w-lg px-4">
-        <MemberMvpHomeSearch communityId={communityId} />
-      </div>
-
-      <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-5 md:pb-10">
-        {/* Categories — size so ~3 tiles + HOA peek (scroll cue) */}
+      <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-6 md:pb-10">
         <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-[21px] font-medium text-black">{t("Categories")}</h2>
-            {categoryTiles.length > 3 ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-ink shadow-sm active:bg-[#f3f4f6]"
-                  aria-label={t("Previous")}
-                  onClick={() => {
-                    categoryScrollerRef.current?.scrollBy({
-                      left: -150,
-                      behavior: "smooth",
-                    });
-                  }}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-ink shadow-sm active:bg-[#f3f4f6]"
-                  aria-label={t("Next")}
-                  onClick={() => {
-                    categoryScrollerRef.current?.scrollBy({
-                      left: 150,
-                      behavior: "smooth",
-                    });
-                  }}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            ) : null}
-          </div>
-          <div
-            ref={categoryScrollerRef}
-            className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory scrollbar-none"
-          >
-            {categoryTiles.map((tile) => (
-              <Link
-                key={tile.key}
-                href={tile.href}
-                className="relative h-20 w-[138px] shrink-0 snap-start overflow-hidden rounded-lg"
-                style={{ backgroundColor: tile.bg }}
-              >
-                <span className="absolute left-2.5 top-3 z-[1] max-w-[58%] text-base font-medium leading-tight text-white">
-                  {t(tile.label)}
+          <h2 className="mb-4 text-[22px] font-semibold text-black">{t("Explore")}</h2>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { key: "reserve", label: "Reserve", href: "/member/bookings", Icon: Calendar },
+              {
+                key: "pros",
+                label: "Pros",
+                href: hasLocalPros ? "/member/local-pros" : "/member/service-requests",
+                Icon: Wrench,
+              },
+              { key: "outings", label: "Outings", href: "/member/calendar", Icon: Map },
+              { key: "info", label: "Info", href: "/member/faq", Icon: Info },
+            ].map((tile) => (
+              <Link key={tile.key} href={tile.href} className="flex flex-col items-center gap-2">
+                <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#f2f3f5] text-[#1d4ed8] shadow-sm">
+                  <tile.Icon className="h-8 w-8" strokeWidth={1.75} />
                 </span>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={tile.image}
-                  alt=""
-                  className={cn(
-                    "absolute bottom-0 right-0 h-[72px] w-auto max-w-[55%] object-contain object-bottom",
-                    // Flip Services art so the broom/squeegee clears the label.
-                    tile.key === "services" && "-scale-x-100",
-                  )}
-                />
+                <span className="text-[13px] font-medium text-black">{t(tile.label)}</span>
               </Link>
             ))}
           </div>
         </section>
+
+        <Link
+          href="/member/rentals"
+          className="block overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0a6ea8] to-[#1aa0d6] px-5 py-5 text-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
+        >
+          <p className="text-[22px] font-semibold leading-[1.15]">
+            {t("Rent a Jetski and Make Waves")}
+          </p>
+          <p className="mt-2 text-[13px] leading-snug text-white/90">
+            {t("Premium jetski rentals.")}
+            <br />
+            {t("Explore. Adventure. Repeat.")}
+          </p>
+          <span className="mt-4 inline-flex w-fit items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-black">
+            {t("Book Your Jetski")} →
+          </span>
+        </Link>
 
         {/* Featured — cards wider than half so the next one peeks */}
         {featured.length > 0 ? (
