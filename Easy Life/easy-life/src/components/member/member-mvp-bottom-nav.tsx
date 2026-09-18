@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, CalendarDays, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Home, MessageCircle, MoreHorizontal } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { PlazaGlyph } from "@/components/member/plaza-theme";
 
 const tabs = [
   {
@@ -16,8 +17,9 @@ const tabs = [
   },
   {
     href: "/member/calendar",
-    label: "Calendar",
-    icon: CalendarDays,
+    label: "Outings",
+    icon: null,
+    plaza: "outings" as const,
     match: (p: string) => p.startsWith("/member/calendar"),
     kind: "link" as const,
   },
@@ -47,15 +49,16 @@ export function MemberMvpBottomNav() {
       <ul className="mx-auto flex h-[84px] max-w-lg items-start justify-around px-2 pt-3">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
-          const Icon = tab.icon;
           const className = cn(
             "flex flex-col items-center gap-1 text-[11px] font-medium",
             active ? "text-[var(--mvp-blue)]" : "text-grey",
           );
-          const iconWrap = cn(
-            "flex h-8 w-10 items-center justify-center rounded-lg",
-            active && "bg-[#eef2f6]",
-          );
+          const glyph =
+            "plaza" in tab ? (
+              <PlazaGlyph name={tab.plaza} className="h-8 w-8" />
+            ) : (
+              <tab.icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />
+            );
 
           if (tab.kind === "more") {
             return (
@@ -66,9 +69,7 @@ export function MemberMvpBottomNav() {
                   onClick={() => window.dispatchEvent(new Event("member:open-sidebar"))}
                   aria-label={t("More")}
                 >
-                  <span className={iconWrap}>
-                    <Icon className="h-5 w-5" strokeWidth={1.75} />
-                  </span>
+                  {glyph}
                   {t(tab.label)}
                 </button>
               </li>
@@ -78,9 +79,7 @@ export function MemberMvpBottomNav() {
           return (
             <li key={tab.href} className="flex-1">
               <Link href={tab.href} className={className}>
-                <span className={iconWrap}>
-                  <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />
-                </span>
+                {glyph}
                 {t(tab.label)}
               </Link>
             </li>

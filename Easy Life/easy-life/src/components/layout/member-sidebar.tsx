@@ -26,6 +26,7 @@ import {
 } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
+import { plazaIconForHref, PlazaGlyph } from "@/components/member/plaza-theme";
 
 const clubDiningHrefs = new Set(["/member/dining"]);
 const grabGoHrefs = new Set(["/member/grab-go"]);
@@ -124,6 +125,7 @@ function NavList({
           item.href === "/member"
             ? pathname === "/member"
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const plazaIcon = plazaIconForHref(item.href);
         return (
           <li key={item.href}>
             <a
@@ -136,7 +138,11 @@ function NavList({
                   : "text-ink hover:bg-white/70",
               )}
             >
-              <NavIcon name={item.icon} active={isActive} />
+              {plazaIcon ? (
+                <PlazaGlyph name={plazaIcon} className="h-8 w-8" />
+              ) : (
+                <NavIcon name={item.icon} active={isActive} />
+              )}
               {t(item.label)}
             </a>
           </li>

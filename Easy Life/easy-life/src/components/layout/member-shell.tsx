@@ -11,6 +11,7 @@ import { Logo } from "@/components/ui/logo";
 import { ClubSwitcher } from "@/components/layout/club-switcher";
 import { MemberSidebar } from "@/components/layout/member-sidebar";
 import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
+import { plazaIconForHref, plazaTitleForPath, PlazaGlyph } from "@/components/member/plaza-theme";
 import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 
@@ -42,6 +43,8 @@ export function MemberShell({
   const accountLinks = communityIsResidentialHoa(branding?.id)
     ? RESIDENTIAL_HOA_ACCOUNT_LINKS
     : undefined;
+  const pageTitle = plazaTitleForPath(pathname);
+  const pageIcon = plazaIconForHref(pathname);
 
   useEffect(() => {
     function openSidebar() {
@@ -101,7 +104,8 @@ export function MemberShell({
       <div className="flex min-w-0 flex-1 flex-col">
         {!hideShellHeader ? (
           <>
-            <header className="plaza-chrome sticky top-0 z-30 flex h-[72px] items-center gap-4 px-4 text-white sm:px-6 lg:hidden">
+            <header className="plaza-chrome sticky top-0 z-30 px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] text-white sm:px-6 lg:hidden">
+              <div className="flex h-12 items-center gap-4">
               <button
                 type="button"
                 className="rounded-lg p-2 text-white hover:bg-white/15"
@@ -124,6 +128,15 @@ export function MemberShell({
                 avatarSrc={avatarSrc}
                 links={accountLinks}
               />
+              </div>
+              {pageTitle ? (
+                <div className="mt-1 flex items-center gap-2 pb-1">
+                  {pageIcon ? <PlazaGlyph name={pageIcon} className="h-9 w-9" /> : null}
+                  <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-white">
+                    {pageTitle}
+                  </h1>
+                </div>
+              ) : null}
             </header>
             <div className="plaza-chrome sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 px-8 text-white lg:flex">
               <ClubSwitcher />

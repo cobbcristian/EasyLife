@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Calendar, Info, Map, Menu, Wrench } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
+import { PlazaGlyph } from "@/components/member/plaza-theme";
 import {
   brandAssets,
   imageForBookingRow,
@@ -311,21 +312,18 @@ export function MemberMvpHome({
           <h2 className="mb-4 text-[22px] font-semibold text-black">{t("Explore")}</h2>
           <div className="grid grid-cols-4 gap-2">
             {[
-              { key: "reserve", label: "Reserve", href: "/member/bookings", Icon: Calendar },
+              { key: "reserve" as const, label: "Reserve", href: "/member/bookings" },
               {
-                key: "pros",
+                key: "pros" as const,
                 label: "Pros",
                 href: hasLocalPros ? "/member/local-pros" : "/member/service-requests",
-                Icon: Wrench,
               },
-              { key: "outings", label: "Outings", href: "/member/calendar", Icon: Map },
-              { key: "info", label: "Info", href: "/member/faq", Icon: Info },
+              { key: "outings" as const, label: "Outings", href: "/member/calendar" },
+              { key: "info" as const, label: "Info", href: "/member/faq" },
             ].map((tile) => (
               <Link key={tile.key} href={tile.href} className="flex flex-col items-center gap-2">
-                <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#f2f3f5] text-[#1d4ed8] shadow-sm">
-                  <tile.Icon className="h-8 w-8" strokeWidth={1.75} />
-                </span>
-                <span className="text-[13px] font-medium text-black">{t(tile.label)}</span>
+                <PlazaGlyph name={tile.key} />
+                <span className="text-[13px] font-semibold text-black">{t(tile.label)}</span>
               </Link>
             ))}
           </div>
@@ -333,19 +331,27 @@ export function MemberMvpHome({
 
         <Link
           href="/member/rentals"
-          className="block overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0a6ea8] to-[#1aa0d6] px-5 py-5 text-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
+          className="grid min-h-[168px] grid-cols-[1.15fr_0.95fr] overflow-hidden rounded-[28px] shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
         >
-          <p className="text-[22px] font-semibold leading-[1.15]">
-            {t("Rent a Jetski and Make Waves")}
-          </p>
-          <p className="mt-2 text-[13px] leading-snug text-white/90">
-            {t("Premium jetski rentals.")}
-            <br />
-            {t("Explore. Adventure. Repeat.")}
-          </p>
-          <span className="mt-4 inline-flex w-fit items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-black">
-            {t("Book Your Jetski")} →
-          </span>
+          <div className="flex flex-col justify-center bg-gradient-to-br from-[#0a6ea8] to-[#1aa0d6] px-5 py-5 text-white">
+            <p className="text-[22px] font-semibold leading-[1.15]">
+              {t("Rent a Jetski and Make Waves")}
+            </p>
+            <p className="mt-2 text-[13px] leading-snug text-white/90">
+              {t("Premium jetski rentals.")}
+              <br />
+              {t("Explore. Adventure. Repeat.")}
+            </p>
+            <span className="mt-4 inline-flex w-fit items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-black">
+              {t("Book Your Jetski")} →
+            </span>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/plaza-hero-jetski.png"
+            alt=""
+            className="h-full min-h-[168px] w-full object-cover"
+          />
         </Link>
 
         {/* Featured — cards wider than half so the next one peeks */}
