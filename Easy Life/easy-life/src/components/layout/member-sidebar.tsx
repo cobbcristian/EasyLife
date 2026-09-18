@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
-import { NavIcon } from "@/components/ui/nav-icon";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { GlobalSearch } from "@/components/search/global-search";
 import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
@@ -138,11 +137,7 @@ function NavList({
                   : "text-ink hover:bg-white/70",
               )}
             >
-              {plazaIcon ? (
-                <PlazaGlyph name={plazaIcon} className="h-8 w-8" />
-              ) : (
-                <NavIcon name={item.icon} active={isActive} />
-              )}
+              <PlazaGlyph name={plazaIcon} className="h-8 w-8" />
               {t(item.label)}
             </a>
           </li>

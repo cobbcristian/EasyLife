@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { PlazaGlyph } from "@/components/member/plaza-theme";
 import {
   brandAssets,
@@ -275,14 +275,14 @@ export function MemberMvpHome({
             <div className="flex shrink-0 items-center gap-2">
               <Link
                 href="/member/notifications"
-                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/25"
+                className="relative flex h-10 w-10 items-center justify-center"
                 aria-label={
                   badgeCount > 0
                     ? `${badgeCount} ${t("Notifications")}`
                     : t("Notifications")
                 }
               >
-                <Bell className="h-5 w-5 text-white" strokeWidth={1.75} />
+                <PlazaGlyph name="bell" className="h-10 w-10" />
                 {badgeCount > 0 ? (
                   <span className="absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3b30] px-1 text-[10px] font-bold leading-none text-white">
                     {badgeCount > 9 ? "9+" : badgeCount}

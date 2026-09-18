@@ -2,63 +2,62 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, MessageCircle, MoreHorizontal } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { PlazaGlyph } from "@/components/member/plaza-theme";
+import { PlazaGlyph, type PlazaIconKey } from "@/components/member/plaza-theme";
 
-const tabs = [
+const tabs: Array<{
+  href: string;
+  label: string;
+  plaza: PlazaIconKey;
+  match: (p: string) => boolean;
+  kind: "link" | "more";
+}> = [
   {
     href: "/member",
     label: "Home",
-    icon: Home,
-    match: (p: string) => p === "/member",
-    kind: "link" as const,
+    plaza: "home",
+    match: (p) => p === "/member",
+    kind: "link",
   },
   {
     href: "/member/calendar",
     label: "Outings",
-    icon: null,
-    plaza: "outings" as const,
-    match: (p: string) => p.startsWith("/member/calendar"),
-    kind: "link" as const,
+    plaza: "outings",
+    match: (p) => p.startsWith("/member/calendar"),
+    kind: "link",
   },
   {
     href: "/member/messages",
     label: "Messages",
-    icon: MessageCircle,
-    match: (p: string) => p.startsWith("/member/messages"),
-    kind: "link" as const,
+    plaza: "messages",
+    match: (p) => p.startsWith("/member/messages"),
+    kind: "link",
   },
   {
     href: "#more",
     label: "More",
-    icon: MoreHorizontal,
+    plaza: "more",
     match: () => false,
-    kind: "more" as const,
+    kind: "more",
   },
-] as const;
+];
 
-/** Figma MVP Home bottom tab bar (4616:17702) — Home / Calendar / Messages / More. */
+/** Member bottom bar — 3D Plaza icons. */
 export function MemberMvpBottomNav() {
   const { t } = useI18n();
   const pathname = usePathname();
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[#eceff3] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(16,24,40,0.06)] backdrop-blur md:hidden">
-      <ul className="mx-auto flex h-[84px] max-w-lg items-start justify-around px-2 pt-3">
+      <ul className="mx-auto flex h-[84px] max-w-lg items-start justify-around px-2 pt-2">
         {tabs.map((tab) => {
           const active = tab.match(pathname);
           const className = cn(
             "flex flex-col items-center gap-1 text-[11px] font-medium",
             active ? "text-[var(--mvp-blue)]" : "text-grey",
           );
-          const glyph =
-            "plaza" in tab ? (
-              <PlazaGlyph name={tab.plaza} className="h-8 w-8" />
-            ) : (
-              <tab.icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />
-            );
+          const glyph = <PlazaGlyph name={tab.plaza} className="h-9 w-9" />;
 
           if (tab.kind === "more") {
             return (
