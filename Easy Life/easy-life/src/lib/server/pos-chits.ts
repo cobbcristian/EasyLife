@@ -1,3 +1,4 @@
+import { planPosChitVoid } from "@/lib/pos-chit-void-policy";
 import { prisma } from "@/lib/server/prisma";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 
@@ -171,7 +172,33 @@ export async function postPosChitToAccount(
 
 export async function voidPosChit(chitId: string): Promise<boolean> {
   const chit = await prisma.posChit.findUnique({ where: { id: chitId } });
-  if (!chit || chit.status === "paid") return false;
+  if (!chit) return false;
+
+  const charge = chit.chargeId
+    ? await prisma.memberCharge.findUnique({ where: { id: chit.chargeId } })
+    : null;
+  const plan = planPosChitVoid({
+    chitStatus: chit.status,
+    chargeId: chit.chargeId,
+    chargeStatus: charge?.status,
+  });
+  if (!plan.voidChit) return false;
+
   await prisma.posChit.update({ where: { id: chitId }, data: { status: "void" } });
+
+  // Posted tabs create a due MemberCharge — voiding the chit must cancel that
+  // invoice or the member keeps getting billed for a voided POS check.
+  if (plan.cancelDueCharge && chit.chargeId) {
+    await prisma.memberCharge.updateMany({
+      where: {
+        id: chit.chargeId,
+        status: "due",
+        referenceType: "pos_chit",
+        referenceId: chit.id,
+      },
+      data: { status: "cancelled" },
+    });
+  }
+
   return true;
 }

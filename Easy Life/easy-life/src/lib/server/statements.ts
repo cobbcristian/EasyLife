@@ -122,7 +122,7 @@ export async function buildMemberStatement(input: {
 
   const totalCharged = lines.reduce((s, l) => s + l.amount, 0);
   const totalDue = charges
-    .filter((c) => c.status !== "paid")
+    .filter((c) => c.status === "due" || c.status === "overdue")
     .reduce((s, c) => s + c.amount, 0);
   const totalPaid = charges
     .filter((c) => c.status === "paid")
