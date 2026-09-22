@@ -454,7 +454,18 @@ export async function getEventReservationDetail(
       ? "invitee"
       : "member";
 
-  const timeLabel = [event.time, event.endTime].filter(Boolean).join("–") || "";
+  const start = (event.time ?? "").trim();
+  const end = (event.endTime ?? "").trim();
+  const timeLabel =
+    !start && !end
+      ? ""
+      : !end
+        ? start
+        : !start
+          ? end
+          : /[-–—]/.test(start) && /\d/.test(start)
+            ? start
+            : `${start}–${end}`;
 
   return {
     kind: "event",
