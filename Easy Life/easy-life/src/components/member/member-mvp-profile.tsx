@@ -76,6 +76,8 @@ export function MemberMvpProfile({
   const [vehicleBusy, setVehicleBusy] = useState(false);
   const [pet, setPet] = useState({ name: "", type: "", breed: "" });
   const [pushHint, setPushHint] = useState("");
+  const [deviceRegistered, setDeviceRegistered] = useState<boolean | null>(null);
+  const [testingPush, setTestingPush] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [nativeShell, setNativeShell] = useState(false);
 
@@ -146,11 +148,75 @@ export function MemberMvpProfile({
 
   usePushNotifications(form.commsPush, onPushResult, nativeShell);
 
+  useEffect(() => {
+    if (!nativeShell) return;
+    function onResult(e: Event) {
+      const detail = (e as CustomEvent<{ ok?: boolean; reason?: string }>).detail;
+      if (detail?.ok) {
+        setDeviceRegistered(true);
+        setPushHint("");
+        return;
+      }
+      setDeviceRegistered(false);
+      const reasons: Record<string, string> = {
+        permission_denied: "iPhone blocked alerts. Check Settings → Notifications → The Plaza at Oceanside.",
+        token_failed: "Could not create a push token. Reinstall the app from TestFlight and try again.",
+        server_failed: "Phone token could not be saved. Pull to refresh and try again.",
+        no_session: "Sign out and sign back in, then turn Push on again.",
+      };
+      setPushHint(reasons[detail?.reason ?? ""] ?? "Push registration failed. Try toggling Push off and on.");
+    }
+    window.addEventListener("plaza-push-result", onResult);
+    return () => window.removeEventListener("plaza-push-result", onResult);
+  }, [nativeShell]);
+
+  useEffect(() => {
+    if (!form.email) return;
+    fetch("/api/member/push-status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.deviceRegistered === "boolean") {
+          setDeviceRegistered(d.deviceRegistered);
+        }
+      })
+      .catch(() => {});
+  }, [form.email, form.commsPush]);
+
+  useEffect(() => {
+    if (!nativeShell || !form.commsPush) return;
+    const rn = (
+      window as Window & {
+        ReactNativeWebView?: { postMessage: (msg: string) => void };
+      }
+    ).ReactNativeWebView;
+    rn?.postMessage(JSON.stringify({ type: "plaza-push", enabled: true }));
+  }, [nativeShell, form.commsPush]);
+
   const webPushSupported =
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
     "PushManager" in window;
   const pushToggleEnabled = nativeShell || webPushSupported;
+
+  async function sendTestPush() {
+    setTestingPush(true);
+    setPushHint("");
+    try {
+      const res = await fetch("/api/member/push-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test" }),
+      });
+      const data = await res.json();
+      setPushHint(typeof data.hint === "string" ? data.hint : "Test finished.");
+      if (data.ok) setDeviceRegistered(true);
+      else setDeviceRegistered(false);
+    } catch {
+      setPushHint("Could not send a test alert.");
+    } finally {
+      setTestingPush(false);
+    }
+  }
 
   async function saveProfile() {
     setSaving(true);
@@ -259,10 +325,25 @@ export function MemberMvpProfile({
     router.refresh();
   }
 
-  if (loading || !profile) {
+  if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center font-[family-name:var(--font-poppins)]">
         <p className="text-sm text-grey">{t("Loading…")}</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 px-6 text-center font-[family-name:var(--font-poppins)]">
+        <p className="text-sm text-ink">{t("Could not load profile.")}</p>
+        <button
+          type="button"
+          className="text-sm font-semibold text-[var(--mvp-blue)]"
+          onClick={() => window.location.reload()}
+        >
+          {t("Try again")}
+        </button>
       </div>
     );
   }
@@ -389,6 +470,25 @@ export function MemberMvpProfile({
             </label>
             {pushHint ? (
               <p className="-mt-2 px-1 text-xs text-amber-700">{t(pushHint)}</p>
+            ) : null}
+            {nativeShell && form.commsPush ? (
+              <div className="-mt-1 space-y-2 px-1">
+                <p className="text-xs text-grey">
+                  {deviceRegistered === true
+                    ? t("Phone alerts connected.")
+                    : deviceRegistered === false
+                      ? t("Phone not connected yet — tap Send test alert after allowing notifications.")
+                      : t("Checking phone alert connection…")}
+                </p>
+                <button
+                  type="button"
+                  disabled={testingPush}
+                  onClick={() => void sendTestPush()}
+                  className="text-sm font-semibold text-[var(--mvp-blue)] disabled:opacity-50"
+                >
+                  {testingPush ? t("Sending…") : t("Send test alert")}
+                </button>
+              </div>
             ) : null}
             <div className="flex items-center justify-between rounded-2xl border border-[#e8ebf0] bg-[#fafbfc] px-4 py-3">
               <span className="text-sm text-ink">{t("Language")}</span>

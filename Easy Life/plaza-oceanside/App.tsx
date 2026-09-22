@@ -365,9 +365,17 @@ function AppInner() {
       }
       if (data?.type === "plaza-push") {
         if (data.enabled && token) {
-          void ensurePushRegistered(token, { request: true });
+          void ensurePushRegistered(token, { request: true }).then((result) => {
+            webRef.current?.injectJavaScript(
+              `window.dispatchEvent(new CustomEvent("plaza-push-result",{detail:${JSON.stringify(result)}})); true;`,
+            );
+          });
         } else if (token) {
-          void unregisterPush(token);
+          void unregisterPush(token).then(() => {
+            webRef.current?.injectJavaScript(
+              `window.dispatchEvent(new CustomEvent("plaza-push-result",{detail:${JSON.stringify({ ok: true, unregistered: true })}})); true;`,
+            );
+          });
         }
         return;
       }

@@ -14,12 +14,23 @@ Notifications.setNotificationHandler({
   }),
 });
 
+export type PushRegisterResult = {
+  ok: boolean;
+  reason?:
+    | "not_device"
+    | "no_project"
+    | "permission_denied"
+    | "token_failed"
+    | "server_failed"
+    | "no_session";
+};
+
 async function postToken(
   sessionToken: string,
   action: "register" | "unregister",
   expoToken: string,
-): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/mobile/push-token`, {
+): Promise<boolean> {
+  const res = await fetch(`${API_BASE_URL}/api/mobile/push-token`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${sessionToken}`,
@@ -27,6 +38,7 @@ async function postToken(
     },
     body: JSON.stringify({ action, token: expoToken }),
   });
+  return res.ok;
 }
 
 async function getExpoToken(): Promise<string | null> {
@@ -42,8 +54,11 @@ async function getExpoToken(): Promise<string | null> {
 export async function ensurePushRegistered(
   sessionToken: string,
   opts?: { request?: boolean },
-): Promise<boolean> {
+): Promise<PushRegisterResult> {
   try {
+    if (!sessionToken) return { ok: false, reason: "no_session" };
+    if (!Device.isDevice) return { ok: false, reason: "not_device" };
+
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "Plaza alerts",
@@ -57,14 +72,21 @@ export async function ensurePushRegistered(
       const asked = await Notifications.requestPermissionsAsync();
       status = asked.status;
     }
-    if (status !== "granted") return false;
+    if (status !== "granted") return { ok: false, reason: "permission_denied" };
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId as
+      | string
+      | undefined;
+    if (!projectId) return { ok: false, reason: "no_project" };
 
     const expoToken = await getExpoToken();
-    if (!expoToken) return false;
-    await postToken(sessionToken, "register", expoToken);
-    return true;
+    if (!expoToken) return { ok: false, reason: "token_failed" };
+
+    const saved = await postToken(sessionToken, "register", expoToken);
+    if (!saved) return { ok: false, reason: "server_failed" };
+    return { ok: true };
   } catch {
-    return false;
+    return { ok: false, reason: "token_failed" };
   }
 }
 
