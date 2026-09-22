@@ -10,6 +10,20 @@ import {
 export const IRON_CREST_DINING_PROVIDER_EMAIL = "dining@theclubatironlake.com";
 export const IRON_CREST_DINING_BUSINESS_NAME = "Clubhouse Dining";
 
+/** Avoid "10:00 AM-11:00 AM–11:00" when `time` already includes a range. */
+function formatEventWindow(
+  time?: string | null,
+  endTime?: string | null,
+): string {
+  const start = (time ?? "").trim();
+  const end = (endTime ?? "").trim();
+  if (!start && !end) return "";
+  if (!end) return start;
+  if (!start) return end;
+  if (/[-–—]/.test(start) && /\d/.test(start)) return start;
+  return `${start}–${end}`;
+}
+
 export async function addMemberInboxItem(input: {
   userEmail: string;
   title: string;
@@ -89,7 +103,7 @@ export async function createEventInvites(input: {
   });
   const title = event?.title ?? "an event";
   const hostName = event?.createdBy ?? "A neighbor";
-  const windowLabel = [event?.time, event?.endTime].filter(Boolean).join("–");
+  const windowLabel = formatEventWindow(event?.time, event?.endTime);
   const whenLabel = event
     ? `${event.date}${windowLabel ? ` ${windowLabel}` : ""}`
     : "";

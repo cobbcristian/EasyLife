@@ -4,6 +4,7 @@ import {
   removeExpoPushToken,
   saveExpoPushToken,
 } from "@/lib/server/expo-push";
+import { prisma } from "@/lib/server/prisma";
 
 function bearer(request: Request): string | undefined {
   const header = request.headers.get("authorization") ?? "";
@@ -28,10 +29,21 @@ export async function POST(request: Request) {
   }
 
   try {
+    const email = session.email.toLowerCase();
     if (body.action === "unregister") {
-      await removeExpoPushToken(session.email, body.token);
+      await removeExpoPushToken(email, body.token);
+      await prisma.memberProfileExt.upsert({
+        where: { userEmail: email },
+        create: { userEmail: email, commsPush: false },
+        update: { commsPush: false },
+      });
     } else {
-      await saveExpoPushToken(session.email, body.token);
+      await saveExpoPushToken(email, body.token);
+      await prisma.memberProfileExt.upsert({
+        where: { userEmail: email },
+        create: { userEmail: email, commsPush: true },
+        update: { commsPush: true },
+      });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {

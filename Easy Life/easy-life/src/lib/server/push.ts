@@ -51,15 +51,20 @@ export async function sendPushToUser(
   userEmail: string,
   payload: { title: string; body: string; url?: string },
 ): Promise<number> {
+  const email = userEmail.toLowerCase();
   const profile = await prisma.memberProfileExt.findUnique({
-    where: { userEmail: userEmail.toLowerCase() },
+    where: { userEmail: email },
     select: { commsPush: true },
   });
-  if (profile && !profile.commsPush) return 0;
 
   let sent = 0;
-  sent += await sendWebPushToUser(userEmail, payload);
-  sent += await sendExpoPushToUser(userEmail, payload);
+  // Web push only when the member opted in from profile.
+  if (!profile || profile.commsPush) {
+    sent += await sendWebPushToUser(email, payload);
+  }
+  // Native Expo tokens already require iOS/Android permission — deliver those
+  // even if the in-app toggle was never flipped (common App Store install path).
+  sent += await sendExpoPushToUser(email, payload);
   return sent;
 }
 

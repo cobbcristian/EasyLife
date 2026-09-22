@@ -256,7 +256,7 @@ function AppInner() {
 
   useEffect(() => {
     if (!token || mode !== "portal") return;
-    void ensurePushRegistered(token, { request: false });
+    void ensurePushRegistered(token, { request: true });
   }, [token, mode]);
 
   useEffect(() => {
