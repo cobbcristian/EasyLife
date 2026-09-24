@@ -73,7 +73,7 @@ export async function GET() {
     .filter((t) => t.seedsJson != null)
     .slice(0, 10);
   const balance = charges
-    .filter((c) => c.status !== "paid")
+    .filter((c) => c.status === "due" || c.status === "overdue")
     .reduce((sum, c) => sum + c.amount, 0);
 
   const memberName = session.name ?? profile.name;

@@ -55,7 +55,7 @@ export interface DuesItem {
   description: string;
   amount: number;
   due: string;
-  status: "paid" | "due" | "overdue";
+  status: "paid" | "due" | "overdue" | "cancelled";
   paid?: string;
 }
 
