@@ -45,31 +45,36 @@ type NavItem = { label: string; href: string; icon: string };
 /**
  * Pinned "Do this" items for Residential HOA communities.
  * Each item includes the feature flag that must be true for it to show.
+ * Flags mirror the existing sidebar gating in community-features.ts.
  */
-const hoaPinnedItems: Array<NavItem & { isEnabled: (communityId: string | null | undefined) => boolean }> = [
-  { label: "Visitors", href: "/member/visitors", icon: "UserPlus", isEnabled: () => true },
+const hoaPinnedItems: Array<NavItem & { isEnabled: (communityId: string | null | undefined, paysHoa: boolean) => boolean }> = [
+  // Visitors: only for residential HOA (gated by residentialOnlyHrefs in sidebar)
+  { label: "Visitors", href: "/member/visitors", icon: "UserPlus", isEnabled: (cid) => communityIsResidentialHoa(cid) },
+  // Violations: always available for HOA communities (no specific flag)
   { label: "Violations", href: "/member/violations", icon: "AlertTriangle", isEnabled: () => true },
+  // Documents: always available (no specific flag)
   { label: "Documents", href: "/member/documents", icon: "FileText", isEnabled: () => true },
-  { label: "Payments", href: "/member/payments", icon: "CreditCard", isEnabled: () => true },
-  { label: "Service Requests", href: "/member/service-requests", icon: "Wrench", isEnabled: () => true },
+  // Payments: shown for HOA residents who pay HOA (gated by hoaOnlyHrefs + paysHoa)
+  { label: "Payments", href: "/member/payments", icon: "CreditCard", isEnabled: (_cid, paysHoa) => paysHoa },
+  // Service Requests: shown for HOA residents who pay HOA (gated by hoaOnlyHrefs)
+  { label: "Service Requests", href: "/member/service-requests", icon: "Wrench", isEnabled: (_cid, paysHoa) => paysHoa },
 ];
 
 /**
  * Pinned "Do this" items for Club communities.
  * Each item includes the feature flag that must be true for it to show.
+ * Flags mirror the existing sidebar gating in community-features.ts.
  */
-const clubPinnedItems: Array<NavItem & { isEnabled: (communityId: string | null | undefined) => boolean }> = [
+const clubPinnedItems: Array<NavItem & { isEnabled: (communityId: string | null | undefined, paysHoa: boolean) => boolean }> = [
+  // Book: always available for clubs
   { label: "Book", href: "/member/bookings", icon: "CalendarCheck", isEnabled: () => true },
-  { label: "Dining", href: "/member/dining", icon: "Utensils", isEnabled: communityHasClubDining },
-  { label: "Tournaments", href: "/member/tournaments", icon: "Trophy", isEnabled: communityHasTournaments },
-  { label: "Check in", href: "/member/check-in", icon: "MapPin", isEnabled: communityHasActivityCheckIn },
+  // Dining: gated by communityHasClubDining (off for oceanside-residents)
+  { label: "Dining", href: "/member/dining", icon: "Utensils", isEnabled: (cid) => communityHasClubDining(cid) },
+  // Tournaments: gated by communityHasTournaments (off for oceanside-residents)
+  { label: "Tournaments", href: "/member/tournaments", icon: "Trophy", isEnabled: (cid) => communityHasTournaments(cid) },
+  // Check in: gated by communityHasActivityCheckIn (always true currently)
+  { label: "Check in", href: "/member/check-in", icon: "MapPin", isEnabled: (cid) => communityHasActivityCheckIn(cid) },
 ];
-
-/** Hrefs that appear in HOA pinned section */
-const hoaPinnedHrefs = new Set(hoaPinnedItems.map(i => i.href));
-
-/** Hrefs that appear in Club pinned section */
-const clubPinnedHrefs = new Set(clubPinnedItems.map(i => i.href));
 
 /** Primary life-first nav — matches mobile: Home / Book / Calendar / Connect / Payments. */
 const primaryNav = [
@@ -244,17 +249,22 @@ export function MemberSidebar({
         ? { ...item, label: "Your access" }
         : item,
     );
+  // Build pinned "Do this" items based on community type, respecting feature flags
+  const pinnedItems = isResidentialHoa
+    ? hoaPinnedItems.filter((item) => item.isEnabled(communityId, paysHoa))
+    : clubPinnedItems.filter((item) => item.isEnabled(communityId, paysHoa));
+  const pinnedHrefs = new Set(pinnedItems.map((i) => i.href));
+
+  // Filter primaryNav to exclude pinned items (no duplicates)
+  const visiblePrimaryNavFiltered = visiblePrimaryNav.filter(
+    (item) => !pinnedHrefs.has(item.href)
+  );
+
   const visibleHoaNav =
     isResidentialHoa && paysHoa
-      ? hoaNav
+      ? hoaNav.filter((item) => !pinnedHrefs.has(item.href))
       : [];
   const hoaHrefSet = new Set(visibleHoaNav.map((i) => i.href));
-
-  // Build pinned "Do this" items based on community type
-  const pinnedItems = isResidentialHoa
-    ? hoaPinnedItems.filter((item) => item.isEnabled(communityId))
-    : clubPinnedItems.filter((item) => item.isEnabled(communityId));
-  const pinnedHrefs = new Set(pinnedItems.map((i) => i.href));
 
   // Filter moreNav to exclude pinned items (they go in "Do this") and respect feature flags
   const visibleMoreNav = moreNav.filter((item) => {
@@ -282,12 +292,14 @@ export function MemberSidebar({
   const pinnedActive = pinnedItems.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
-  const moreActive = visibleMoreNav.some(
+  const browseActive = visiblePrimaryNavFiltered.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  ) || visibleMoreNav.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
   const [hoaOpen, setHoaOpen] = useState(hoaActive || isResidentialHoa);
   const [pinnedOpen, setPinnedOpen] = useState(true);
-  const [moreOpen, setMoreOpen] = useState(moreActive || pinnedActive);
+  const [browseOpen, setBrowseOpen] = useState(browseActive);
 
   useEffect(() => {
     setCommunityId(communityIdProp);
@@ -368,82 +380,104 @@ export function MemberSidebar({
           <GlobalSearch className="w-full" />
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
-          <NavList
-            items={visiblePrimaryNav}
-            pathname={pathname}
-            onClose={onClose}
-            t={t}
-          />
-
-          {/* Pinned "Do this" section — community-type-aware quick actions */}
+        <nav className="flex-1 overflow-y-auto px-3 py-2" aria-label={t("Member navigation")}>
+          {/* Pinned "Do this" section — FIRST, right after search, community-type-aware quick actions */}
           {pinnedItems.length > 0 ? (
-            <div className="mt-4 border-t border-border-2 pt-3" role="group" aria-labelledby="do-this-heading">
-              <button
-                type="button"
+            <section aria-labelledby="do-this-heading">
+              <h2
                 id="do-this-heading"
-                onClick={() => setPinnedOpen((v) => !v)}
-                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey hover:bg-white/60"
-                aria-expanded={pinnedOpen}
+                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey"
               >
-                {t("Do this")}
-                <ChevronDown
-                  className={cn("h-4 w-4 transition-transform", pinnedOpen && "rotate-180")}
-                />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setPinnedOpen((v) => !v)}
+                  className="flex w-full items-center justify-between hover:bg-white/60 rounded-lg -mx-3 -my-2 px-3 py-2"
+                  aria-expanded={pinnedOpen}
+                  aria-controls="do-this-list"
+                >
+                  {t("Do this")}
+                  <ChevronDown
+                    className={cn("h-4 w-4 transition-transform", pinnedOpen && "rotate-180")}
+                  />
+                </button>
+              </h2>
               {pinnedOpen ? (
-                <NavList
-                  items={pinnedItems}
-                  pathname={pathname}
-                  onClose={onClose}
-                  t={t}
-                />
+                <div id="do-this-list">
+                  <NavList
+                    items={pinnedItems}
+                    pathname={pathname}
+                    onClose={onClose}
+                    t={t}
+                  />
+                </div>
               ) : null}
-            </div>
+            </section>
           ) : null}
 
-          {visibleHoaNav.length > 0 ? (
-            <div className="mt-4 border-t border-border-2 pt-3" role="group" aria-labelledby="hoa-heading">
+          {/* Browse section — contains everything else */}
+          <section className="mt-4 border-t border-border-2 pt-3" aria-labelledby="browse-heading">
+            <h2
+              id="browse-heading"
+              className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey"
+            >
               <button
                 type="button"
-                id="hoa-heading"
-                onClick={() => setHoaOpen((v) => !v)}
-                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey hover:bg-white/60"
-                aria-expanded={hoaOpen}
+                onClick={() => setBrowseOpen((v) => !v)}
+                className="flex w-full items-center justify-between hover:bg-white/60 rounded-lg -mx-3 -my-2 px-3 py-2"
+                aria-expanded={browseOpen}
+                aria-controls="browse-list"
               >
-                {t("HOA")}
+                {t("Browse")}
                 <ChevronDown
-                  className={cn("h-4 w-4 transition-transform", hoaOpen && "rotate-180")}
+                  className={cn("h-4 w-4 transition-transform", browseOpen && "rotate-180")}
                 />
               </button>
-              {hoaOpen ? (
+            </h2>
+            {browseOpen ? (
+              <div id="browse-list">
+                {/* Primary navigation items (Home, Calendar, Messages, etc.) */}
                 <NavList
-                  items={visibleHoaNav}
+                  items={visiblePrimaryNavFiltered}
                   pathname={pathname}
                   onClose={onClose}
                   t={t}
                 />
-              ) : null}
-            </div>
-          ) : null}
 
-          <div className="mt-4 border-t border-border-2 pt-3" role="group" aria-labelledby="browse-heading">
-            <button
-              type="button"
-              id="browse-heading"
-              onClick={() => setMoreOpen((v) => !v)}
-              className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey hover:bg-white/60"
-              aria-expanded={moreOpen}
-            >
-              {t("Browse")}
-              <ChevronDown
-                className={cn("h-4 w-4 transition-transform", moreOpen && "rotate-180")}
-              />
-            </button>
-            {moreOpen ? (
-              <NavList items={visibleMoreNav} pathname={pathname} onClose={onClose} t={t} />
+                {/* HOA-specific items for residential communities */}
+                {visibleHoaNav.length > 0 ? (
+                  <div className="mt-3 border-t border-border-2 pt-3" role="group" aria-labelledby="hoa-subheading">
+                    <button
+                      type="button"
+                      id="hoa-subheading"
+                      onClick={() => setHoaOpen((v) => !v)}
+                      className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-grey/70 hover:bg-white/60"
+                      aria-expanded={hoaOpen}
+                    >
+                      {t("HOA")}
+                      <ChevronDown
+                        className={cn("h-3.5 w-3.5 transition-transform", hoaOpen && "rotate-180")}
+                      />
+                    </button>
+                    {hoaOpen ? (
+                      <NavList
+                        items={visibleHoaNav}
+                        pathname={pathname}
+                        onClose={onClose}
+                        t={t}
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {/* More items */}
+                {visibleMoreNav.length > 0 ? (
+                  <div className="mt-3">
+                    <NavList items={visibleMoreNav} pathname={pathname} onClose={onClose} t={t} />
+                  </div>
+                ) : null}
+              </div>
             ) : null}
-          </div>
+          </section>
         </nav>
 
         <div className="border-t border-border-2 p-4">
