@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSession } from "@/lib/server/auth";
+import { hashDriverPin } from "@/lib/server/driver-auth";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -44,12 +45,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Hash PIN if provided, otherwise leave undefined (driver cannot log in)
+  const hashedPin = body.pin ? hashDriverPin(body.pin) : undefined;
+
   const driver = await prisma.tramDriver.create({
     data: {
       communityId,
       name: body.name,
       phone: body.phone,
-      pin: body.pin || "1234",
+      ...(hashedPin && { pin: hashedPin }),
       status: "off_duty",
     },
   });

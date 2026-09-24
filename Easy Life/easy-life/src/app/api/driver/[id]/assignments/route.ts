@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
+import { getDriverSessionFromRequest } from "@/lib/server/driver-auth";
 
 export async function GET(
   req: NextRequest,
@@ -7,13 +8,29 @@ export async function GET(
 ) {
   const { id } = await params;
 
+  // Require driver session
+  const session = await getDriverSessionFromRequest(req);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify session belongs to this driver
+  if (session.sub !== id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const driver = await prisma.tramDriver.findUnique({
     where: { id },
-    select: { id: true, name: true, status: true, vehicleId: true, communityId: true },
+    select: { id: true, name: true, status: true, vehicleId: true, communityId: true, active: true },
   });
 
-  if (!driver) {
+  if (!driver || !driver.active) {
     return NextResponse.json({ error: "Driver not found" }, { status: 404 });
+  }
+
+  // Verify communityId matches session
+  if (driver.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Get today's assignments for this driver
