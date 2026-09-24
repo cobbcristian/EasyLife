@@ -100,7 +100,7 @@ export interface PaymentRecord {
   amount: number;
   dueDate: string;
   paidDate?: string;
-  status: "paid" | "due" | "overdue";
+  status: "paid" | "due" | "overdue" | "cancelled";
 }
 
 export interface NavItem {
