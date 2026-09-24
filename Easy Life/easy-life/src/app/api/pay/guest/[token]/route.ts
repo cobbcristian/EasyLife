@@ -68,6 +68,7 @@ export async function POST(request: Request, { params }: Params) {
     });
   }
 
+  const amountCents = Math.round(charge.amount * 100);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     ...stripeCheckoutPaymentOptions,
@@ -76,7 +77,7 @@ export async function POST(request: Request, { params }: Params) {
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: Math.round(charge.amount * 100),
+          unit_amount: amountCents,
           product_data: {
             name: charge.description.slice(0, 120),
             description: isClinic
@@ -91,6 +92,8 @@ export async function POST(request: Request, { params }: Params) {
       chargeId: charge.id,
       payToken: token,
       kind: charge.referenceType,
+      userEmail: charge.memberEmail ?? "",
+      amountCents: String(amountCents),
     },
     success_url: `${origin}/pay/guest/${token}?payment=success`,
     cancel_url: `${origin}/pay/guest/${token}?payment=cancelled`,

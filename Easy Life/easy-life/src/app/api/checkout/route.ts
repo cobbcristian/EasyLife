@@ -1,24 +1,17 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
-import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
 } from "@/lib/server/payment-methods";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import {
+  resolveOwnedOpenCharge,
+  settleChargeIfAuthorized,
+  buildChargeMetadata,
+} from "@/lib/server/charge-payment";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
-
-async function afterChargePaid(chargeId: string | undefined) {
-  if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
-  await activateSharedCalendarByCharge(chargeId);
-  await markEscrowHeldByCharge(chargeId);
-}
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -40,14 +33,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const amount = Number(body.amount);
-  if (!amount || amount <= 0) {
-    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-  }
-
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
   const returnPath = body.returnPath ?? "/member/payments";
-  const description = body.description ?? "Club payment";
+
+  let amount: number;
+  let amountCents: number;
+  let description: string;
+  let chargeId: string | undefined;
+  let metadata: Record<string, string> | undefined;
+
+  if (body.chargeId) {
+    const resolved = await resolveOwnedOpenCharge(body.chargeId, session.email);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+    }
+    const { charge } = resolved;
+    amount = charge.amount;
+    amountCents = charge.amountCents;
+    description = charge.description;
+    chargeId = charge.id;
+    metadata = buildChargeMetadata(charge, session.email);
+  } else {
+    amount = Number(body.amount);
+    if (!amount || amount <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+    amountCents = Math.round(amount * 100);
+    description = body.description ?? "Club payment";
+  }
 
   const settings = await getPaymentSettings(session.email);
   const useStored =
@@ -73,14 +86,22 @@ export async function POST(request: Request) {
         amount,
         description,
         paymentMethodId: defaultMethod.id,
+        metadata,
       });
 
       if (result.status === "action_required" && result.url) {
         return NextResponse.json({ url: result.url, mode: "stored" });
       }
 
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (chargeId) {
+        const settleResult = await settleChargeIfAuthorized({
+          chargeId,
+          payerEmail: session.email,
+          paidCents: amountCents,
+        });
+        if (!settleResult.ok) {
+          return NextResponse.json({ error: settleResult.error }, { status: 400 });
+        }
       }
 
       return NextResponse.json({
@@ -99,8 +120,15 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
     if (isDemoPaymentAllowed()) {
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (chargeId) {
+        const settleResult = await settleChargeIfAuthorized({
+          chargeId,
+          payerEmail: session.email,
+          paidCents: amountCents,
+        });
+        if (!settleResult.ok) {
+          return NextResponse.json({ error: settleResult.error }, { status: 400 });
+        }
       }
       return NextResponse.json({
         ok: true,
@@ -127,14 +155,14 @@ export async function POST(request: Request) {
           price_data: {
             currency: "usd",
             product_data: { name: description },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: amountCents,
           },
           quantity: 1,
         },
       ],
-      success_url: `${origin}${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
+      success_url: `${origin}${returnPath}?payment=success${chargeId ? `&chargeId=${chargeId}` : ""}`,
       cancel_url: `${origin}${returnPath}?payment=cancelled`,
-      metadata: body.chargeId ? { chargeId: body.chargeId, userEmail: session.email } : undefined,
+      metadata,
     });
     return NextResponse.json({ url: checkout.url, mode: "checkout" });
   } catch {

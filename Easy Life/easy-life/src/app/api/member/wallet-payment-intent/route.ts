@@ -5,17 +5,17 @@ import {
   markHoaChargePaid,
   resolveHoaPaymentForMember,
 } from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
+import {
+  resolveOwnedOpenCharge,
+  settleChargeIfAuthorized,
+  buildChargeMetadata,
+} from "@/lib/server/charge-payment";
 import { getStripe, isWalletPayConfigured } from "@/lib/server/stripe";
-
-async function markPaid(chargeId?: string) {
-  if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
-}
 
 /**
  * Creates a PaymentIntent for Apple Pay / Google Pay (Payment Request API).
- * Amount is always resolved server-side for HOA; generic charges validated by id.
+ * Amount is always resolved server-side for HOA and charge kinds.
+ * Ad-hoc amounts (kind=amount) MUST NOT include a chargeId.
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -39,8 +39,8 @@ export async function POST(request: Request) {
   const returnPath = "/member/payments";
   let amountCents = 0;
   let description = body.description ?? "Club payment";
-  let chargeId: string | undefined = body.chargeId;
-  const metadata: Record<string, string> = { userEmail: session.email };
+  let chargeId: string | undefined;
+  let metadata: Record<string, string> = { userEmail: session.email };
 
   if (kind === "hoa") {
     if (!session.communityId) {
@@ -58,42 +58,58 @@ export async function POST(request: Request) {
     amountCents = Math.round(payment.amount * 100);
     description = payment.productName;
     chargeId = payment.chargeId;
-    metadata.type = "hoa";
-    metadata.chargeId = payment.chargeId;
-    metadata.communityId = payment.communityId;
-    metadata.unit = payment.unit;
-    metadata.periodId = payment.periodId;
-  } else if (kind === "charge" && body.chargeId) {
-    const { prisma } = await import("@/lib/server/prisma");
-    const charge = await prisma.memberCharge.findFirst({
-      where: { id: body.chargeId, memberEmail: session.email.toLowerCase() },
-    });
-    if (!charge) {
-      return NextResponse.json({ error: "Charge not found" }, { status: 404 });
+    metadata = {
+      type: "hoa",
+      chargeId: payment.chargeId,
+      userEmail: session.email.toLowerCase(),
+      amountCents: String(amountCents),
+      communityId: payment.communityId,
+      unit: payment.unit,
+      periodId: payment.periodId,
+    };
+  } else if (kind === "charge") {
+    if (!body.chargeId) {
+      return NextResponse.json({ error: "chargeId required for kind=charge" }, { status: 400 });
     }
-    if (charge.status === "paid") {
-      return NextResponse.json({ error: "Already paid" }, { status: 400 });
+    const resolved = await resolveOwnedOpenCharge(body.chargeId, session.email);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: resolved.status });
     }
-    amountCents = Math.round(charge.amount * 100);
+    const { charge } = resolved;
+    amountCents = charge.amountCents;
     description = charge.description;
     chargeId = charge.id;
-    metadata.chargeId = charge.id;
+    metadata = buildChargeMetadata(charge, session.email);
   } else {
+    if (body.chargeId) {
+      return NextResponse.json(
+        { error: "Use kind=charge to pay a specific charge" },
+        { status: 400 },
+      );
+    }
     const amount = Number(body.amount);
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
     amountCents = Math.round(amount * 100);
-    if (chargeId) metadata.chargeId = chargeId;
   }
 
   const stripe = getStripe();
   if (!stripe || !isWalletPayConfigured()) {
     if (isDemoPaymentAllowed()) {
-      if (kind === "hoa" && chargeId) {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await markPaid(chargeId);
+      if (chargeId) {
+        if (kind === "hoa") {
+          await markHoaChargePaid(chargeId);
+        } else {
+          const settleResult = await settleChargeIfAuthorized({
+            chargeId,
+            payerEmail: session.email,
+            paidCents: amountCents,
+          });
+          if (!settleResult.ok) {
+            return NextResponse.json({ error: settleResult.error }, { status: 400 });
+          }
+        }
       }
       return NextResponse.json({
         ok: true,
