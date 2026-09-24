@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { prisma } from "@/lib/server/prisma";
+import { authorizeGrabGoMachine } from "@/lib/server/grab-go-machine-auth";
 import {
   closeGrabGoSession,
   declareAppItems,
@@ -12,19 +13,10 @@ import {
   type UnlockMethod,
 } from "@/lib/server/grab-go";
 
-/**
- * Public-ish kiosk / edge device API for grab-and-go stands.
- * In production, protect with a machine API key header.
- */
-function authorizeMachine(request: Request): boolean {
-  const key = process.env.GRAB_GO_MACHINE_KEY;
-  if (!key) return true; // demo mode
-  return request.headers.get("x-grab-go-key") === key;
-}
-
 export async function GET(request: Request) {
-  if (!authorizeMachine(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = authorizeGrabGoMachine(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
   await ensureRecordsSeeded();
   const url = new URL(request.url);
@@ -63,8 +55,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!authorizeMachine(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = authorizeGrabGoMachine(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
   await ensureRecordsSeeded();
 

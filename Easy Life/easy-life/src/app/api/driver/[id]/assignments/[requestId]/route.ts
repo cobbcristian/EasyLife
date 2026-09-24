@@ -1,22 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { sendSms, isSmsConfigured } from "@/lib/server/sms";
+import { getDriverSessionFromRequest } from "@/lib/server/driver-auth";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; requestId: string }> }
 ) {
   const { id, requestId } = await params;
-  const body = await req.json();
 
-  // Verify driver exists
+  // Require driver session
+  const session = await getDriverSessionFromRequest(req);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Verify session belongs to this driver
+  if (session.sub !== id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  let body: { status?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  // Verify driver exists and is active
   const driver = await prisma.tramDriver.findUnique({
     where: { id },
-    select: { name: true, communityId: true },
+    select: { name: true, communityId: true, active: true },
   });
 
-  if (!driver) {
+  if (!driver || !driver.active) {
     return NextResponse.json({ error: "Driver not found" }, { status: 404 });
+  }
+
+  // Verify communityId matches session
+  if (driver.communityId !== session.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Get the request
@@ -26,6 +49,11 @@ export async function PATCH(
 
   if (!existing) {
     return NextResponse.json({ error: "Request not found" }, { status: 404 });
+  }
+
+  // Verify the request belongs to this driver's community
+  if (existing.communityId !== driver.communityId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   // Verify this request is assigned to this driver
