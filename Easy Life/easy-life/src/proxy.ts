@@ -54,6 +54,49 @@ function bearerToken(request: NextRequest): string | undefined {
   return header.startsWith("Bearer ") ? header.slice(7) : undefined;
 }
 
+/**
+ * Public API routes that don't require authentication.
+ * All other /api/** routes require a valid JWT session.
+ */
+const PUBLIC_API_ROUTES = [
+  // Auth flows
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/logout",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/oauth",
+  "/api/auth/mfa/verify",
+  // Health and cron
+  "/api/health",
+  "/api/cron/",
+  // Public community data
+  "/api/communities/public",
+  // Stripe webhooks (verify signature, not JWT)
+  "/api/stripe/webhook",
+  // Public payment flows
+  "/api/pay/guest/",
+  // Calendar feeds (token in URL, not JWT)
+  "/api/calendar/feed/",
+  // Contact/lead forms
+  "/api/contact",
+  "/api/landing/contact",
+  "/api/leads",
+  // Public website API
+  "/api/website/public/",
+  // Mobile public routes
+  "/api/mobile/login",
+  "/api/mobile/bridge",
+  "/api/mobile/register",
+  "/api/mobile/communities",
+];
+
+function isPublicApi(pathname: string): boolean {
+  return PUBLIC_API_ROUTES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(p),
+  );
+}
+
 const STAGING_EXEMPT_API_PREFIXES = [
   "/api/auth/",
   "/api/cron/",
@@ -140,7 +183,7 @@ function withPathnameHeader(request: NextRequest, pathname: string) {
 }
 
 /** Paths under /go that are sales tools, not club demo locks. */
-const GO_SALES_TOOL_SLUGS = new Set(["guide", "superadmin"]);
+const GO_SALES_TOOL_SLUGS = new Set(["guide"]);
 
 function demoGoPath(pathname: string): DemoTenant | null {
   const match = pathname.match(/^\/go\/([a-z0-9-]+)\/?$/i);
@@ -195,13 +238,11 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Master / platform super admin entry — unlock club branding, open Easy Life login.
+  // /go/superadmin is no longer supported — redirect to generic login.
   if (pathname === "/go/superadmin" || pathname === "/go/superadmin/") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
-    url.searchParams.set("email", "superadmin@gmail.com");
-    url.searchParams.set("password", "password");
     const redirect = NextResponse.redirect(url);
     clearDemoTenantCookies(redirect);
     return redirect;
@@ -257,6 +298,22 @@ export async function proxy(request: NextRequest) {
         { status: 403 },
       );
     }
+    return NextResponse.next();
+  }
+
+  // Default-deny for /api/** — require JWT unless route is in public allowlist
+  if (pathname.startsWith("/api/")) {
+    if (isPublicApi(pathname)) {
+      return NextResponse.next();
+    }
+    // All other API routes require authentication
+    const token =
+      request.cookies.get(SESSION_COOKIE)?.value ?? bearerToken(request);
+    const session = await verifySessionToken(token);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Let the route handler perform role-based authorization
     return NextResponse.next();
   }
 
@@ -335,8 +392,6 @@ export const config = {
     "/go/",
     "/go/guide",
     "/go/guide/",
-    "/go/superadmin",
-    "/go/superadmin/",
     "/sell/plaza",
     "/sell/plaza/",
     "/sell",

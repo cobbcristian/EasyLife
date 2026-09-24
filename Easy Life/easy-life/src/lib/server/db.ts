@@ -22,8 +22,31 @@ import {
   recordProviderActivation,
 } from "@/lib/server/commissions";
 
+/**
+ * In production, the super-admin password MUST come from SUPERADMIN_SEED_PASSWORD env var.
+ * If not set in production, the super-admin seed is skipped entirely.
+ * In non-production environments, a random password is generated for each seed run.
+ */
+function getSuperAdminSeedPassword(): string | null {
+  const envPassword = process.env.SUPERADMIN_SEED_PASSWORD;
+  if (envPassword && envPassword.length >= 12) {
+    return envPassword;
+  }
+  if (process.env.NODE_ENV === "production") {
+    // Production requires explicit strong password; skip seed if not set
+    return null;
+  }
+  // Non-production: generate random password (32 chars)
+  return randomBytes(16).toString("hex");
+}
+
+const superAdminSeedPassword = getSuperAdminSeedPassword();
+
 const seedUsers: AuthUser[] = [
-  { id: "u-admin", email: "superadmin@gmail.com", password: "password", role: "admin", name: "Easy Life Admin", communityId: null },
+  // Super-admin is conditionally included based on environment
+  ...(superAdminSeedPassword
+    ? [{ id: "u-admin", email: "superadmin@gmail.com", password: superAdminSeedPassword, role: "admin" as const, name: "Easy Life Admin", communityId: null }]
+    : []),
   { id: "u-club-admin", email: "pm.demo@willowcreekhoa.com", password: "password", role: "admin", name: "Priya Nair", communityId: "willow-creek" },
   { id: "u-provider", email: "cassiesmeticuloustouch@gmail.com", password: "password1!", role: "provider", name: "Cassie's Meticulous Touch", communityId: "golden-ocala" },
   { id: "u-member", email: "sarah.mitchell@oceanside.com", password: "password", role: "member", name: "Sarah Mitchell", communityId: "golden-ocala" },
@@ -188,7 +211,7 @@ async function backfillSeedUsers(): Promise<void> {
   }
 }
 
-/** Rename legacy platform master login → superadmin@gmail.com. */
+/** Rename legacy platform master login → superadmin@gmail.com. Does NOT reset password. */
 async function backfillSuperAdminIdentity(): Promise<void> {
   const OLD_EMAIL = "goldenocala01@gmail.com";
   const NEW_EMAIL = "superadmin@gmail.com";
@@ -196,6 +219,7 @@ async function backfillSuperAdminIdentity(): Promise<void> {
   const newUser = await prisma.user.findUnique({ where: { email: NEW_EMAIL } });
 
   if (oldUser && !newUser) {
+    // Migrate old account email, keep existing password
     await prisma.user.update({
       where: { id: oldUser.id },
       data: {
@@ -203,21 +227,23 @@ async function backfillSuperAdminIdentity(): Promise<void> {
         name: "Easy Life Admin",
         role: "admin",
         communityId: null,
-        password: hashPassword("password"),
+        // Keep existing password - do NOT reset to known value
       },
     });
   } else if (oldUser && newUser) {
+    // Both exist: keep new user, delete old, preserve new user's password
     await prisma.user.update({
       where: { id: newUser.id },
       data: {
         name: "Easy Life Admin",
         role: "admin",
         communityId: null,
-        password: hashPassword("password"),
+        // Keep existing password - do NOT reset to known value
       },
     });
     await prisma.user.delete({ where: { id: oldUser.id } }).catch(() => null);
   } else if (newUser) {
+    // Only new exists: just update metadata, keep password
     await prisma.user.update({
       where: { id: newUser.id },
       data: {
@@ -1148,5 +1174,24 @@ export async function getCommunityBranding(communityId: string) {
     logoUrl: row.logoUrl,
     primaryColor: row.primaryColor ?? "#6366f1",
     appDisplayName: row.appDisplayName ?? row.name,
+  };
+}
+
+/**
+ * Lookup user status/role from DB for session validation.
+ * Used by auth.ts verifySessionTokenWithDbCheck.
+ */
+export async function getUserStatusForSession(
+  email: string,
+): Promise<{ status: "active" | "pending" | "frozen"; role: string; communityId: string | null } | null> {
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { status: true, role: true, communityId: true },
+  });
+  if (!user) return null;
+  return {
+    status: (user.status as "active" | "pending" | "frozen") ?? "active",
+    role: user.role,
+    communityId: user.communityId,
   };
 }

@@ -108,7 +108,7 @@ ${existing.specialNeeds ? `Note: ${existing.specialNeeds}` : ""}
 ETA: ${eta}
 Vehicle: ${body.vehicleId || "See dispatch"}
 
-View: ${process.env.NEXTAUTH_URL || ""}/driver/${driver.id}`;
+View: ${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || ""}/driver/${driver.id}`;
 
       await sendSms({ to: driver.phone, body: smsBody });
     }
