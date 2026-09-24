@@ -174,14 +174,74 @@ describe("Payment ownership security", () => {
   });
 
   describe("checkout: charge ownership check", () => {
-    it("checkout does not validate chargeId ownership - marks any chargeId paid in demo mode", async () => {
+    it("MUST reject paying another user's charge via checkout - stored payment method path (REAL HOLE)", async () => {
       /**
-       * Route code at line 138:
-       *   metadata: body.chargeId ? { chargeId: body.chargeId, userEmail: session.email } : undefined,
+       * Route code at lines 82-84 (stored payment method path):
+       *   if (body.chargeId) {
+       *     await afterChargePaid(body.chargeId);  // ← NO OWNERSHIP CHECK
+       *   }
        *
-       * Checkout passes chargeId through to metadata without ownership check.
-       * In demo mode (line 101-110), afterChargePaid(body.chargeId) marks it paid.
-       * This is demo-only but IS a hole: Alice can mark Bob's charge paid.
+       * This is a REAL PRODUCTION HOLE, not demo-only:
+       * - Alice has stored payment methods (production use case)
+       * - Alice submits Bob's chargeId
+       * - Route charges Alice's card and marks Bob's charge as paid
+       * - No verification that chargeId belongs to session.email
+       *
+       * The route SHOULD check:
+       *   const charge = await prisma.memberCharge.findFirst({
+       *     where: { id: body.chargeId, memberEmail: session.email.toLowerCase() }
+       *   });
+       *   if (!charge) return 403;
+       */
+      const { getSession } = await import("@/lib/server/auth");
+      const { getPaymentSettings, chargeStoredPaymentMethod } = await import(
+        "@/lib/server/payment-methods"
+      );
+      const { updateMemberChargeStatus } = await import("@/lib/server/records");
+
+      vi.mocked(getSession).mockResolvedValue(ALICE_SESSION);
+      vi.mocked(getPaymentSettings).mockResolvedValue({
+        preference: "store",
+        methods: [{ id: "pm_alice", last4: "4242", brand: "visa", isDefault: true }],
+      } as any);
+      vi.mocked(chargeStoredPaymentMethod).mockResolvedValue({
+        status: "succeeded",
+        paymentIntentId: "pi_test",
+      } as any);
+
+      const { POST } = await import("@/app/api/checkout/route");
+
+      const request = new Request("http://localhost/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "http://localhost",
+        },
+        body: JSON.stringify({
+          amount: BOB_CHARGE.amount,
+          chargeId: BOB_CHARGE.id,
+          description: "Pay Bob's charge",
+        }),
+      });
+
+      const response = await POST(request);
+
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toContain("not authorized");
+      expect(updateMemberChargeStatus).not.toHaveBeenCalledWith(BOB_CHARGE.id, "paid");
+    });
+
+    it("(DEMO-ONLY) checkout marks arbitrary chargeId paid without ownership check in demo mode", async () => {
+      /**
+       * Route code at lines 101-110 (demo mode path):
+       *   if (isDemoPaymentAllowed()) {
+       *     if (body.chargeId) {
+       *       await afterChargePaid(body.chargeId);  // ← NO OWNERSHIP CHECK
+       *     }
+       *   }
+       *
+       * This is demo-only but still shows the same missing ownership validation.
        */
       const { getSession } = await import("@/lib/server/auth");
 
