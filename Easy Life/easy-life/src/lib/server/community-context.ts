@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/server/prisma";
 import type { SessionPayload } from "@/lib/types";
 import { ACTIVE_COMMUNITY_COOKIE } from "@/lib/tenant";
-import { userHasActiveMembership } from "@/lib/server/memberships";
 
 export { ACTIVE_COMMUNITY_COOKIE };
 export const DEFAULT_COMMUNITY = "__missing_community__";
@@ -23,16 +22,21 @@ export async function getActiveCommunityCookie(): Promise<string | null> {
   return exists ? value : null;
 }
 
-/** Effective community for admin API calls and pages. */
+/**
+ * Effective community for admin API calls and pages.
+ *
+ * Non-superadmins MUST use session.communityId (JWT), not el_active_community.
+ * The cookie is client-writable (httpOnly:false) — honoring it whenever the user
+ * has any UserCommunity membership lets club staff keep a privileged JWT role
+ * from community A while scoping reports/amenities/tournaments/POS to community B.
+ * Only platform super-admins may select tenant via the active-community cookie.
+ */
 export async function resolveScopedCommunityId(
   session: SessionPayload,
 ): Promise<string> {
-  const active = await getActiveCommunityCookie();
-  if (active) {
-    if (isSuperAdmin(session)) return active;
-    if (session.sub && (await userHasActiveMembership(session.sub, active))) {
-      return active;
-    }
+  if (isSuperAdmin(session)) {
+    const active = await getActiveCommunityCookie();
+    if (active) return active;
   }
   if (session.communityId) return session.communityId;
   const first = await prisma.community.findFirst({
@@ -45,12 +49,9 @@ export async function resolveScopedCommunityId(
 export async function getActiveCommunityId(
   session: SessionPayload,
 ): Promise<string | null> {
-  const active = await getActiveCommunityCookie();
-  if (active) {
-    if (isSuperAdmin(session)) return active;
-    if (session.sub && (await userHasActiveMembership(session.sub, active))) {
-      return active;
-    }
+  if (isSuperAdmin(session)) {
+    const active = await getActiveCommunityCookie();
+    if (active) return active;
   }
   if (session.communityId) return session.communityId;
   return null;
