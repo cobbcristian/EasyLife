@@ -4,6 +4,46 @@
  * These tests prove that on da0523a:
  * - A user whose status changed to "frozen" after login retains access
  * - The system trusts the JWT without rechecking DB status
+ *
+ * EVIDENCE - Routes do NOT check user.status from DB:
+ *
+ * 1. getSession() in auth.ts (lines 129-132):
+ *    export async function getSession(): Promise<SessionPayload | null> {
+ *      const store = await cookies();
+ *      return verifySessionToken(store.get(SESSION_COOKIE)?.value);
+ *    }
+ *    → Only verifies JWT signature, does NOT query DB for user.status
+ *
+ * 2. SessionPayload in types.ts (lines 202-208):
+ *    export interface SessionPayload {
+ *      sub: string;
+ *      email: string;
+ *      role: AuthRole;
+ *      name: string;
+ *      communityId?: string | null;
+ *    }
+ *    → No `status` field exists in the JWT payload
+ *
+ * 3. member/charges/route.ts (lines 6-8):
+ *    const session = await getSession();
+ *    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+ *    → Only checks if session exists, not user.status
+ *
+ * 4. member/directory/route.ts (lines 6-16):
+ *    const session = await getSession();
+ *    if (!session || !["member", "board", ...].includes(session.role)) {
+ *    → Only checks role, not user.status
+ *
+ * 5. member/profile/route.ts (lines 10-11):
+ *    const session = await getSession();
+ *    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+ *    → Only checks if session exists, not user.status
+ *
+ * 6. getMobileSession() in mobile-auth.ts (lines 9-12):
+ *    export async function getMobileSession(request: Request): Promise<SessionPayload | null> {
+ *      return verifySessionToken(bearerToken(request));
+ *    }
+ *    → Only verifies JWT, does NOT query DB
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { SessionPayload } from "@/lib/types";
@@ -70,6 +110,7 @@ vi.mock("@/lib/server/local-pros", () => ({
 vi.mock("@/lib/server/member-api-store", () => ({
   listGroupsForMember: vi.fn(() => []),
   getMemberProfile: vi.fn(() => ({})),
+  updateMemberProfile: vi.fn(() => ({})),
 }));
 
 describe("Frozen user access revocation", () => {
@@ -83,6 +124,11 @@ describe("Frozen user access revocation", () => {
 
   describe("Protected route access with frozen status", () => {
     it("MUST reject access when user status is frozen (re-check DB)", async () => {
+      /**
+       * Route: member/charges/route.ts lines 6-8
+       * Only checks: if (!session) return 401
+       * Does NOT check: user.status in DB
+       */
       const { getSession } = await import("@/lib/server/auth");
       const { prisma } = await import("@/lib/server/prisma");
 
@@ -101,6 +147,11 @@ describe("Frozen user access revocation", () => {
     });
 
     it("MUST reject directory access for frozen users", async () => {
+      /**
+       * Route: member/directory/route.ts lines 6-16
+       * Only checks: session exists and role is valid
+       * Does NOT check: user.status in DB
+       */
       const { getSession } = await import("@/lib/server/auth");
       const { prisma } = await import("@/lib/server/prisma");
 
@@ -118,10 +169,35 @@ describe("Frozen user access revocation", () => {
       const data = await response.json();
       expect(data.members).toBeUndefined();
     });
+
+    it("MUST reject profile access for suspended users", async () => {
+      /**
+       * Route: member/profile/route.ts lines 10-11
+       * Only checks: if (!session) return 401
+       * Does NOT check: user.status in DB
+       */
+      const { getSession } = await import("@/lib/server/auth");
+      const { prisma } = await import("@/lib/server/prisma");
+
+      const suspendedUser = { ...FROZEN_USER_DB_RECORD, status: "suspended" };
+      vi.mocked(getSession).mockResolvedValue(ACTIVE_USER_SESSION);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(suspendedUser as any);
+
+      const { GET } = await import("@/app/api/member/profile/route");
+
+      const response = await GET();
+
+      expect(response.status).toBe(401);
+    });
   });
 
   describe("Mobile API access with frozen status", () => {
     it("MUST reject mobile API when user becomes frozen", async () => {
+      /**
+       * Route: mobile/messages/route.ts lines 6-9
+       * Uses: getMobileSession(request) which only verifies JWT
+       * Does NOT check: user.status in DB
+       */
       const { prisma } = await import("@/lib/server/prisma");
       const { getMobileSession } = await import("@/lib/server/mobile-auth");
 

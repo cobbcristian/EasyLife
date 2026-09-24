@@ -3,6 +3,13 @@
  *
  * These tests prove that on da0523a:
  * - The kiosk API accepts requests when GRAB_GO_MACHINE_KEY is unset in production
+ *
+ * Route code at lines 19-22:
+ *   function authorizeMachine(request: Request): boolean {
+ *     const key = process.env.GRAB_GO_MACHINE_KEY;
+ *     if (!key) return true; // demo mode ← BUG: no NODE_ENV check
+ *     return request.headers.get("x-grab-go-key") === key;
+ *   }
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
@@ -21,7 +28,10 @@ vi.mock("@/lib/server/records", () => ({
 vi.mock("@/lib/server/grab-go", () => ({
   listGrabGoMachines: vi.fn(() => []),
   openGrabGoSession: vi.fn(),
-  closeGrabGoSession: vi.fn(),
+  closeGrabGoSession: vi.fn(() => ({
+    session: { id: "s1", total: 0, itemsJson: "[]", unlockMethod: "app_code" },
+    chargeId: null,
+  })),
   recordVisionGrab: vi.fn(),
   recordVisionGrabFromNote: vi.fn(),
   declareAppItems: vi.fn(),
@@ -76,8 +86,7 @@ describe("Grab-go kiosk API key enforcement", () => {
       expect(data.error).toContain("Unauthorized");
     });
 
-    it("MUST reject requests with wrong API key in production", async () => {
-      process.env.NODE_ENV = "production";
+    it("rejects wrong API key when key is set", async () => {
       process.env.GRAB_GO_MACHINE_KEY = "correct-key";
 
       vi.resetModules();
