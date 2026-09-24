@@ -18,6 +18,7 @@ vi.mock("@/lib/server/prisma", () => ({
     memberCharge: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     memberProfileExt: {
       findUnique: vi.fn(),
@@ -63,6 +64,7 @@ import { POST } from "./route";
 const mockGetSession = getSession as ReturnType<typeof vi.fn>;
 const mockFindUnique = prisma.memberCharge.findUnique as ReturnType<typeof vi.fn>;
 const mockUpdate = prisma.memberCharge.update as ReturnType<typeof vi.fn>;
+const mockUpdateMany = (prisma.memberCharge as unknown as { updateMany: ReturnType<typeof vi.fn> }).updateMany;
 const mockGetPaymentSettings = getPaymentSettings as ReturnType<typeof vi.fn>;
 const mockChargeStoredPaymentMethod = chargeStoredPaymentMethod as ReturnType<typeof vi.fn>;
 const mockGetStripe = getStripe as ReturnType<typeof vi.fn>;
@@ -123,7 +125,7 @@ describe("POST /api/checkout - charge ownership", () => {
 
   it("allows paying own charge", async () => {
     mockFindUnique.mockResolvedValue(aliceCharge);
-    mockUpdate.mockResolvedValue({ ...aliceCharge, status: "paid" });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const request = makeRequest({
       chargeId: "charge-alice-123",
@@ -154,7 +156,7 @@ describe("POST /api/checkout - charge ownership", () => {
 
   it("SECURITY: ignores client amount when chargeId is present", async () => {
     mockFindUnique.mockResolvedValue(aliceCharge);
-    mockUpdate.mockResolvedValue({ ...aliceCharge, status: "paid" });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const request = makeRequest({
       chargeId: "charge-alice-123",
@@ -241,7 +243,7 @@ describe("POST /api/checkout - stored card", () => {
 
   it("stored card settles own charge after payment", async () => {
     mockFindUnique.mockResolvedValue(aliceCharge);
-    mockUpdate.mockResolvedValue({ ...aliceCharge, status: "paid" });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const request = makeRequest({
       chargeId: "charge-alice-123",

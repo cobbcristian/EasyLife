@@ -86,6 +86,7 @@ export async function POST(request: Request) {
         amount,
         description,
         paymentMethodId: defaultMethod.id,
+        metadata,
       });
 
       if (result.status === "action_required" && result.url) {

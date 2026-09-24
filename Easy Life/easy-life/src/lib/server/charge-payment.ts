@@ -10,7 +10,7 @@
  *
  * Core invariants:
  * 1. Charge must exist and be open (status !== "paid")
- * 2. Payer email must match charge.memberEmail (case-insensitive)
+ * 2. Payer email must match charge.memberEmail (case-insensitive) — when known
  * 3. Paid amount (cents) must cover charge.amount * 100
  */
 
@@ -19,7 +19,6 @@ import {
   activateSharedCalendarByCharge,
   markEscrowHeldByCharge,
 } from "@/lib/server/local-pros";
-import { markHoaChargePaid } from "@/lib/server/hoa-dues";
 
 export type ChargeResolutionResult =
   | { ok: true; charge: ResolvedCharge }
@@ -38,7 +37,7 @@ export interface ResolvedCharge {
 }
 
 export type SettleResult =
-  | { ok: true; settled: true }
+  | { ok: true; settled: true; alreadyPaid?: boolean }
   | { ok: false; error: string };
 
 /**
@@ -86,12 +85,13 @@ export async function resolveOwnedOpenCharge(
 
 /**
  * Settle a charge after payment confirmation.
- * Verifies ownership, amount coverage, and charge is still open.
- * Activates side effects (shared calendar, escrow hold).
+ * Verifies ownership (when email provided), amount coverage, and charge is still open.
+ * Uses atomic updateMany to prevent duplicate settlement from racing webhooks.
+ * Activates side effects (shared calendar, escrow hold) only on successful settlement.
  */
 export async function settleChargeIfAuthorized(opts: {
   chargeId: string;
-  payerEmail: string;
+  payerEmail?: string;
   paidCents: number;
 }): Promise<SettleResult> {
   const { chargeId, payerEmail, paidCents } = opts;
@@ -105,14 +105,16 @@ export async function settleChargeIfAuthorized(opts: {
   }
 
   if (charge.status === "paid") {
-    return { ok: true, settled: true };
+    return { ok: true, settled: true, alreadyPaid: true };
   }
 
-  const chargeEmail = (charge.memberEmail ?? "").toLowerCase();
-  const payer = payerEmail.toLowerCase();
+  if (payerEmail) {
+    const chargeEmail = (charge.memberEmail ?? "").toLowerCase();
+    const payer = payerEmail.toLowerCase();
 
-  if (!chargeEmail || chargeEmail !== payer) {
-    return { ok: false, error: "Not authorized to settle this charge" };
+    if (!chargeEmail || chargeEmail !== payer) {
+      return { ok: false, error: "Not authorized to settle this charge" };
+    }
   }
 
   const requiredCents = Math.round(charge.amount * 100);
@@ -123,15 +125,93 @@ export async function settleChargeIfAuthorized(opts: {
     };
   }
 
-  if (charge.category === "hoa") {
-    await markHoaChargePaid(chargeId);
-  } else {
-    await prisma.memberCharge.update({
-      where: { id: chargeId },
-      data: { status: "paid" },
-    });
+  const result = await prisma.memberCharge.updateMany({
+    where: { id: chargeId, status: { not: "paid" } },
+    data: { status: "paid" },
+  });
+
+  if (result.count === 0) {
+    return { ok: true, settled: true, alreadyPaid: true };
+  }
+
+  if (charge.category !== "hoa") {
     await activateSharedCalendarByCharge(chargeId);
     await markEscrowHeldByCharge(chargeId);
+  }
+
+  return { ok: true, settled: true };
+}
+
+/**
+ * Settle an HOA charge after payment confirmation.
+ * Same invariants as settleChargeIfAuthorized but also clears the unit balance.
+ */
+export async function settleHoaChargeIfAuthorized(opts: {
+  chargeId: string;
+  payerEmail?: string;
+  paidCents: number;
+}): Promise<SettleResult> {
+  const { chargeId, payerEmail, paidCents } = opts;
+
+  const charge = await prisma.memberCharge.findUnique({
+    where: { id: chargeId },
+  });
+
+  if (!charge) {
+    return { ok: false, error: "Charge not found" };
+  }
+
+  if (charge.category !== "hoa") {
+    return { ok: false, error: "Not an HOA charge" };
+  }
+
+  if (charge.status === "paid") {
+    return { ok: true, settled: true, alreadyPaid: true };
+  }
+
+  if (payerEmail) {
+    const chargeEmail = (charge.memberEmail ?? "").toLowerCase();
+    const payer = payerEmail.toLowerCase();
+
+    if (!chargeEmail || chargeEmail !== payer) {
+      return { ok: false, error: "Not authorized to settle this charge" };
+    }
+  }
+
+  const requiredCents = Math.round(charge.amount * 100);
+  if (paidCents < requiredCents) {
+    return {
+      ok: false,
+      error: `Payment ${paidCents} cents does not cover charge ${requiredCents} cents`,
+    };
+  }
+
+  const result = await prisma.memberCharge.updateMany({
+    where: { id: chargeId, status: { not: "paid" } },
+    data: { status: "paid" },
+  });
+
+  if (result.count === 0) {
+    return { ok: true, settled: true, alreadyPaid: true };
+  }
+
+  const profile = charge.memberEmail
+    ? await prisma.memberProfileExt.findUnique({
+        where: { userEmail: charge.memberEmail },
+        select: { unit: true },
+      })
+    : null;
+  const unit = profile?.unit?.trim();
+  if (unit) {
+    const fee = await prisma.unitHoaFee.findFirst({
+      where: { communityId: charge.communityId, unit },
+    });
+    if (fee) {
+      await prisma.unitHoaFee.update({
+        where: { id: fee.id },
+        data: { currentBalance: null },
+      });
+    }
   }
 
   return { ok: true, settled: true };
@@ -154,24 +234,32 @@ export function buildChargeMetadata(
 }
 
 /**
- * Verify Stripe webhook metadata matches expected values.
- * Returns the chargeId if valid, null otherwise.
+ * Verify Stripe webhook metadata and extract settlement parameters.
+ *
+ * Requires: chargeId (always)
+ * Optional: userEmail (for ownership check), amountCents (for extra amount check)
+ *
+ * When amountCents is present, verifies captured amount covers it.
+ * The actual settlement still validates against DB charge amount.
  */
 export function verifyWebhookMetadata(
   metadata: Record<string, string> | null | undefined,
   capturedAmountCents: number,
-): { chargeId: string; userEmail: string } | null {
-  if (!metadata?.chargeId || !metadata?.userEmail || !metadata?.amountCents) {
+): { chargeId: string; userEmail?: string; isHoa: boolean } | null {
+  if (!metadata?.chargeId) {
     return null;
   }
 
-  const expectedCents = parseInt(metadata.amountCents, 10);
-  if (isNaN(expectedCents) || capturedAmountCents < expectedCents) {
-    return null;
+  if (metadata.amountCents) {
+    const expectedCents = parseInt(metadata.amountCents, 10);
+    if (!isNaN(expectedCents) && capturedAmountCents < expectedCents) {
+      return null;
+    }
   }
 
   return {
     chargeId: metadata.chargeId,
     userEmail: metadata.userEmail,
+    isHoa: metadata.type === "hoa",
   };
 }
