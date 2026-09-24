@@ -16,6 +16,7 @@ import {
 } from "@/components/layout/user-avatar-menu";
 import { BrandStar } from "@/components/ui/brand-star";
 import {
+  communityHasActivityCheckIn,
   communityHasClubDining,
   communityHasLocalPros,
   communityHasRentals,
@@ -24,8 +25,78 @@ import {
 } from "@/lib/community-features";
 import type { PlazaIconKey } from "@/components/member/plaza-theme";
 import { useI18n } from "@/lib/i18n";
-import { formatDate, isUpcomingItem } from "@/lib/utils";
+import { formatDate, isUpcomingItem, localDateKey, toDateKey } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+
+function isTodayOrTomorrow(dateStr: string): "today" | "tomorrow" | null {
+  const rowDate = toDateKey(dateStr);
+  const today = localDateKey();
+  if (rowDate === today) return "today";
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = localDateKey(tomorrow);
+  if (rowDate === tomorrowKey) return "tomorrow";
+  return null;
+}
+
+function getRowActions(
+  row: UpcomingRow,
+  communityId: string | null | undefined,
+): UpcomingAction[] {
+  const dayProximity = isTodayOrTomorrow(row.date);
+  if (!dayProximity) return [];
+
+  const actions: UpcomingAction[] = [];
+  const hasCheckIn = communityHasActivityCheckIn(communityId);
+
+  switch (row.rowType) {
+    case "booking": {
+      if (row.status === "confirmed" || row.status === "reserved") {
+        actions.push({
+          label: "Details",
+          href: `/member/reservations/${row.rawId}`,
+          ariaLabel: `View details for ${row.title}`,
+        });
+        if (hasCheckIn && dayProximity === "today") {
+          actions.push({
+            label: "Check in",
+            href: "/member/check-in",
+            ariaLabel: `Check in to ${row.title}`,
+          });
+        }
+      }
+      break;
+    }
+    case "event": {
+      actions.push({
+        label: "Details",
+        href: `/member/events/${row.rawId}`,
+        ariaLabel: `View details for ${row.title}`,
+      });
+      break;
+    }
+    case "service": {
+      if (row.status === "accepted" || row.status === "pending") {
+        actions.push({
+          label: "Details",
+          href: `/member/service-bookings/${row.rawId}`,
+          ariaLabel: `View details for ${row.title}`,
+        });
+      }
+      break;
+    }
+    case "tournament": {
+      actions.push({
+        label: "Details",
+        href: "/member/tournaments",
+        ariaLabel: `View tournament ${row.title}`,
+      });
+      break;
+    }
+  }
+
+  return actions;
+}
 
 interface HomeBooking {
   id: string;
@@ -95,11 +166,22 @@ export interface MemberMvpHomeProps {
   notificationCount?: number;
 }
 
+type UpcomingRowType = "event" | "booking" | "service" | "tournament";
+
+type UpcomingAction = {
+  label: string;
+  href: string;
+  ariaLabel: string;
+};
+
 type UpcomingRow = {
   id: string;
+  rawId: string;
+  rowType: UpcomingRowType;
   title: string;
   date: string;
   time: string;
+  status: string;
   statusLabel: string;
   statusTone: "going" | "reserved" | "pending";
   image: string;
@@ -127,9 +209,12 @@ function buildUpcomingRows(
   ).slice(0, 3)) {
     rows.push({
       id: `event-${event.id}`,
+      rawId: event.id,
+      rowType: "event",
       title: event.title,
       date: event.date,
       time: event.time,
+      status: event.userRsvped ? "going" : "pending",
       statusLabel: "Going",
       statusTone: "going",
       image: imageForEvent(event.category, event.title),
@@ -145,9 +230,12 @@ function buildUpcomingRows(
     const { label, tone } = amenityStatusLabel(booking.status);
     rows.push({
       id: `booking-${booking.id}`,
+      rawId: booking.id,
+      rowType: "booking",
       title: booking.amenity,
       date: booking.date,
       time: booking.time,
+      status: booking.status,
       statusLabel: label,
       statusTone: tone,
       image: imageForBookingRow(booking.amenity),
@@ -160,9 +248,12 @@ function buildUpcomingRows(
     .slice(0, 3)) {
     rows.push({
       id: `service-${service.id}`,
+      rawId: service.id,
+      rowType: "service",
       title: service.service,
       date: service.date,
       time: service.time,
+      status: service.status,
       statusLabel: service.status === "accepted" ? "Accepted" : "Pending",
       statusTone: "pending",
       image: imageForBookingRow(service.service),
@@ -188,9 +279,12 @@ function buildUpcomingRows(
     ].filter(Boolean);
     rows.push({
       id: `tournament-${tournament.id}`,
+      rawId: tournament.id,
+      rowType: "tournament",
       title: `${tournament.title}: ${titleParts.join(" · ")}`,
       date: match.date || tournament.date,
       time: match.time || "",
+      status: tournament.status,
       statusLabel: "Match",
       statusTone: "going",
       image: imageForTournament(tournament.sport),
@@ -507,35 +601,52 @@ export function MemberMvpHome({
             </Link>
           ) : (
             <ul className="space-y-4">
-              {upcoming.map((row) => (
-                <li key={row.id}>
-                  <Link href={row.href} className="flex items-center gap-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={row.image}
-                      alt=""
-                      className="h-20 w-20 shrink-0 rounded-lg object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-black">{row.title}</p>
-                      <p
-                        className={cn(
-                          "mt-1 text-xs capitalize",
-                          row.statusTone === "going" && "text-[var(--mvp-status-going)]",
-                          row.statusTone === "reserved" && "text-[var(--mvp-status-reserved)]",
-                          row.statusTone === "pending" && "text-[var(--mvp-status-pending)]",
-                        )}
-                      >
-                        {t(row.statusLabel)}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right text-xs text-[#262626]">
-                      <p>{formatDate(row.date)}</p>
-                      <p className="mt-1">{row.time}</p>
-                    </div>
-                  </Link>
-                </li>
-              ))}
+              {upcoming.map((row) => {
+                const actions = getRowActions(row, communityId);
+                return (
+                  <li key={row.id}>
+                    <Link href={row.href} className="flex items-center gap-4">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={row.image}
+                        alt=""
+                        className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-black">{row.title}</p>
+                        <p
+                          className={cn(
+                            "mt-1 text-xs capitalize",
+                            row.statusTone === "going" && "text-[var(--mvp-status-going)]",
+                            row.statusTone === "reserved" && "text-[var(--mvp-status-reserved)]",
+                            row.statusTone === "pending" && "text-[var(--mvp-status-pending)]",
+                          )}
+                        >
+                          {t(row.statusLabel)}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right text-xs text-[#262626]">
+                        <p>{formatDate(row.date)}</p>
+                        <p className="mt-1">{row.time}</p>
+                      </div>
+                    </Link>
+                    {actions.length > 0 && (
+                      <div className="mt-2 ml-24 flex gap-2">
+                        {actions.map((action) => (
+                          <Link
+                            key={action.href}
+                            href={action.href}
+                            aria-label={action.ariaLabel}
+                            className="inline-flex h-8 items-center rounded-full bg-[var(--mvp-blue)]/10 px-3 text-xs font-medium text-[var(--mvp-blue)] hover:bg-[var(--mvp-blue)]/15 active:bg-[var(--mvp-blue)]/20"
+                          >
+                            {t(action.label)}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
