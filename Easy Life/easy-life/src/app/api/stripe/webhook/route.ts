@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
+  settleChargeIfAuthorized,
+  verifyWebhookMetadata,
+} from "@/lib/server/charge-payment";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
 
 /**
- * Stripe webhook — confirms Checkout and wallet PaymentIntent payments; marks linked charges paid.
- * Requires STRIPE_WEBHOOK_SECRET. Amount was set server-side at session create;
- * residents cannot alter it on the Stripe hosted page.
+ * Stripe webhook — confirms Checkout and wallet PaymentIntent payments.
+ *
+ * Settlement rules:
+ * 1. metadata.chargeId, userEmail, and amountCents must all be present
+ * 2. Captured amount must cover metadata.amountCents
+ * 3. Charge ownership is verified (memberEmail === userEmail)
+ * 4. Charge must still be open (status !== "paid")
  */
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -39,28 +42,38 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const chargeId = session.metadata?.chargeId;
-    if (chargeId) {
-      if (session.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
+    const metadata = session.metadata as Record<string, string> | undefined;
+    const amountTotal = session.amount_total ?? 0;
+
+    const verified = verifyWebhookMetadata(metadata, amountTotal);
+    if (verified) {
+      if (metadata?.type === "hoa") {
+        await markHoaChargePaid(verified.chargeId);
       } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
+        await settleChargeIfAuthorized({
+          chargeId: verified.chargeId,
+          payerEmail: verified.userEmail,
+          paidCents: amountTotal,
+        });
       }
     }
   }
 
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object;
-    const chargeId = intent.metadata?.chargeId;
-    if (chargeId) {
-      if (intent.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
+    const metadata = intent.metadata as Record<string, string> | undefined;
+    const amountReceived = intent.amount_received ?? intent.amount ?? 0;
+
+    const verified = verifyWebhookMetadata(metadata, amountReceived);
+    if (verified) {
+      if (metadata?.type === "hoa") {
+        await markHoaChargePaid(verified.chargeId);
       } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
+        await settleChargeIfAuthorized({
+          chargeId: verified.chargeId,
+          payerEmail: verified.userEmail,
+          paidCents: amountReceived,
+        });
       }
     }
   }

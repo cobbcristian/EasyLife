@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
-import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
-import { listMemberCharges, updateMemberChargeStatus } from "@/lib/server/records";
+import { isStripeConfigured } from "@/lib/server/stripe";
+import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
+import { resolveOwnedOpenCharge, settleChargeIfAuthorized } from "@/lib/server/charge-payment";
 
+/**
+ * Manual mark-paid endpoint.
+ *
+ * When Stripe is configured, this endpoint is disabled — charges must be
+ * settled through the webhook after actual payment. This prevents members
+ * from navigating to ?payment=success&chargeId=... and getting free credits.
+ *
+ * In demo mode (no Stripe), this allows testing the payment flow.
+ */
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   let body: { chargeId?: string };
   try {
@@ -21,17 +30,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "chargeId required" }, { status: 400 });
   }
 
-  const charges = await listMemberCharges({
-    communityId: session.communityId,
-    memberEmail: session.email,
-  });
-  const charge = charges.find((c) => c.id === body.chargeId);
-  if (!charge) {
-    return NextResponse.json({ error: "Charge not found" }, { status: 404 });
+  if (isStripeConfigured()) {
+    return NextResponse.json(
+      { error: "Manual settlement is disabled when Stripe is configured" },
+      { status: 403 },
+    );
   }
 
-  await updateMemberChargeStatus(body.chargeId, "paid");
-  await activateSharedCalendarByCharge(body.chargeId);
-  await markEscrowHeldByCharge(body.chargeId);
+  if (!isDemoPaymentAllowed()) {
+    return NextResponse.json(
+      { error: "Manual settlement requires ALLOW_DEMO_PAYMENTS=1" },
+      { status: 403 },
+    );
+  }
+
+  const resolved = await resolveOwnedOpenCharge(body.chargeId, session.email);
+  if (!resolved.ok) {
+    return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+  }
+
+  const settleResult = await settleChargeIfAuthorized({
+    chargeId: body.chargeId,
+    payerEmail: session.email,
+    paidCents: resolved.charge.amountCents,
+  });
+
+  if (!settleResult.ok) {
+    return NextResponse.json({ error: settleResult.error }, { status: 400 });
+  }
+
   return NextResponse.json({ ok: true });
 }
