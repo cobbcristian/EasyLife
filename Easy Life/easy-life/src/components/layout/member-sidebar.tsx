@@ -40,6 +40,37 @@ const waitlistHrefs = new Set(["/member/waitlist"]);
 const checkInHrefs = new Set(["/member/check-in"]);
 const fundraisingHrefs = new Set(["/member/fundraising"]);
 
+type NavItem = { label: string; href: string; icon: string };
+
+/**
+ * Pinned "Do this" items for Residential HOA communities.
+ * Each item includes the feature flag that must be true for it to show.
+ */
+const hoaPinnedItems: Array<NavItem & { isEnabled: (communityId: string | null | undefined) => boolean }> = [
+  { label: "Visitors", href: "/member/visitors", icon: "UserPlus", isEnabled: () => true },
+  { label: "Violations", href: "/member/violations", icon: "AlertTriangle", isEnabled: () => true },
+  { label: "Documents", href: "/member/documents", icon: "FileText", isEnabled: () => true },
+  { label: "Payments", href: "/member/payments", icon: "CreditCard", isEnabled: () => true },
+  { label: "Service Requests", href: "/member/service-requests", icon: "Wrench", isEnabled: () => true },
+];
+
+/**
+ * Pinned "Do this" items for Club communities.
+ * Each item includes the feature flag that must be true for it to show.
+ */
+const clubPinnedItems: Array<NavItem & { isEnabled: (communityId: string | null | undefined) => boolean }> = [
+  { label: "Book", href: "/member/bookings", icon: "CalendarCheck", isEnabled: () => true },
+  { label: "Dining", href: "/member/dining", icon: "Utensils", isEnabled: communityHasClubDining },
+  { label: "Tournaments", href: "/member/tournaments", icon: "Trophy", isEnabled: communityHasTournaments },
+  { label: "Check in", href: "/member/check-in", icon: "MapPin", isEnabled: communityHasActivityCheckIn },
+];
+
+/** Hrefs that appear in HOA pinned section */
+const hoaPinnedHrefs = new Set(hoaPinnedItems.map(i => i.href));
+
+/** Hrefs that appear in Club pinned section */
+const clubPinnedHrefs = new Set(clubPinnedItems.map(i => i.href));
+
 /** Primary life-first nav — matches mobile: Home / Book / Calendar / Connect / Payments. */
 const primaryNav = [
   { label: "Home", href: "/member", icon: "LayoutDashboard" },
@@ -218,7 +249,17 @@ export function MemberSidebar({
       ? hoaNav
       : [];
   const hoaHrefSet = new Set(visibleHoaNav.map((i) => i.href));
+
+  // Build pinned "Do this" items based on community type
+  const pinnedItems = isResidentialHoa
+    ? hoaPinnedItems.filter((item) => item.isEnabled(communityId))
+    : clubPinnedItems.filter((item) => item.isEnabled(communityId));
+  const pinnedHrefs = new Set(pinnedItems.map((i) => i.href));
+
+  // Filter moreNav to exclude pinned items (they go in "Do this") and respect feature flags
   const visibleMoreNav = moreNav.filter((item) => {
+    // Exclude items that are in the pinned section
+    if (pinnedHrefs.has(item.href)) return false;
     if (hoaHrefSet.has(item.href)) return false;
     if (!paysHoa && hoaOnlyHrefs.has(item.href)) return false;
     if (!isResidentialHoa && residentialOnlyHrefs.has(item.href)) return false;
@@ -238,11 +279,15 @@ export function MemberSidebar({
   const hoaActive = visibleHoaNav.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
+  const pinnedActive = pinnedItems.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
   const moreActive = visibleMoreNav.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
   const [hoaOpen, setHoaOpen] = useState(hoaActive || isResidentialHoa);
-  const [moreOpen, setMoreOpen] = useState(moreActive);
+  const [pinnedOpen, setPinnedOpen] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(moreActive || pinnedActive);
 
   useEffect(() => {
     setCommunityId(communityIdProp);
@@ -331,10 +376,37 @@ export function MemberSidebar({
             t={t}
           />
 
-          {visibleHoaNav.length > 0 ? (
-            <div className="mt-4 border-t border-border-2 pt-3">
+          {/* Pinned "Do this" section — community-type-aware quick actions */}
+          {pinnedItems.length > 0 ? (
+            <div className="mt-4 border-t border-border-2 pt-3" role="group" aria-labelledby="do-this-heading">
               <button
                 type="button"
+                id="do-this-heading"
+                onClick={() => setPinnedOpen((v) => !v)}
+                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey hover:bg-white/60"
+                aria-expanded={pinnedOpen}
+              >
+                {t("Do this")}
+                <ChevronDown
+                  className={cn("h-4 w-4 transition-transform", pinnedOpen && "rotate-180")}
+                />
+              </button>
+              {pinnedOpen ? (
+                <NavList
+                  items={pinnedItems}
+                  pathname={pathname}
+                  onClose={onClose}
+                  t={t}
+                />
+              ) : null}
+            </div>
+          ) : null}
+
+          {visibleHoaNav.length > 0 ? (
+            <div className="mt-4 border-t border-border-2 pt-3" role="group" aria-labelledby="hoa-heading">
+              <button
+                type="button"
+                id="hoa-heading"
                 onClick={() => setHoaOpen((v) => !v)}
                 className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey hover:bg-white/60"
                 aria-expanded={hoaOpen}
@@ -355,14 +427,15 @@ export function MemberSidebar({
             </div>
           ) : null}
 
-          <div className="mt-4 border-t border-border-2 pt-3">
+          <div className="mt-4 border-t border-border-2 pt-3" role="group" aria-labelledby="browse-heading">
             <button
               type="button"
+              id="browse-heading"
               onClick={() => setMoreOpen((v) => !v)}
               className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-grey hover:bg-white/60"
               aria-expanded={moreOpen}
             >
-              {t("More")}
+              {t("Browse")}
               <ChevronDown
                 className={cn("h-4 w-4 transition-transform", moreOpen && "rotate-180")}
               />
