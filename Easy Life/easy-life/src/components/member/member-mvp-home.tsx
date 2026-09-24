@@ -18,9 +18,11 @@ import { BrandStar } from "@/components/ui/brand-star";
 import {
   communityHasClubDining,
   communityHasLocalPros,
+  communityHasRentals,
   communityHasTournaments,
   communityIsResidentialHoa,
 } from "@/lib/community-features";
+import type { PlazaIconKey } from "@/components/member/plaza-theme";
 import { useI18n } from "@/lib/i18n";
 import { formatDate, isUpcomingItem } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -201,6 +203,108 @@ function buildUpcomingRows(
     .slice(0, 5);
 }
 
+type HeroConfig = {
+  href: string;
+  headline: string;
+  sub1: string;
+  sub2: string;
+  cta: string;
+  gradient: string;
+  image: string;
+};
+
+function getHeroConfig(
+  isResidentialHoa: boolean,
+  hasRentals: boolean,
+  hasClubDining: boolean,
+): HeroConfig {
+  if (isResidentialHoa) {
+    return {
+      href: "/member/visitors",
+      headline: "Expecting Visitors?",
+      sub1: "Register guests ahead of time.",
+      sub2: "Fast check-in at the gate.",
+      cta: "Register a Visitor",
+      gradient: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+      image: "/brand/amenity-clubhouse.png",
+    };
+  }
+  if (hasRentals) {
+    return {
+      href: "/member/rentals",
+      headline: "Rent a Jetski and Make Waves",
+      sub1: "Premium jetski rentals.",
+      sub2: "Explore. Adventure. Repeat.",
+      cta: "Book Your Jetski",
+      gradient: "linear-gradient(135deg, #0a6ea8 0%, #1aa0d6 100%)",
+      image: "/brand/plaza-hero-jetski.png",
+    };
+  }
+  if (hasClubDining) {
+    return {
+      href: "/member/dining",
+      headline: "Reserve Your Table",
+      sub1: "Fresh seasonal menus.",
+      sub2: "Book for lunch or dinner.",
+      cta: "View Dining",
+      gradient: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+      image: "/brand/featured-dining.png",
+    };
+  }
+  return {
+    href: "/member/bookings",
+    headline: "Book a Court",
+    sub1: "Tennis, pickleball, and more.",
+    sub2: "Reserve your time slot today.",
+    cta: "Reserve Now",
+    gradient: "linear-gradient(135deg, #0a6ea8 0%, #1aa0d6 100%)",
+    image: "/brand/amenity-tennis-clay.png",
+  };
+}
+
+function HomeHeroBanner({
+  isResidentialHoa,
+  hasRentals,
+  hasClubDining,
+  t,
+}: {
+  isResidentialHoa: boolean;
+  hasRentals: boolean;
+  hasClubDining: boolean;
+  t: (key: string) => string;
+}) {
+  const config = getHeroConfig(isResidentialHoa, hasRentals, hasClubDining);
+  return (
+    <Link
+      href={config.href}
+      className="grid min-h-[168px] grid-cols-[1.15fr_0.95fr] overflow-hidden rounded-[28px] shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
+    >
+      <div
+        className="flex flex-col justify-center px-5 py-5 text-white"
+        style={{ background: config.gradient }}
+      >
+        <p className="text-[22px] font-semibold leading-[1.15]">
+          {t(config.headline)}
+        </p>
+        <p className="mt-2 text-[13px] leading-snug text-white/90">
+          {t(config.sub1)}
+          <br />
+          {t(config.sub2)}
+        </p>
+        <span className="mt-4 inline-flex w-fit items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-black">
+          {t(config.cta)} →
+        </span>
+      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={config.image}
+        alt=""
+        className="h-full min-h-[168px] w-full object-cover"
+      />
+    </Link>
+  );
+}
+
 /** Figma MVP Home / Home w/ service added (nodes 4616:17702, 4616:21865). */
 export function MemberMvpHome({
   profileName,
@@ -208,8 +312,8 @@ export function MemberMvpHome({
   avatarSrc,
   clubName,
   communityId,
-  paysHoa = true,
-  residencyStatus = "resident",
+  paysHoa: _paysHoa = true, // Available for future use
+  residencyStatus: _residencyStatus = "resident", // Available for future use
   featuredTiles,
   bookings,
   serviceBookings = [],
@@ -236,6 +340,7 @@ export function MemberMvpHome({
     communityIsResidentialHoa(communityId) || /oceanside/i.test(clubName ?? "");
   const hasClubDining = communityHasClubDining(communityId);
   const hasLocalPros = communityHasLocalPros(communityId);
+  const hasRentals = communityHasRentals(communityId);
   const emptyScheduleCta = isResidentialHoa
     ? "Book an amenity or service"
     : "Book a court or service";
@@ -246,13 +351,6 @@ export function MemberMvpHome({
       : hasClubDining
         ? "/member/dining"
         : "/member/amenities";
-  const showHoa = paysHoa && residencyStatus !== "non_resident";
-  const accessLabel = isResidentialHoa
-    ? null
-    : showHoa
-      ? t("Resident · pays HOA")
-      : t("Club member · no HOA");
-
   return (
     <div className="font-[family-name:var(--font-poppins)]">
       <div
@@ -311,16 +409,22 @@ export function MemberMvpHome({
         <section>
           <h2 className="mb-4 text-[22px] font-semibold text-black">{t("Explore")}</h2>
           <div className="grid grid-cols-4 gap-2">
-            {[
-              { key: "reserve" as const, label: "Reserve", href: "/member/bookings" },
-              {
-                key: "pros" as const,
-                label: "Pros",
-                href: hasLocalPros ? "/member/local-pros" : "/member/service-requests",
-              },
-              { key: "outings" as const, label: "Outings", href: "/member/calendar" },
-              { key: "info" as const, label: "Info", href: "/member/faq" },
-            ].map((tile) => (
+            {(isResidentialHoa
+              ? ([
+                  { key: "people", label: "Visitors", href: "/member/visitors" },
+                  { key: "reserve", label: "Amenities", href: "/member/amenities" },
+                  { key: "pros", label: "Pros", href: "/member/local-pros" },
+                  { key: "info", label: "Info", href: "/member/faq" },
+                ] as Array<{ key: PlazaIconKey; label: string; href: string }>)
+              : ([
+                  { key: "reserve", label: "Reserve", href: "/member/bookings" },
+                  ...(hasClubDining
+                    ? [{ key: "dining" as PlazaIconKey, label: "Dining", href: "/member/dining" }]
+                    : [{ key: "pros" as PlazaIconKey, label: "Pros", href: hasLocalPros ? "/member/local-pros" : "/member/service-requests" }]),
+                  { key: "outings", label: "Outings", href: "/member/calendar" },
+                  { key: "info", label: "Info", href: "/member/faq" },
+                ] as Array<{ key: PlazaIconKey; label: string; href: string }>)
+            ).map((tile) => (
               <Link key={tile.key} href={tile.href} className="flex flex-col items-center gap-2">
                 <PlazaGlyph name={tile.key} />
                 <span className="text-[13px] font-semibold text-black">{t(tile.label)}</span>
@@ -329,30 +433,12 @@ export function MemberMvpHome({
           </div>
         </section>
 
-        <Link
-          href="/member/rentals"
-          className="grid min-h-[168px] grid-cols-[1.15fr_0.95fr] overflow-hidden rounded-[28px] shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
-        >
-          <div className="flex flex-col justify-center bg-gradient-to-br from-[#0a6ea8] to-[#1aa0d6] px-5 py-5 text-white">
-            <p className="text-[22px] font-semibold leading-[1.15]">
-              {t("Rent a Jetski and Make Waves")}
-            </p>
-            <p className="mt-2 text-[13px] leading-snug text-white/90">
-              {t("Premium jetski rentals.")}
-              <br />
-              {t("Explore. Adventure. Repeat.")}
-            </p>
-            <span className="mt-4 inline-flex w-fit items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-black">
-              {t("Book Your Jetski")} →
-            </span>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/plaza-hero-jetski.png"
-            alt=""
-            className="h-full min-h-[168px] w-full object-cover"
-          />
-        </Link>
+        <HomeHeroBanner
+          isResidentialHoa={isResidentialHoa}
+          hasRentals={hasRentals}
+          hasClubDining={hasClubDining}
+          t={t}
+        />
 
         {/* Featured — cards wider than half so the next one peeks */}
         {featured.length > 0 ? (
