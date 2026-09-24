@@ -1516,8 +1516,8 @@ model TramDriver {
   communityId String  @default("golden-ocala")
   name        String
   phone       String
-  /// Hashed PIN for driver portal authentication. Null = cannot log in until admin sets one.
-  pin         String?
+  /// Pin code for driver to access their assignments (simple auth)
+  pin         String  @default("1234")
   /// on_duty | off_duty | on_break
   status      String  @default("off_duty")
   /// Currently assigned vehicle

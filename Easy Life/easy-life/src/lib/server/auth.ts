@@ -27,6 +27,11 @@ function getKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
+/** Shared JWT signing key for all session types (member, driver, etc.) */
+export function getJwtKey(): Uint8Array {
+  return getKey();
+}
+
 export async function createSessionToken(
   payload: SessionPayload,
 ): Promise<string> {
@@ -71,6 +76,9 @@ export async function verifySessionToken(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getKey());
+    if (payload.aud === "driver") {
+      return null;
+    }
     return sessionFromJwtPayload(payload);
   } catch {
     return null;

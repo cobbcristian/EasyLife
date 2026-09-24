@@ -121,25 +121,34 @@ describe("PIN rate limiting", () => {
   });
 });
 
-describe("driver route protection requirements", () => {
-  it("requires session for assignments endpoint", () => {
-    // This test documents the security requirement:
-    // GET /api/driver/[id]/assignments must reject unauthenticated requests
-    // The actual route implementation rejects with 401 when no session
-    expect(true).toBe(true); // Placeholder - actual API tests are integration level
+describe("token audience isolation", () => {
+  it("driver token cannot pass as member session (aud=driver)", async () => {
+    const { verifySessionToken } = await import("@/lib/server/auth");
+    
+    const driverPayload = {
+      sub: "driver-123",
+      communityId: "golden-ocala",
+      name: "John Driver",
+    };
+    const driverToken = await createDriverSessionToken(driverPayload);
+    
+    const memberSession = await verifySessionToken(driverToken);
+    expect(memberSession).toBeNull();
   });
 
-  it("requires session driverId matches route param", () => {
-    // This test documents the security requirement:
-    // Driver A cannot access Driver B's data
-    // Session sub must match [id] in the route
-    expect(true).toBe(true);
-  });
-
-  it("requires request belongs to driver's community", () => {
-    // PATCH /api/driver/[id]/assignments/[requestId] must verify:
-    // 1. Request's communityId matches driver's communityId
-    // 2. Request's driverName matches driver's name
-    expect(true).toBe(true);
+  it("member token cannot pass as driver session (no aud claim)", async () => {
+    const { createSessionToken } = await import("@/lib/server/auth");
+    
+    const memberPayload = {
+      sub: "user-123",
+      email: "member@example.com",
+      role: "member" as const,
+      name: "Jane Member",
+      communityId: "golden-ocala",
+    };
+    const memberToken = await createSessionToken(memberPayload);
+    
+    const driverSession = await verifyDriverSessionToken(memberToken);
+    expect(driverSession).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
 import { ensureRecordsSeeded } from "@/lib/server/records";
 import { prisma } from "@/lib/server/prisma";
+import { authorizeGrabGoMachine } from "@/lib/server/grab-go-machine-auth";
 import {
   closeGrabGoSession,
   declareAppItems,
@@ -13,40 +13,8 @@ import {
   type UnlockMethod,
 } from "@/lib/server/grab-go";
 
-/**
- * Kiosk / edge device API for grab-and-go stands.
- * In production, requires GRAB_GO_MACHINE_KEY.
- * In dev/test, allows open access when key is unset.
- */
-function authorizeMachine(request: Request): { ok: true } | { ok: false; status: 401 | 503; error: string } {
-  const key = process.env.GRAB_GO_MACHINE_KEY;
-  const isProduction = process.env.NODE_ENV === "production";
-  
-  // Fail closed in production when key is not configured
-  if (!key) {
-    if (isProduction) {
-      return { ok: false, status: 503, error: "Service unavailable: machine key not configured" };
-    }
-    // Allow open access in dev/test
-    return { ok: true };
-  }
-  
-  // Constant-time comparison to prevent timing attacks
-  const providedKey = request.headers.get("x-grab-go-key") || "";
-  const keyBuffer = Buffer.from(key);
-  const providedBuffer = Buffer.from(providedKey.padEnd(keyBuffer.length, "\0").slice(0, Math.max(keyBuffer.length, providedKey.length)));
-  const keyBufferPadded = Buffer.from(key.padEnd(providedBuffer.length, "\0").slice(0, Math.max(keyBuffer.length, providedKey.length)));
-  
-  // Both buffers need same length for timingSafeEqual
-  if (keyBuffer.length !== providedKey.length || !timingSafeEqual(keyBufferPadded, providedBuffer)) {
-    return { ok: false, status: 401, error: "Unauthorized" };
-  }
-  
-  return { ok: true };
-}
-
 export async function GET(request: Request) {
-  const authResult = authorizeMachine(request);
+  const authResult = authorizeGrabGoMachine(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
@@ -87,7 +55,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const authResult = authorizeMachine(request);
+  const authResult = authorizeGrabGoMachine(request);
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }

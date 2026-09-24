@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, useCallback } from "react";
+import { useState, useEffect, use } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge, BadgeVariant } from "@/components/ui/badge";
@@ -45,9 +45,6 @@ const statusConfig: Record<string, { label: string; variant: BadgeVariant }> = {
   completed: { label: "Completed", variant: "default" },
 };
 
-// Session token storage key
-const getTokenKey = (driverId: string) => `driver_token_${driverId}`;
-
 export default function DriverPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [driver, setDriver] = useState<Driver | null>(null);
@@ -57,23 +54,28 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
 
-  const getAuthHeaders = useCallback((): Record<string, string> => {
-    const token = sessionStorage.getItem(getTokenKey(id));
-    return token ? { Authorization: `Bearer ${token}` } : {};
+  useEffect(() => {
+    // Check if already authenticated (session storage)
+    const storedAuth = sessionStorage.getItem(`driver_auth_${id}`);
+    if (storedAuth === "true") {
+      setAuthenticated(true);
+      fetchData();
+    } else {
+      setLoading(false);
+    }
   }, [id]);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    if (!authenticated) return;
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [authenticated]);
+
+  async function fetchData() {
     try {
-      const res = await fetch(`/api/driver/${id}/assignments`, {
-        headers: getAuthHeaders(),
-      });
-      if (res.status === 401) {
-        // Session expired or invalid
-        sessionStorage.removeItem(getTokenKey(id));
-        setAuthenticated(false);
-        setLoading(false);
-        return;
-      }
+      const res = await fetch(`/api/driver/${id}/assignments`);
       if (res.ok) {
         const data = await res.json();
         setDriver(data.driver);
@@ -84,26 +86,7 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
     } finally {
       setLoading(false);
     }
-  }, [id, getAuthHeaders]);
-
-  useEffect(() => {
-    // Check if already authenticated (has valid token)
-    const token = sessionStorage.getItem(getTokenKey(id));
-    if (token) {
-      setAuthenticated(true);
-      fetchData();
-    } else {
-      setLoading(false);
-    }
-  }, [id, fetchData]);
-
-  useEffect(() => {
-    if (!authenticated) return;
-    
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [authenticated, fetchData]);
+  }
 
   async function handlePinSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -116,20 +99,12 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
         body: JSON.stringify({ pin }),
       });
 
-      const data = await res.json();
-
-      if (res.ok && data.token) {
-        // Store the JWT token
-        sessionStorage.setItem(getTokenKey(id), data.token);
+      if (res.ok) {
+        sessionStorage.setItem(`driver_auth_${id}`, "true");
         setAuthenticated(true);
         fetchData();
-      } else if (res.status === 429) {
-        // Rate limited
-        const retryAfter = data.retryAfter || 900;
-        const minutes = Math.ceil(retryAfter / 60);
-        setPinError(`Too many attempts. Try again in ${minutes} minute${minutes > 1 ? "s" : ""}.`);
       } else {
-        setPinError(data.error || "Invalid PIN");
+        setPinError("Invalid PIN");
       }
     } catch {
       setPinError("Connection error");
@@ -140,19 +115,9 @@ export default function DriverPage({ params }: { params: Promise<{ id: string }>
     try {
       const res = await fetch(`/api/driver/${id}/assignments/${requestId}`, {
         method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-
-      if (res.status === 401) {
-        // Session expired
-        sessionStorage.removeItem(getTokenKey(id));
-        setAuthenticated(false);
-        return;
-      }
 
       if (res.ok) {
         fetchData();

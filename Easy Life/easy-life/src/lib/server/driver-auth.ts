@@ -2,11 +2,15 @@ import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { timingSafeEqual, scryptSync, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/server/prisma";
+import { getJwtKey } from "@/lib/server/auth";
 
 export const DRIVER_SESSION_COOKIE = "el_driver_session";
 export const DRIVER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12; // 12 hours
 
 const SCRYPT_PREFIX = "scrypt";
+
+/** Audience claim to isolate driver tokens from member tokens */
+const DRIVER_TOKEN_AUDIENCE = "driver";
 
 export interface DriverSessionPayload {
   sub: string; // driverId
@@ -14,29 +18,15 @@ export interface DriverSessionPayload {
   name: string;
 }
 
-function getKey(): Uint8Array {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "AUTH_SECRET must be set in production. Generate a long random string and set it in Vercel env."
-      );
-    }
-    return new TextEncoder().encode(
-      "easy-life-dev-secret-change-in-production"
-    );
-  }
-  return new TextEncoder().encode(secret);
-}
-
 export async function createDriverSessionToken(
   payload: DriverSessionPayload
 ): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
+    .setAudience(DRIVER_TOKEN_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(`${DRIVER_SESSION_MAX_AGE_SECONDS}s`)
-    .sign(getKey());
+    .sign(getJwtKey());
 }
 
 function sessionFromJwtPayload(payload: JWTPayload): DriverSessionPayload {
@@ -52,7 +42,9 @@ export async function verifyDriverSessionToken(
 ): Promise<DriverSessionPayload | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, getKey());
+    const { payload } = await jwtVerify(token, getJwtKey(), {
+      audience: DRIVER_TOKEN_AUDIENCE,
+    });
     return sessionFromJwtPayload(payload);
   } catch {
     return null;
