@@ -55,11 +55,12 @@ function bearerToken(request: NextRequest): string | undefined {
 }
 
 /**
- * Public API routes that don't require authentication.
- * All other /api/** routes require a valid JWT session.
+ * API routes that handle their own authentication (not member JWT session).
+ * These routes use tokens, API keys, webhooks signatures, or other auth mechanisms.
+ * The proxy lets them through so they can perform their own route-level auth.
  */
-const PUBLIC_API_ROUTES = [
-  // Auth flows
+const SELF_AUTHED_API_ROUTES = [
+  // Auth flows (login, register, password reset, OAuth)
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/logout",
@@ -67,33 +68,51 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/reset-password",
   "/api/auth/oauth",
   "/api/auth/mfa/verify",
-  // Health and cron
+  "/api/auth/mfa/confirm",
+  "/api/auth/session",
+  // Health check (public)
   "/api/health",
-  "/api/cron/",
+  // Cron jobs (CRON_SECRET header auth)
+  "/api/cron/autopay",
+  "/api/cron/reminders",
   // Public community data
   "/api/communities/public",
-  // Stripe webhooks (verify signature, not JWT)
+  // Stripe (webhook signature verification)
   "/api/stripe/webhook",
-  // Public payment flows
-  "/api/pay/guest/",
-  // Calendar feeds (token in URL, not JWT)
-  "/api/calendar/feed/",
-  // Contact/lead forms
+  "/api/stripe/connect",
+  "/api/stripe/billing-portal",
+  "/api/stripe/subscription-checkout",
+  // Guest payment flows (token in URL)
+  "/api/pay/guest",
+  // Calendar feeds (token in URL)
+  "/api/calendar/feed",
+  // Contact/lead forms (public)
   "/api/contact",
   "/api/landing/contact",
   "/api/leads",
   // Public website API
-  "/api/website/public/",
-  // Mobile public routes
+  "/api/website/public",
+  // Mobile routes (handled separately with their own JWT check)
   "/api/mobile/login",
   "/api/mobile/bridge",
   "/api/mobile/register",
   "/api/mobile/communities",
+  // Driver routes (driver JWT auth from PR #48)
+  "/api/driver",
+  // Grab & Go kiosk (machine API key auth)
+  "/api/grab-go/kiosk",
+  // Native app config (public)
+  "/api/native-apps",
 ];
 
-function isPublicApi(pathname: string): boolean {
-  return PUBLIC_API_ROUTES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(p),
+/**
+ * Check if an API route handles its own authentication.
+ * Matches exact path or path with trailing segments (e.g. /api/cron/autopay/foo).
+ * Does NOT match partial prefixes (e.g. /api/healthXYZ won't match /api/health).
+ */
+function isSelfAuthedApi(pathname: string): boolean {
+  return SELF_AUTHED_API_ROUTES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
   );
 }
 
@@ -301,12 +320,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Default-deny for /api/** — require JWT unless route is in public allowlist
+  // Default-deny for /api/** — require JWT unless route handles its own auth
   if (pathname.startsWith("/api/")) {
-    if (isPublicApi(pathname)) {
+    if (isSelfAuthedApi(pathname)) {
+      // Let the route handler perform its own authentication
       return NextResponse.next();
     }
-    // All other API routes require authentication
+    // All other API routes require a valid member session
     const token =
       request.cookies.get(SESSION_COOKIE)?.value ?? bearerToken(request);
     const session = await verifySessionToken(token);

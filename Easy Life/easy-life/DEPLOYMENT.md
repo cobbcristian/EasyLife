@@ -293,6 +293,7 @@ az webapp restart \
 | `AUTH_SECRET` | JWT signing secret (min 32 chars) — **required in production** | Yes |
 | `APP_URL` | Full URL of the app (e.g. `https://your-app.azurewebsites.net`) | Recommended |
 | `SUPERADMIN_SEED_PASSWORD` | Initial password for super-admin seed (min 12 chars, prod only) | For first deploy |
+| `DEMO_SEED_PASSWORD` | Password for demo seed users (min 8 chars) — required in prod to seed demo users | For demos |
 | `VAPID_PUBLIC_KEY` | Push notification public key | Optional |
 | `VAPID_PRIVATE_KEY` | Push notification private key | Optional |
 | `VAPID_SUBJECT` | `mailto:` contact for web push | Optional |

@@ -23,9 +23,9 @@ import {
 } from "@/lib/server/commissions";
 
 /**
- * In production, the super-admin password MUST come from SUPERADMIN_SEED_PASSWORD env var.
- * If not set in production, the super-admin seed is skipped entirely.
- * In non-production environments, a random password is generated for each seed run.
+ * In production, seed passwords MUST come from env vars.
+ * If not set in production, seed users are skipped entirely.
+ * In non-production, super-admin gets random password, demo users get "password".
  */
 function getSuperAdminSeedPassword(): string | null {
   const envPassword = process.env.SUPERADMIN_SEED_PASSWORD;
@@ -33,14 +33,24 @@ function getSuperAdminSeedPassword(): string | null {
     return envPassword;
   }
   if (process.env.NODE_ENV === "production") {
-    // Production requires explicit strong password; skip seed if not set
     return null;
   }
-  // Non-production: generate random password (32 chars)
   return randomBytes(16).toString("hex");
 }
 
+function getDemoSeedPassword(): string | null {
+  const envPassword = process.env.DEMO_SEED_PASSWORD;
+  if (envPassword && envPassword.length >= 8) {
+    return envPassword;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+  return "password"; // Only in non-production for backwards compat
+}
+
 const superAdminSeedPassword = getSuperAdminSeedPassword();
+const demoSeedPassword = getDemoSeedPassword();
 
 const seedUsers: AuthUser[] = [
   // Super-admin is conditionally included based on environment
@@ -194,6 +204,12 @@ async function backfillInviteCodes(): Promise<void> {
 
 async function backfillSeedUsers(): Promise<void> {
   for (const u of seedUsers) {
+    // Skip demo users in production if DEMO_SEED_PASSWORD is not set
+    const isSuperAdmin = u.id === "u-admin";
+    if (!isSuperAdmin && !demoSeedPassword) {
+      continue;
+    }
+
     const existing = await prisma.user.findFirst({
       where: { OR: [{ id: u.id }, { email: u.email }] },
     });
@@ -1177,21 +1193,3 @@ export async function getCommunityBranding(communityId: string) {
   };
 }
 
-/**
- * Lookup user status/role from DB for session validation.
- * Used by auth.ts verifySessionTokenWithDbCheck.
- */
-export async function getUserStatusForSession(
-  email: string,
-): Promise<{ status: "active" | "pending" | "frozen"; role: string; communityId: string | null } | null> {
-  const user = await prisma.user.findFirst({
-    where: { email: { equals: email, mode: "insensitive" } },
-    select: { status: true, role: true, communityId: true },
-  });
-  if (!user) return null;
-  return {
-    status: (user.status as "active" | "pending" | "frozen") ?? "active",
-    role: user.role,
-    communityId: user.communityId,
-  };
-}

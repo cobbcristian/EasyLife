@@ -18,6 +18,21 @@ const MAX_AGE = SESSION_MAX_AGE_SECONDS;
 /** Renew JWT when less than 7 days remain so active users rarely hit expiry. */
 const SESSION_REFRESH_THRESHOLD_SECONDS = 60 * 60 * 24 * 7;
 
+/**
+ * Fail fast in production if AUTH_SECRET is missing.
+ * This runs at module load time so the app won't start without it.
+ */
+function validateAuthSecretAtStartup(): void {
+  if (process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET) {
+    throw new Error(
+      "AUTH_SECRET must be set in production. Generate a long random string and set it in Vercel env.",
+    );
+  }
+}
+
+// Run validation immediately when this module is loaded
+validateAuthSecretAtStartup();
+
 let _cachedKey: Uint8Array | null = null;
 
 function getKey(): Uint8Array {
@@ -25,11 +40,7 @@ function getKey(): Uint8Array {
 
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "AUTH_SECRET must be set in production. Generate a long random string and set it in Vercel env.",
-      );
-    }
+    // This should only be reachable in dev/test since production fails at startup
     _cachedKey = new TextEncoder().encode(
       "easy-life-dev-secret-change-in-production",
     );
@@ -80,6 +91,9 @@ export function sessionFromJwtPayload(payload: JWTPayload): SessionPayload {
 /**
  * Verify a JWT token signature and expiry only (no DB check).
  * Use verifySessionTokenWithDbCheck for full session validation.
+ *
+ * Rejects tokens with aud: 'driver' to prevent driver JWTs from being used
+ * as member sessions. Driver auth is handled separately in driver-auth.ts.
  */
 export async function verifySessionToken(
   token: string | undefined,
@@ -87,6 +101,10 @@ export async function verifySessionToken(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getKey());
+    // Reject driver tokens - they have their own auth flow (PR #48)
+    if (payload.aud === "driver") {
+      return null;
+    }
     return sessionFromJwtPayload(payload);
   } catch {
     return null;
