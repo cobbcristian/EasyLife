@@ -31,6 +31,37 @@ export async function listGlAccounts(communityId: string) {
   });
 }
 
+/** Normalize + validate journal lines. Exported for unit tests. */
+export function normalizeJournalLines(
+  lines: { accountId: string; debit?: number; credit?: number; memo?: string }[],
+): { accountId: string; debit: number; credit: number; memo: string }[] {
+  if (!lines.length) {
+    throw new Error("Journal entry requires at least one line");
+  }
+  const normalized = lines.map((l) => {
+    const debit = Number(l.debit ?? 0);
+    const credit = Number(l.credit ?? 0);
+    if (!Number.isFinite(debit) || !Number.isFinite(credit) || debit < 0 || credit < 0) {
+      throw new Error("Journal line debit/credit must be finite and non-negative");
+    }
+    if (debit > 0 && credit > 0) {
+      throw new Error("Journal line cannot have both debit and credit");
+    }
+    return { accountId: l.accountId, debit, credit, memo: l.memo ?? "" };
+  });
+  const totalDebit = normalized.reduce((s, l) => s + l.debit, 0);
+  const totalCredit = normalized.reduce((s, l) => s + l.credit, 0);
+  // NaN must not pass: Math.abs(NaN) > 0.01 is false and would store unbalanced books.
+  if (
+    !Number.isFinite(totalDebit) ||
+    !Number.isFinite(totalCredit) ||
+    Math.abs(totalDebit - totalCredit) > 0.01
+  ) {
+    throw new Error("Journal entry must balance (debits = credits)");
+  }
+  return normalized;
+}
+
 export async function createJournalEntry(input: {
   communityId: string;
   entryDate: string;
@@ -41,11 +72,7 @@ export async function createJournalEntry(input: {
   sourceId?: string;
 }) {
   await ensureRecordsSeeded();
-  const totalDebit = input.lines.reduce((s, l) => s + l.debit, 0);
-  const totalCredit = input.lines.reduce((s, l) => s + l.credit, 0);
-  if (Math.abs(totalDebit - totalCredit) > 0.01) {
-    throw new Error("Journal entry must balance (debits = credits)");
-  }
+  const normalized = normalizeJournalLines(input.lines);
 
   return prisma.glJournalEntry.create({
     data: {
@@ -56,11 +83,11 @@ export async function createJournalEntry(input: {
       sourceType: input.sourceType,
       sourceId: input.sourceId,
       lines: {
-        create: input.lines.map((l) => ({
+        create: normalized.map((l) => ({
           accountId: l.accountId,
           debit: l.debit,
           credit: l.credit,
-          memo: l.memo ?? "",
+          memo: l.memo,
         })),
       },
     },
