@@ -64,6 +64,19 @@ export function canManageCommunity(
   return session.communityId === communityId;
 }
 
+/**
+ * Prisma `where` fragment for community-scoped reads.
+ * Returns null when the caller has no tenant — callers must fail closed
+ * (empty results / 403), never spread `{}` into queries.
+ */
+export function communityWhere(
+  communityId: string | null | undefined,
+): { communityId: string } | null {
+  const id = typeof communityId === "string" ? communityId.trim() : "";
+  if (!id) return null;
+  return { communityId: id };
+}
+
 /** Super admin, club admin, or PM/front desk can book amenities for members. */
 export function canStaffBookForMembers(session: SessionPayload): boolean {
   return session.role === "admin" || session.role === "pm";

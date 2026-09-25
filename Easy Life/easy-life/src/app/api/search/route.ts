@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
-import { resolveScopedCommunityId } from "@/lib/server/community-context";
+import {
+  communityWhere,
+  resolveScopedCommunityId,
+} from "@/lib/server/community-context";
 import { prisma } from "@/lib/server/prisma";
 
 export async function GET(request: Request) {
@@ -18,7 +21,12 @@ export async function GET(request: Request) {
       ? await resolveScopedCommunityId(session)
       : session.communityId;
 
-  const scope = communityId ? { communityId } : {};
+  // Sales (and any other role with null communityId) must not fail open to
+  // an unscoped query — that leaks member emails/names across every club.
+  const scope = communityWhere(communityId);
+  if (!scope) {
+    return NextResponse.json({ results: [] });
+  }
 
   const [documents, events, members, tournaments] = await Promise.all([
     prisma.communityDocument.findMany({
