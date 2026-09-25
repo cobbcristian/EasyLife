@@ -163,6 +163,16 @@ export function WalletPayButtons({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ chargeId: data.chargeId }),
               }).catch(() => {});
+            } else if (Array.isArray(data.chargeIds) && data.chargeIds.length > 0) {
+              await Promise.all(
+                data.chargeIds.map((id: string) =>
+                  fetch("/api/member/charges/mark-paid", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chargeId: id }),
+                  }).catch(() => {}),
+                ),
+              );
             }
             onPaid?.();
             window.location.href = data.returnPath ?? `${returnPath}?payment=success`;

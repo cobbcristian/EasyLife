@@ -63,16 +63,21 @@ export async function processAutopayDueToday(): Promise<{ processed: number; fai
         status: "due",
       },
     });
-    const totalDue = dueCharges.reduce((sum, c) => sum + c.amount, 0);
+    const billable = dueCharges.filter((c) => c.amount > 0);
+    const totalDue = billable.reduce((sum, c) => sum + c.amount, 0);
     if (totalDue <= 0) continue;
 
     try {
-      await chargeStoredPaymentMethod({
+      const result = await chargeStoredPaymentMethod({
         userEmail: profile.userEmail,
         amount: totalDue,
         description: `Auto-pay statement — ${today.toISOString().slice(0, 10)}`,
       });
-      for (const charge of dueCharges) {
+      if (result.status !== "paid") {
+        failed += 1;
+        continue;
+      }
+      for (const charge of billable) {
         await prisma.memberCharge.update({
           where: { id: charge.id },
           data: { status: "paid" },
