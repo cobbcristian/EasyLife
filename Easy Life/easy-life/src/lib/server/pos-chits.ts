@@ -79,6 +79,21 @@ export async function createPosChit(input: {
   tip?: number;
 }): Promise<PosChitDTO> {
   await ensureRecordsSeeded();
+  if (!input.lines.length) {
+    throw new Error("Chit requires at least one line");
+  }
+  for (const line of input.lines) {
+    if (!Number.isFinite(line.qty) || line.qty <= 0) {
+      throw new Error("Line quantity must be a positive number");
+    }
+    if (!Number.isFinite(line.unitPrice) || line.unitPrice < 0) {
+      throw new Error("Line unit price cannot be negative");
+    }
+  }
+  const tip = input.tip ?? 0;
+  if (!Number.isFinite(tip) || tip < 0) {
+    throw new Error("Tip cannot be negative");
+  }
   const lineData = input.lines.map((l) => ({
     name: l.name,
     qty: l.qty,
@@ -86,7 +101,10 @@ export async function createPosChit(input: {
     total: l.qty * l.unitPrice,
     menuItemId: l.menuItemId,
   }));
-  const { subtotal, tax, total } = recalcTotals(lineData, input.tip ?? 0);
+  const { subtotal, tax, total } = recalcTotals(lineData, tip);
+  if (!(total > 0)) {
+    throw new Error("Chit total must be greater than zero");
+  }
 
   const chit = await prisma.posChit.create({
     data: {
@@ -97,7 +115,7 @@ export async function createPosChit(input: {
       serverName: input.serverName,
       subtotal,
       tax,
-      tip: input.tip ?? 0,
+      tip,
       total,
       lines: { create: lineData },
     },

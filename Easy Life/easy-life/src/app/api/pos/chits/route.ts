@@ -37,11 +37,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   const communityId = session.communityId ?? "golden-ocala";
-  const chit = await createPosChit({
-    communityId,
-    ...body,
-  });
-  return NextResponse.json({ chit });
+  try {
+    const chit = await createPosChit({
+      communityId,
+      ...body,
+    });
+    return NextResponse.json({ chit });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Invalid chit" },
+      { status: 400 },
+    );
+  }
 }
 
 export async function PATCH(request: Request) {
