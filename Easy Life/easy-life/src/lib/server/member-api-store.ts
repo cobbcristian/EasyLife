@@ -1,6 +1,7 @@
 import { communityIsResidentialHoa } from "@/lib/community-features";
 import { prisma } from "@/lib/server/prisma";
 import { ensureRecordsSeeded } from "@/lib/server/records";
+import { memberSelfServiceProfilePatch } from "@/lib/server/member-self-service-profile";
 import { ensureHuntersRidgeDemoSeeded } from "@/lib/server/hunters-ridge-seed";
 import { ensureBonitaBayDemoSeeded } from "@/lib/server/bonita-bay-seed";
 import { ensureShadowWoodDemoSeeded } from "@/lib/server/shadow-wood-seed";
@@ -107,35 +108,38 @@ export async function getMemberProfile(email: string) {
   };
 }
 
+/**
+ * Member self-service profile updates. Unit / residency / paysHoa / tier are
+ * billing identity — see memberSelfServiceProfilePatch.
+ */
 export async function updateMemberProfile(email: string, patch: ProfileOverrides) {
   await ensureRecordsSeeded();
   const key = email.toLowerCase();
+  const safe = memberSelfServiceProfilePatch(patch);
   await prisma.memberProfileExt.upsert({
     where: { userEmail: key },
     create: {
       userEmail: key,
-      phone: patch.phone,
-      unit: patch.unit,
-      joined: patch.joined,
-      directoryVisible: patch.directoryVisible ?? true,
-      commsEmail: patch.commsEmail ?? true,
-      commsSms: patch.commsSms ?? true,
-      commsPush: patch.commsPush ?? false,
-      householdRole: patch.householdRole ?? "owner",
+      phone: safe.phone,
+      joined: safe.joined,
+      directoryVisible: safe.directoryVisible ?? true,
+      commsEmail: safe.commsEmail ?? true,
+      commsSms: safe.commsSms ?? true,
+      commsPush: safe.commsPush ?? false,
+      householdRole: "owner",
     },
     update: {
-      phone: patch.phone,
-      unit: patch.unit,
-      joined: patch.joined,
-      directoryVisible: patch.directoryVisible,
-      commsEmail: patch.commsEmail,
-      commsSms: patch.commsSms,
-      commsPush: patch.commsPush,
-      householdRole: patch.householdRole,
+      phone: safe.phone,
+      joined: safe.joined,
+      directoryVisible: safe.directoryVisible,
+      commsEmail: safe.commsEmail,
+      commsSms: safe.commsSms,
+      commsPush: safe.commsPush,
     },
   });
   return getMemberProfile(email);
 }
+
 
 export async function listNewsletters(communityId?: string | null) {
   await ensureRecordsSeeded();

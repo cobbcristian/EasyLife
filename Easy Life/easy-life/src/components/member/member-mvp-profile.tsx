@@ -226,7 +226,6 @@ export function MemberMvpProfile({
       body: JSON.stringify({
         name: form.name,
         phone: form.phone,
-        unit: form.unit,
         directoryVisible: form.directoryVisible,
         commsPush: form.commsPush,
       }),
@@ -406,7 +405,8 @@ export function MemberMvpProfile({
             <input
               className={fieldClass}
               value={form.unit}
-              onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              readOnly
+              title={t("Unit is set by association management")}
               placeholder={t("Unit")}
             />
             <input className={fieldClass} value={form.email} readOnly />

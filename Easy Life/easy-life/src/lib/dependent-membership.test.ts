@@ -3,6 +3,7 @@ import {
   addressesMatch,
   ageInYears,
   birthdayOnAge,
+  dependentStatusIsLocked,
   evaluateDependentEligibility,
   noticeMessage,
 } from "@/lib/dependent-membership";
@@ -89,5 +90,12 @@ describe("dependent membership", () => {
     expect(msg).toContain("Alex Mitchell");
     expect(msg).toContain("25");
     expect(msg).toContain("45 days");
+  });
+
+  it("locks must_convert and terminated so DOB spoof cannot clear them", () => {
+    expect(dependentStatusIsLocked("must_convert")).toBe(true);
+    expect(dependentStatusIsLocked("terminated")).toBe(true);
+    expect(dependentStatusIsLocked("warned")).toBe(false);
+    expect(dependentStatusIsLocked("active")).toBe(false);
   });
 });
