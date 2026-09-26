@@ -42,11 +42,12 @@ export async function PATCH(request: Request) {
   const email = session.email.toLowerCase();
   const targetEmail = (body.dependentEmail ?? email).toLowerCase();
 
+  const existing = await prisma.memberProfileExt.findUnique({
+    where: { userEmail: targetEmail },
+  });
+
   if (targetEmail !== email) {
-    const target = await prisma.memberProfileExt.findUnique({
-      where: { userEmail: targetEmail },
-    });
-    if (!target || target.sponsorEmail?.toLowerCase() !== email) {
+    if (!existing || existing.sponsorEmail?.toLowerCase() !== email) {
       return NextResponse.json({ error: "Not allowed" }, { status: 403 });
     }
   }
@@ -56,7 +57,18 @@ export async function PATCH(request: Request) {
     householdAddress?: string;
   } = {};
   if (typeof body.dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth)) {
-    data.dateOfBirth = body.dateOfBirth;
+    // DOB drives age-out billing. Once set, only staff/import may change it —
+    // otherwise dependents (or sponsors) can spoof a younger DOB and clear
+    // must_convert on the next aging pass.
+    if (existing?.dateOfBirth && existing.dateOfBirth !== body.dateOfBirth) {
+      return NextResponse.json(
+        { error: "Date of birth can only be changed by club staff." },
+        { status: 403 },
+      );
+    }
+    if (!existing?.dateOfBirth) {
+      data.dateOfBirth = body.dateOfBirth;
+    }
   }
   if (typeof body.householdAddress === "string") {
     data.householdAddress = body.householdAddress.trim();

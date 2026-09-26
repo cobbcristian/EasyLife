@@ -6,6 +6,11 @@ export type DependentNoticeLevel =
   | "must_convert"
   | "terminated";
 
+/** Enforcement states must not be cleared by a later "still eligible" eval (e.g. DOB spoof). */
+export function dependentStatusIsLocked(status: string | null | undefined): boolean {
+  return status === "must_convert" || status === "terminated";
+}
+
 export function ageInYears(dateOfBirth: string, asOf = new Date()): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth.trim());
   if (!m) return null;

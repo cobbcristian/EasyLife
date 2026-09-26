@@ -41,7 +41,12 @@ export async function PATCH(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const profile = await updateMemberProfile(session.email, body);
+  // Ignore client `unit` — HOA billing amount is derived from linked unit.
+  const profile = await updateMemberProfile(session.email, {
+    phone: body.phone,
+    directoryVisible: body.directoryVisible,
+    commsPush: body.commsPush,
+  });
   const account = await getAccountProfile(session.email);
   return NextResponse.json({
     ...profile,

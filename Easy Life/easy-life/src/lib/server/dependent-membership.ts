@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/server/prisma";
 import { addMemberInboxItem } from "@/lib/server/project-management";
 import {
+  dependentStatusIsLocked,
   evaluateDependentEligibility,
   noticeMessage,
   type DependentNoticeLevel,
@@ -235,7 +236,12 @@ export async function processDependentMembershipAging(
     });
 
     if (evalResult.reason === "none" && evalResult.suggestedStatus === "active") {
-      if (dep.dependentStatus !== "active") {
+      // Never clear must_convert/terminated — DOB/address spoof would otherwise
+      // restore free dependent status after age-out enforcement.
+      if (
+        dep.dependentStatus !== "active" &&
+        !dependentStatusIsLocked(dep.dependentStatus)
+      ) {
         await prisma.memberProfileExt.update({
           where: { userEmail: dep.userEmail },
           data: {
