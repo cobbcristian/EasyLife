@@ -335,54 +335,6 @@ export async function createLessonBooking(input: {
     );
   }
 
-  const existingLessons = await prisma.lessonBooking.findMany({
-    where: {
-      providerId: provider.id,
-      date: input.date,
-      status: { not: "cancelled" },
-    },
-  });
-  if (
-    existingLessons.some((l) =>
-      timeRangesOverlap(input.startTime, endTime, l.startTime, l.endTime),
-    )
-  ) {
-    throw new LessonConflictError("That pro is already booked at this time.");
-  }
-
-  const amenityBookings = await prisma.booking.findMany({
-    where: {
-      communityId: input.communityId,
-      date: input.date,
-      status: { not: "cancelled" },
-      OR: [{ amenityId: amenity.id }, { amenity: amenity.name, amenityId: null }],
-    },
-  });
-  const overlapping = countOverlappingBookings(amenityBookings, input.startTime, endTime);
-  if (overlapping >= amenity.unitCount) {
-    const label =
-      amenity.kind === "golf_course"
-        ? "tee time"
-        : amenity.kind === "driving_range"
-          ? "lane"
-          : amenity.kind === "court"
-            ? "court"
-            : "slot";
-    throw new LessonConflictError(`All ${label}s are booked for this lesson time.`);
-  }
-
-  const unitNumber = assignUnitNumber(
-    amenity.unitCount,
-    amenityBookings.map((b) => ({
-      startTime: b.startTime,
-      endTime: b.endTime,
-      status: b.status,
-      unitNumber: b.unitNumber,
-    })),
-    input.startTime,
-    endTime,
-  );
-
   const fee =
     input.communityId === "heritage-bay" && input.sport === "golf"
       ? 110
@@ -399,71 +351,138 @@ export async function createLessonBooking(input: {
         : input.onCourse
           ? "Private Golf Lesson (Course)"
           : "Private Golf Lesson (Range)";
+  const memberEmail = input.memberEmail.toLowerCase();
+  const amenitySlotLabel =
+    amenity.kind === "golf_course"
+      ? "tee time"
+      : amenity.kind === "driving_range"
+        ? "lane"
+        : amenity.kind === "court"
+          ? "court"
+          : "slot";
 
-  const charge = await prisma.memberCharge.create({
-    data: {
-      communityId: input.communityId,
-      memberEmail: input.memberEmail.toLowerCase(),
-      memberName: input.memberName,
-      category: "lesson",
-      description: `${offeringName} with ${provider.name} — ${input.date} ${input.startTime}`,
-      amount: fee,
-      status: "due",
-      dueDate: input.date,
-      referenceType: "lesson",
+  // Conflict check + insert must be atomic. The old check-then-insert race
+  // could double-book the same pro / court under concurrent lesson requests.
+  return prisma.$transaction(
+    async (tx) => {
+      const existingLessons = await tx.lessonBooking.findMany({
+        where: {
+          providerId: provider.id,
+          date: input.date,
+          status: { not: "cancelled" },
+        },
+      });
+      if (
+        existingLessons.some((l) =>
+          timeRangesOverlap(input.startTime, endTime, l.startTime, l.endTime),
+        )
+      ) {
+        throw new LessonConflictError("That pro is already booked at this time.");
+      }
+
+      const amenityBookings = await tx.booking.findMany({
+        where: {
+          communityId: input.communityId,
+          date: input.date,
+          status: { not: "cancelled" },
+          OR: [{ amenityId: amenity.id }, { amenity: amenity.name, amenityId: null }],
+        },
+      });
+      const overlapping = countOverlappingBookings(
+        amenityBookings,
+        input.startTime,
+        endTime,
+      );
+      if (overlapping >= amenity.unitCount) {
+        throw new LessonConflictError(
+          `All ${amenitySlotLabel}s are booked for this lesson time.`,
+        );
+      }
+
+      const unitNumber = assignUnitNumber(
+        amenity.unitCount,
+        amenityBookings.map((b) => ({
+          startTime: b.startTime,
+          endTime: b.endTime,
+          status: b.status,
+          unitNumber: b.unitNumber,
+        })),
+        input.startTime,
+        endTime,
+      );
+      if (unitNumber == null) {
+        throw new LessonConflictError(
+          `All ${amenitySlotLabel}s are booked for this lesson time.`,
+        );
+      }
+
+      const charge = await tx.memberCharge.create({
+        data: {
+          communityId: input.communityId,
+          memberEmail,
+          memberName: input.memberName,
+          category: "lesson",
+          description: `${offeringName} with ${provider.name} — ${input.date} ${input.startTime}`,
+          amount: fee,
+          status: "due",
+          dueDate: input.date,
+          referenceType: "lesson",
+        },
+      });
+
+      const lesson = await tx.lessonBooking.create({
+        data: {
+          communityId: input.communityId,
+          providerId: provider.id,
+          providerName: provider.name,
+          proEmail: provider.email,
+          offeringName,
+          sport: input.sport,
+          memberEmail,
+          memberName: input.memberName,
+          date: input.date,
+          startTime: input.startTime,
+          endTime,
+          amenityId: amenity.id,
+          status: "confirmed",
+          fee,
+          chargeId: charge.id,
+          notes: input.notes ?? null,
+        },
+      });
+
+      const hold = await tx.booking.create({
+        data: {
+          communityId: input.communityId,
+          amenityId: amenity.id,
+          unitNumber,
+          memberEmail,
+          memberName: `${input.memberName} (lesson)`,
+          amenity: amenity.name,
+          date: input.date,
+          startTime: input.startTime,
+          endTime,
+          status: "confirmed",
+          bookingKind: "lesson_hold",
+          providerId: provider.id,
+          lessonBookingId: lesson.id,
+        },
+      });
+
+      const linkedLesson = await tx.lessonBooking.update({
+        where: { id: lesson.id },
+        data: { amenityBookingId: hold.id },
+      });
+
+      const linkedCharge = await tx.memberCharge.update({
+        where: { id: charge.id },
+        data: { referenceId: lesson.id },
+      });
+
+      return { lesson: linkedLesson, amenityBooking: hold, charge: linkedCharge };
     },
-  });
-
-  const lesson = await prisma.lessonBooking.create({
-    data: {
-      communityId: input.communityId,
-      providerId: provider.id,
-      providerName: provider.name,
-      proEmail: provider.email,
-      offeringName,
-      sport: input.sport,
-      memberEmail: input.memberEmail.toLowerCase(),
-      memberName: input.memberName,
-      date: input.date,
-      startTime: input.startTime,
-      endTime,
-      amenityId: amenity.id,
-      status: "confirmed",
-      fee,
-      chargeId: charge.id,
-      notes: input.notes ?? null,
-    },
-  });
-
-  const hold = await prisma.booking.create({
-    data: {
-      communityId: input.communityId,
-      amenityId: amenity.id,
-      unitNumber,
-      memberEmail: input.memberEmail.toLowerCase(),
-      memberName: `${input.memberName} (lesson)`,
-      amenity: amenity.name,
-      date: input.date,
-      startTime: input.startTime,
-      endTime,
-      status: "confirmed",
-      bookingKind: "lesson_hold",
-      providerId: provider.id,
-      lessonBookingId: lesson.id,
-    },
-  });
-
-  await prisma.lessonBooking.update({
-    where: { id: lesson.id },
-    data: { amenityBookingId: hold.id },
-  });
-
-  await prisma.memberCharge.update({
-    where: { id: charge.id },
-    data: { referenceId: lesson.id },
-  });
-
-  return { lesson, amenityBooking: hold, charge };
+    { isolationLevel: "Serializable" },
+  );
 }
 
 export async function listMemberLessons(memberEmail: string) {
