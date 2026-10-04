@@ -49,10 +49,20 @@ export function GrabGoMemberClient() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     return fetch("/api/grab-go")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (r.status === 401) {
+          window.location.assign(
+            `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+          );
+          throw new Error("unauthorized");
+        }
+        if (!r.ok) throw new Error("grab-go");
+        return r.json();
+      })
       .then((d) => {
         setMachines(d.machines ?? []);
         setVisits(d.visits ?? []);
@@ -60,6 +70,15 @@ export function GrabGoMemberClient() {
         setRfidUid(d.rfidUid ?? null);
         setUnlockToken(d.unlockToken ?? "");
         setSelected((prev) => prev ?? d.machines?.[0] ?? null);
+        setError(null);
+      })
+      .catch((err) => {
+        if (err?.message === "unauthorized") return;
+        setMachines([]);
+        setVisits([]);
+        setSelected(null);
+        setUnlockToken("");
+        setError("Could not load Grab & Go. Please try again.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -167,6 +186,27 @@ export function GrabGoMemberClient() {
 
   if (loading) {
     return <p className="p-6 text-sm text-grey">{t("Loading…")}</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink">
+        <div className="mx-auto w-full max-w-lg px-4 py-16 text-center">
+          <p className="text-sm font-semibold text-ink">{error}</p>
+          <button
+            type="button"
+            className="mt-4 inline-flex h-10 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
+            onClick={() => {
+            setError(null);
+            setLoading(true);
+            void load();
+          }}
+          >
+            {t("Retry")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const cartTotal = selected

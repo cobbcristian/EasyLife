@@ -50,10 +50,9 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
   const [mfaCode, setMfaCode] = useState("");
 
   // Switching /go/[tenant] must reset the form — useState alone keeps the old club email.
-  // One-tap sales links pass ?email=&password= through /go/[tenant].
+  // One-tap sales links may pass ?email= (never password) through /go/[tenant].
   useEffect(() => {
     const qEmail = searchParams.get("email");
-    const qPassword = searchParams.get("password");
     const qError = searchParams.get("error");
     const qMfa = searchParams.get("mfaToken");
     const roleHint = searchParams.get("role")?.toLowerCase();
@@ -69,7 +68,7 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
         (branding?.locked ? branding.defaultEmail : SUPER_ADMIN_EMAIL) ||
         "",
     );
-    setPassword(qPassword || roleMatch?.password || "");
+    setPassword(roleMatch?.password || "");
     setError(qError);
     setMfaToken(qMfa);
     setMfaCode("");

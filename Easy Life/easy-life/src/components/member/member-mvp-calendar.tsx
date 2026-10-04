@@ -458,7 +458,7 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
                     href="/member/bookings"
                     className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
                   >
-                    {t("Book")}
+                    {t("Reserve")}
                   </Link>
                   <button
                     type="button"
@@ -533,7 +533,7 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
                     href="/member/bookings"
                     className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
                   >
-                    {t("Book")}
+                    {t("Reserve")}
                   </Link>
                   <button
                     type="button"
@@ -577,7 +577,7 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
               href="/member/bookings"
               className="inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
             >
-              {t("Book")}
+              {t("Reserve")}
             </Link>
             <button
               type="button"

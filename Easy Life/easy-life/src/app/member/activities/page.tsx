@@ -33,7 +33,7 @@ export default async function MemberActivitiesPage() {
               href="/member/bookings"
               className="mt-3 inline-flex text-sm font-semibold text-[var(--mvp-blue)]"
             >
-              Book a court or amenity →
+              Reserve a court or amenity →
             </Link>
           </div>
         ) : (

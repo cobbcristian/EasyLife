@@ -218,7 +218,6 @@ export function MemberMvpHome({
   notificationCount = 0,
 }: MemberMvpHomeProps) {
   const { t } = useI18n();
-  const firstName = profileName.split(" ")[0] ?? profileName;
   const accountLinks = communityIsResidentialHoa(communityId)
     ? RESIDENTIAL_HOA_ACCOUNT_LINKS
     : undefined;
@@ -301,9 +300,6 @@ export function MemberMvpHome({
           <div className="mt-3">
             <MemberMvpHomeSearch communityId={communityId} />
           </div>
-          <h1 className="mt-5 text-center text-[34px] font-semibold leading-tight text-white">
-            {t("Hey")}, {firstName}
-          </h1>
         </div>
       </div>
 
@@ -318,7 +314,7 @@ export function MemberMvpHome({
                 label: "Pros",
                 href: hasLocalPros ? "/member/local-pros" : "/member/service-requests",
               },
-              { key: "outings" as const, label: "Outings", href: "/member/calendar" },
+              { key: "dining" as const, label: "Dining", href: "/member/dining" },
               { key: "info" as const, label: "Info", href: "/member/faq" },
             ].map((tile) => (
               <Link key={tile.key} href={tile.href} className="flex flex-col items-center gap-2">

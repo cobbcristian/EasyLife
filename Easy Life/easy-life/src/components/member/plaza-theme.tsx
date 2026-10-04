@@ -1,7 +1,7 @@
 /** Plaza member theme — 3D icons shared across member screens. */
 
 export const plazaIcons = {
-  reserve: "/brand/plaza-icon-reserve.png",
+  reserve: "/brand/plaza-icon-reserve.png?v=r",
   pros: "/brand/plaza-icon-pros.png",
   outings: "/brand/plaza-icon-outings.png",
   info: "/brand/plaza-icon-info.png",

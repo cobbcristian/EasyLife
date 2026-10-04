@@ -61,17 +61,56 @@ type ChatMsg = {
   actions?: AiAction[];
 };
 
-function speakText(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 1;
-  window.speechSynthesis.speak(utter);
-}
+let butlerAudio: HTMLAudioElement | null = null;
 
 function stopSpeaking() {
+  if (typeof window !== "undefined" && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  if (butlerAudio) {
+    butlerAudio.pause();
+    butlerAudio = null;
+  }
+}
+
+function playBarnabyFile(src: string) {
+  stopSpeaking();
+  const audio = new Audio(src);
+  butlerAudio = audio;
+  void audio.play().catch(() => {
+    /* autoplay can wait for a tap */
+  });
+}
+
+async function speakText(text: string) {
+  stopSpeaking();
+  try {
+    const res = await fetch("/api/member/barnaby-voice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (res.ok && (res.headers.get("content-type") ?? "").includes("audio")) {
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      butlerAudio = audio;
+      await audio.play();
+      return;
+    }
+  } catch {
+    /* device voice below */
+  }
   if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.9;
+  utter.pitch = 0.8;
+  utter.lang = "en-GB";
+  const voices = window.speechSynthesis.getVoices();
+  const butler =
+    voices.find((v) => /daniel|arthur|malcolm|uk english male|google uk english male/i.test(v.name)) ??
+    voices.find((v) => v.lang.toLowerCase().startsWith("en-gb"));
+  if (butler) utter.voice = butler;
+  window.speechSynthesis.speak(utter);
 }
 
 const VOICE_PREF_KEY = "easy-life-assistant-voice";
@@ -132,8 +171,35 @@ export function AssistantClient() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isResidentialHoa, setIsResidentialHoa] = useState(false);
   const [speechAvailable, setSpeechAvailable] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    function pinComposer() {
+      if (!vv) {
+        setKeyboardInset(0);
+        return;
+      }
+      const overlap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardInset(overlap);
+    }
+    pinComposer();
+    vv?.addEventListener("resize", pinComposer);
+    vv?.addEventListener("scroll", pinComposer);
+    window.addEventListener("resize", pinComposer);
+    return () => {
+      vv?.removeEventListener("resize", pinComposer);
+      vv?.removeEventListener("scroll", pinComposer);
+      window.removeEventListener("resize", pinComposer);
+    };
+  }, []);
+
+  useEffect(() => {
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
+  }, [messages, keyboardInset, listening]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const bootstrappedQuery = useRef(false);
   const bootstrappedVoice = useRef(false);
 
@@ -181,7 +247,11 @@ export function AssistantClient() {
     } catch {
       /* ignore quota / private mode */
     }
-    if (!next) stopSpeaking();
+    if (!next) {
+      stopSpeaking();
+      return;
+    }
+    playBarnabyFile("/brand/barnaby-butler-intro.mp3");
   }
 
   async function send(text?: string, confirmAction?: AiAction) {
@@ -321,15 +391,18 @@ export function AssistantClient() {
   }
 
   return (
-    <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink">
-      <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col px-4 py-6">
+    <div className="flex h-[calc(100dvh-7.5rem)] flex-col overflow-hidden bg-white font-[family-name:var(--font-poppins)] text-ink md:h-[calc(100dvh-4rem)]">
+      <div
+        className="mx-auto flex h-full w-full max-w-lg flex-col px-4 pt-4"
+        style={{ paddingBottom: keyboardInset }}
+      >
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-grey">
           {t("Member")}
         </p>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[22px] font-semibold">
-              {t(isResidentialHoa ? "Resident assistant" : "Club assistant")}
+              {t("Barnaby")}
             </h1>
             <p className="mt-1 text-sm text-grey">
               {voiceEnabled
@@ -384,7 +457,7 @@ export function AssistantClient() {
           ))}
         </div>
 
-        <div className="mt-4 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto pb-4">
+        <div ref={threadRef} className="mt-4 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto pb-2">
           {messages.length === 0 ? (
             <p className="text-sm text-grey">
               {t("Say or type what you want booked ' I'll confirm when it's done.")}
@@ -445,7 +518,7 @@ export function AssistantClient() {
         </div>
 
         <form
-          className="sticky bottom-0 -mx-4 mt-auto border-t border-[#eceff3] bg-white/95 px-4 py-3 backdrop-blur"
+          className="shrink-0 border-t border-[#eceff3] bg-white py-3"
           onSubmit={(e) => {
             e.preventDefault();
             void send();

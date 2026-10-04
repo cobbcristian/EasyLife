@@ -43,7 +43,7 @@ export default async function MemberWelcomePage() {
               <span className="font-semibold text-ink">{name}</span>.
             </p>
             <p className="mt-1 text-[12px] text-grey">
-              {await tServer("Book amenities, view announcements, and more.")}
+              {await tServer("Reserve amenities, view announcements, and more.")}
             </p>
             <Link
               href="/member"

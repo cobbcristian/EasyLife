@@ -523,7 +523,7 @@ export function PaymentsClient() {
                           : "inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
                       }
                     >
-                      {t("Book a court")}
+                      {t("Reserve")}
                     </Link>
                   </div>
                 </div>
@@ -599,7 +599,7 @@ export function PaymentsClient() {
                           : "inline-flex h-9 items-center rounded-lg bg-[var(--mvp-blue)] px-3 text-sm font-semibold text-white"
                       }
                     >
-                      {t("Book amenity")}
+                      {t("Reserve")}
                     </Link>
                   </div>
                 </div>

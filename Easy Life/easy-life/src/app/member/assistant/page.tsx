@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default function MemberAssistantPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-grey">Loading Plaza…</div>}>
+    <Suspense fallback={<div className="p-6 text-sm text-grey">Loading Barnaby…</div>}>
       <AssistantClient />
     </Suspense>
   );

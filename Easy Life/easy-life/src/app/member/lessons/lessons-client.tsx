@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
@@ -50,6 +51,17 @@ function sportTabLabel(sport: LessonSport): string {
   }
 }
 
+async function parseLessonsResponse(r: Response) {
+  if (r.status === 401) {
+    window.location.assign(
+      `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+    );
+    throw new Error("unauthorized");
+  }
+  if (!r.ok) throw new Error("lessons");
+  return r.json();
+}
+
 export function MemberLessonsClient() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -63,6 +75,7 @@ export function MemberLessonsClient() {
   const [onCourse, setOnCourse] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   function applyProsPayload(
     d: { lessons?: Lesson[]; pros?: ProsPayload },
@@ -81,18 +94,35 @@ export function MemberLessonsClient() {
 
   function load() {
     return fetch("/api/member/lessons")
-      .then((r) => r.json())
-      .then((d) => applyProsPayload(d, sport))
+      .then(parseLessonsResponse)
+      .then((d) => {
+        applyProsPayload(d, sport);
+        setError(null);
+      })
+      .catch((err) => {
+        if (err?.message === "unauthorized") return;
+        setLessons([]);
+        setPros([]);
+        setError("Could not load lessons. Please try again.");
+      })
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
     let on = true;
     fetch("/api/member/lessons")
-      .then((r) => r.json())
+      .then(parseLessonsResponse)
       .then((d) => {
         if (!on) return;
         applyProsPayload(d);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!on) return;
+        if (err?.message === "unauthorized") return;
+        setLessons([]);
+        setPros([]);
+        setError("Could not load lessons. Please try again.");
       })
       .finally(() => {
         if (on) setLoading(false);
@@ -101,21 +131,23 @@ export function MemberLessonsClient() {
       on = false;
     };
     // Initial mount only; sport changes are handled below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!availableSports.includes(sport)) return;
+    if (!availableSports.includes(sport) || error) return;
     fetch(`/api/member/lessons?sport=${sport}`)
-      .then((r) => r.json())
+      .then(parseLessonsResponse)
       .then((d) => {
         const list = prosForSport(sport, d);
         setPros(list);
         setProviderId(list[0]?.id ?? "");
         if (Array.isArray(d.lessons)) setLessons(d.lessons);
       })
-      .catch(() => {});
-  }, [sport, availableSports]);
+      .catch((err) => {
+        if (err?.message === "unauthorized") return;
+        // Soft-fail sport switches: keep prior list, do not wipe into empty-state.
+      });
+  }, [sport, availableSports, error]);
 
   const selectedPro = useMemo(
     () => pros.find((p) => p.id === providerId),
@@ -161,6 +193,27 @@ export function MemberLessonsClient() {
 
   if (loading) {
     return <p className="p-6 text-sm text-grey">{t("Loading…")}</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink">
+        <div className="mx-auto w-full max-w-lg px-4 py-16 text-center">
+          <p className="text-sm font-semibold text-ink">{error}</p>
+          <button
+            type="button"
+            className="mt-4 inline-flex h-10 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              void load();
+            }}
+          >
+            {t("Retry")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -265,12 +318,12 @@ export function MemberLessonsClient() {
               <p className="mt-1 text-sm text-grey">
                 {t("Choose a pro and time above to book your first lesson.")}
               </p>
-              <a
+              <Link
                 href="/member/vendors"
                 className="mt-4 inline-flex h-10 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
               >
                 {t("Browse pros")}
-              </a>
+              </Link>
             </li>
           ) : (
             lessons.map((l) => (

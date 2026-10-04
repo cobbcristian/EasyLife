@@ -40,6 +40,8 @@ export async function sendExpoPushToUser(
       body: payload.body,
       data: { url: payload.url ?? "/member" },
       sound: "default",
+      priority: "high",
+      interruptionLevel: "time-sensitive",
     }));
 
   if (messages.length === 0) return 0;

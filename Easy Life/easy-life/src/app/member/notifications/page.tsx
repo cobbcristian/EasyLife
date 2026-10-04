@@ -320,7 +320,7 @@ export default function MemberNotificationsPage() {
                     href="/member/bookings"
                     className="mt-3 inline-block text-sm font-semibold text-[var(--mvp-blue)]"
                   >
-                    {t("Book a court")} →
+                    {t("Reserve")} →
                   </Link>
                 </div>
               ) : (

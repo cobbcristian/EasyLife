@@ -415,7 +415,7 @@ export function MemberMvpBookings({
             }}
             className="inline-flex h-10 items-center rounded-full bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
           >
-            {t("Book")}
+            {t("Reserve")}
           </button>
         </header>
 
@@ -433,7 +433,7 @@ export function MemberMvpBookings({
               >
                 <p className="text-[15px] font-semibold text-ink">{t("No bookings yet.")}</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--mvp-blue)]">
-                  {t("Book a court or amenity")} →
+                  {t("Reserve a court or amenity")} →
                 </p>
               </button>
             ) : (

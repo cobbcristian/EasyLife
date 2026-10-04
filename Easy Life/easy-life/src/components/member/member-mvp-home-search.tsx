@@ -26,7 +26,7 @@ function go(path: string) {
   window.location.assign(path);
 }
 
-/** ChatGPT-style “Ask Plaza” composer on member home. */
+/** ChatGPT-style “Ask Barnaby” composer on member home. */
 export function MemberMvpHomeSearch({
   className,
 }: {
@@ -42,7 +42,7 @@ export function MemberMvpHomeSearch({
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const placeholder = "Ask Plaza";
+  const placeholder = "Ask Barnaby";
 
   const search = useCallback(async (q: string) => {
     if (q.trim().length < 2) {
@@ -172,8 +172,8 @@ export function MemberMvpHomeSearch({
         <Link
           href="/member/assistant"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#667085] hover:bg-[#f2f4f7]"
-          aria-label={t("Open Plaza")}
-          title={t("Ask Plaza")}
+          aria-label={t("Open Barnaby")}
+          title={t("Ask Barnaby")}
         >
           <Plus className="h-5 w-5" strokeWidth={2} />
         </Link>
@@ -194,7 +194,7 @@ export function MemberMvpHomeSearch({
           }}
           placeholder={listening ? t("Listening…") : t(placeholder)}
           className="min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-[#98a2b3] focus:outline-none"
-          aria-label={t("Ask Plaza")}
+          aria-label={t("Ask Barnaby")}
         />
         <button
           type="button"
@@ -218,7 +218,7 @@ export function MemberMvpHomeSearch({
         <button
           type="button"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--mvp-blue)] text-white shadow-sm hover:brightness-95"
-          aria-label={t("Ask Plaza")}
+          aria-label={t("Ask Barnaby")}
           onClick={() => openAssistant()}
         >
           <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
@@ -261,13 +261,13 @@ export function MemberMvpHomeSearch({
           >
             <Sparkles className="h-4 w-4 text-[var(--mvp-blue)]" />
             <span className="text-sm font-medium text-ink">
-              {t("Ask Plaza")}: “{query.trim()}”
+              {t("Ask Barnaby")}: “{query.trim()}”
             </span>
           </button>
           {loading ? (
             <p className="px-4 py-3 text-sm text-grey">{t("Searching…")}</p>
           ) : results.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-grey">{t("No quick results — ask Plaza")}</p>
+            <p className="px-4 py-3 text-sm text-grey">{t("No quick results — ask Barnaby")}</p>
           ) : (
             results.map((r) => (
               <Link

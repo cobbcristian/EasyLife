@@ -87,7 +87,7 @@ export default function MemberFavoritesPage() {
                     href="/member/bookings"
                     className="inline-flex h-9 items-center rounded-lg border border-[#e8ebf0] bg-white px-3 text-sm font-semibold text-ink"
                   >
-                    {t("Book amenities")}
+                    {t("Reserve")}
                   </Link>
                 )}
               </div>

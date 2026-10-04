@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MemberMvpHome } from "@/components/member/member-mvp-home";
 import { brandAssets, avatarForReviewer } from "@/lib/brand-assets";
 import { useI18n } from "@/lib/i18n";
@@ -96,21 +96,28 @@ export function MemberHomeClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let on = true;
-    fetch("/api/member/home")
-      .then((r) => r.json())
+  const load = useCallback(() => {
+    return fetch("/api/member/home")
+      .then(async (r) => {
+        if (r.status === 401) {
+          window.location.assign(
+            `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+          );
+          throw new Error("unauthorized");
+        }
+        if (!r.ok) throw new Error("home");
+        return r.json();
+      })
       .then((home) => {
-        if (!on) return;
-        if (home?.error) {
+        if (home?.error || !home?.profile) {
           setError("Could not load home.");
           return;
         }
         setError(null);
         setData(home);
-        const name = home?.profile?.name;
-        if (home?.profile?.email) setProfileEmail(home.profile.email);
-        if (home?.profile?.avatarUrl) {
+        const name = home.profile?.name;
+        if (home.profile?.email) setProfileEmail(home.profile.email);
+        if (home.profile?.avatarUrl) {
           setAvatarSrc(home.profile.avatarUrl);
         } else if (name) {
           setAvatarSrc(avatarForReviewer(name));
@@ -118,14 +125,16 @@ export function MemberHomeClient() {
           setAvatarSrc(brandAssets.memberAvatar);
         }
       })
-      .catch(() => {
-        if (on) setError("Could not load home.");
+      .catch((err) => {
+        if (err?.message === "unauthorized") return;
+        setError("Could not load home.");
       })
-      .finally(() => on && setLoading(false));
-    return () => {
-      on = false;
-    };
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (error && !data) {
     return (
@@ -133,10 +142,14 @@ export function MemberHomeClient() {
         <p className="text-sm text-ink">{error}</p>
         <button
           type="button"
-          className="mt-4 text-sm font-semibold text-[var(--mvp-blue)]"
-          onClick={() => window.location.reload()}
+          className="mt-4 inline-flex h-10 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            void load();
+          }}
         >
-          Try again
+          Retry
         </button>
       </div>
     );
@@ -148,7 +161,7 @@ export function MemberHomeClient() {
 
   return (
     <MemberMvpHome
-      profileName={data.profile.name}
+      profileName={data.profile?.name ?? "Member"}
       profileEmail={profileEmail}
       avatarSrc={avatarSrc}
       clubName={data.branding?.name}

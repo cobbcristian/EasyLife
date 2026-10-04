@@ -182,6 +182,10 @@ export const es: Record<string, string> = {
   Activities: "Actividades",
   Clinics: "Clínicas",
   "Club assistant": "Asistente del club",
+  Barnaby: "Barnaby",
+  "Ask Barnaby": "Pregúntale a Barnaby",
+  "Open Barnaby": "Abrir Barnaby",
+  "No quick results — ask Barnaby": "Sin resultados rápidos — pregunta a Barnaby",
   "Voice on": "Voz activada",
   "Voice off": "Voz desactivada",
   "Turn voice replies on": "Activar respuestas de voz",
@@ -367,8 +371,8 @@ export const es: Record<string, string> = {
   "Welcome to your community": "Bienvenido a su comunidad",
   "You are now a member of": "Ahora es miembro de",
   "Go to member portal": "Ir al portal de miembros",
-  "Book amenities, view announcements, and more.":
-    "Reserve instalaciones, vea anuncios y más.",
+  "Reserve amenities, view announcements, and more.":
+    "Reserva instalaciones, vea anuncios y más.",
 
   // Toasts & errors
   "Something went wrong": "Algo salió mal",
@@ -451,6 +455,8 @@ export const es: Record<string, string> = {
   "Leave Reservation": "Salir de la reserva",
   "This activity has been added to your calendar.":
     "Esta actividad se agregó a tu calendario.",
+  Reserve: "Reservar",
+  "Reserve a court or amenity": "Reserva una cancha o amenidad",
   Reserved: "Reservado",
   "Reserved:": "Reservado:",
   "Event:": "Evento:",

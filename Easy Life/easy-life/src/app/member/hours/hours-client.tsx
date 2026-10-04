@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { parseWeeklyHours, type WeeklyHours } from "@/lib/hours";
 
@@ -65,13 +65,35 @@ export function MemberHoursClient() {
   const { t } = useI18n();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/directory?type=hours")
-      .then((r) => r.json())
-      .then((d) => setVenues(d.venues ?? []))
+  const load = useCallback(() => {
+    return fetch("/api/directory?type=hours")
+      .then(async (r) => {
+        if (r.status === 401) {
+          window.location.assign(
+            `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+          );
+          throw new Error("unauthorized");
+        }
+        if (!r.ok) throw new Error("hours");
+        return r.json();
+      })
+      .then((d) => {
+        setVenues(d.venues ?? []);
+        setError(null);
+      })
+      .catch((err) => {
+        if (err?.message === "unauthorized") return;
+        setVenues([]);
+        setError("Could not load hours. Please try again.");
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const groups = useMemo(() => {
     return KIND_GROUPS.map((g) => ({
@@ -100,6 +122,21 @@ export function MemberHoursClient() {
 
         {loading ? (
           <p className="mt-6 text-sm text-grey">{t("Loading…")}</p>
+        ) : error ? (
+          <div className="mt-6 rounded-xl bg-[#f7f8fa] px-5 py-8 text-center">
+            <p className="text-sm font-semibold text-ink">{error}</p>
+            <button
+              type="button"
+              className="mt-4 inline-flex h-10 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                void load();
+              }}
+            >
+              {t("Retry")}
+            </button>
+          </div>
         ) : groups.length === 0 ? (
           <div className="mt-6 rounded-xl bg-[#f7f8fa] px-5 py-8 text-center">
             <p className="text-sm font-semibold text-ink">{t("No hours posted yet.")}</p>
@@ -111,7 +148,7 @@ export function MemberHoursClient() {
                 href="/member/bookings"
                 className="inline-flex h-10 items-center rounded-lg bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white"
               >
-                {t("Book")}
+                {t("Reserve")}
               </a>
               <a
                 href="/member/contact"

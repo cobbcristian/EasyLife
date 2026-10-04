@@ -103,35 +103,62 @@ function detectSport(message: string): LessonSport | null {
   return null;
 }
 
-function amenityHintFromMessage(message: string): string {
-  const m = message.toLowerCase();
-  if (/golf|tee/.test(m)) return "golf";
-  if (/spa/.test(m)) return "spa";
-  if (/pickle/.test(m)) return "pickleball";
-  if (/pool/.test(m)) return "pool";
-  return "tennis";
+const AMENITY_STOP = new Set([
+  "the",
+  "and",
+  "room",
+  "for",
+  "book",
+  "reserve",
+  "reservation",
+  "schedule",
+  "please",
+  "tomorrow",
+  "today",
+  "with",
+]);
+
+/** Book and reserve are the same action. Match the amenity the member named. */
+function scoreAmenityMatch(
+  message: string,
+  amenity: { name: string; kind: string },
+): number {
+  const msg = message.toLowerCase();
+  const name = amenity.name.toLowerCase();
+  const blob = `${name} ${amenity.kind}`.toLowerCase();
+  let score = 0;
+  if (name.length > 2 && msg.includes(name)) score += 30;
+  for (const word of name.split(/[^a-z0-9]+/)) {
+    if (word.length < 4 || AMENITY_STOP.has(word)) continue;
+    if (msg.includes(word)) score += 8;
+  }
+  const aliases: Array<[RegExp, RegExp]> = [
+    [/billiard|billiards|pool table/, /billiard|pool table/],
+    [/theatre|theater|movie/, /theatre|theater|movie|cinema/],
+    [/grill/, /grill/],
+    [/simulat/, /simulat/],
+    [/wine/, /wine/],
+    [/lounge/, /lounge/],
+    [/club room/, /club room/],
+    [/tennis/, /tennis/],
+    [/pickle/, /pickle/],
+    [/spa|massage/, /spa|massage/],
+    [/pool(?! table)/, /pool/],
+  ];
+  for (const [msgRe, nameRe] of aliases) {
+    if (msgRe.test(msg) && nameRe.test(blob)) score += 10;
+  }
+  return score;
 }
 
-async function findAmenityForHint(communityId: string, hint: string) {
+async function findAmenityForMessage(communityId: string, message: string) {
   const amenities = await listAmenities(communityId);
   const playable = amenities.filter((a) => a.playable);
-  const lower = hint.toLowerCase();
   const scored = playable
-    .map((a) => {
-      const blob = `${a.name} ${a.kind}`.toLowerCase();
-      let score = 0;
-      if (lower === "golf" && (a.kind.includes("golf") || blob.includes("golf")))
-        score += 5;
-      if (lower === "tennis" && blob.includes("tennis")) score += 5;
-      if (lower === "pickleball" && blob.includes("pickle")) score += 5;
-      if (lower === "spa" && (a.kind === "spa" || blob.includes("spa"))) score += 5;
-      if (lower === "pool" && blob.includes("pool")) score += 5;
-      if (a.kind === "court" && (lower === "tennis" || lower === "court")) score += 2;
-      return { a, score };
-    })
+    .map((a) => ({ a, score: scoreAmenityMatch(message, a) }))
     .filter((x) => x.score > 0)
     .sort((x, y) => y.score - x.score);
-  return scored[0]?.a ?? playable.find((a) => a.kind === "court") ?? playable[0] ?? null;
+  return scored[0]?.a ?? null;
 }
 
 async function executeAmenityBook(input: {
@@ -314,17 +341,22 @@ async function handleAmenityBookingIntent(input: {
   memberName: string;
   message: string;
 }): Promise<AssistantReply> {
-  const hint = amenityHintFromMessage(input.message);
-  const amenity = await findAmenityForHint(input.communityId, hint);
+  const amenity = await findAmenityForMessage(input.communityId, input.message);
   const date = parseDateHint(input.message);
   const startTime = parseStartTime(input.message);
   const endTime = addHour(startTime);
   const wantsNow = /\b(book|reserve|schedule)\b/i.test(input.message);
 
   if (!amenity) {
+    const amenities = await listAmenities(input.communityId);
+    const names = amenities
+      .filter((a) => a.playable)
+      .map((a) => a.name)
+      .slice(0, 8);
+    const list = names.length > 0 ? ` I can reserve ${names.join(", ")}.` : "";
     return {
-      reply: "I couldn’t find a matching amenity to book on the app. Open Bookings to pick one.",
-      actions: [{ type: "open", label: "Open Bookings", href: "/member/bookings" }],
+      reply: `Tell me which room or amenity to reserve.${list}`,
+      actions: [{ type: "open", label: "Open Reserve", href: "/member/bookings" }],
       provider: "heuristic",
       speak: true,
     };
@@ -674,7 +706,7 @@ export async function runClubAssistant(input: {
       memberName,
       message,
     });
-  } else if (/book|reserve|court|tee|spa|pickle/.test(m)) {
+  } else if (/\b(book|reserve|reservation|schedule)\b|court|tee|spa|pickle|billiard|theatre|theater|grill|lounge|simulat/.test(m)) {
     result = await handleAmenityBookingIntent({
       communityId,
       memberEmail: email,
@@ -701,7 +733,7 @@ export async function runClubAssistant(input: {
       messages: [
         {
           role: "system",
-          content: `You are the club assistant. Be concise. When members say vendor they mean in-app club pros/providers, not outside contractors. You can propose book_amenity or book_vendor actions. Club facts:\n${ctx}\nReply with JSON only: {"reply":"...","actions":[{"type":"open","label":"...","href":"/member/..."}]}`,
+          content: `You are Barnaby, the resident AI concierge. Speak like a calm, older English butler: brief, precise, and courteous. Book and reserve mean the same thing. Match the amenity the member named (billiard room, theatre, grill, tennis court, or any other listed amenity) — never substitute a tennis court unless they asked for tennis. When members say vendor they mean in-app club pros, not outside contractors. Club facts:\n${ctx}\nReply with JSON only: {"reply":"...","actions":[{"type":"open","label":"...","href":"/member/..."}]}`,
         },
         { role: "user", content: `History:\n${hist}\n\nLatest: ${message}` },
       ],

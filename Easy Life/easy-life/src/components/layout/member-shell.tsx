@@ -149,7 +149,14 @@ export function MemberShell({
             </div>
           </>
         ) : null}
-        <main id="main-content" className="flex-1 pb-28 md:pb-0">
+        <main
+          id="main-content"
+          className={
+            pathname.startsWith("/member/assistant")
+              ? "flex-1 overflow-hidden pb-24 md:pb-0"
+              : "flex-1 pb-28 md:pb-0"
+          }
+        >
           {children}
         </main>
         {/* Always available on mobile so members can jump Home / Calendar / Messages from any page (including DM + Newsletter). */}

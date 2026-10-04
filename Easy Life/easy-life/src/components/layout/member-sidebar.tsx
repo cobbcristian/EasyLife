@@ -40,11 +40,11 @@ const waitlistHrefs = new Set(["/member/waitlist"]);
 const checkInHrefs = new Set(["/member/check-in"]);
 const fundraisingHrefs = new Set(["/member/fundraising"]);
 
-/** Primary life-first nav — matches mobile: Home / Book / Calendar / Connect / Payments. */
+/** Primary life-first nav — matches mobile: Home / Reserve / Calendar / Connect / Payments. */
 const primaryNav = [
   { label: "Home", href: "/member", icon: "LayoutDashboard" },
   { label: "Assistant", href: "/member/assistant", icon: "Sparkles" },
-  { label: "Book", href: "/member/bookings", icon: "CalendarCheck" },
+  { label: "Reserve", href: "/member/bookings", icon: "CalendarCheck" },
   { label: "Hours", href: "/member/hours", icon: "CalendarDays" },
   { label: "Calendar", href: "/member/calendar", icon: "CalendarDays" },
   { label: "Messages", href: "/member/messages", icon: "MessageCircle" },
@@ -57,8 +57,6 @@ const primaryNav = [
 /** On-property / HOA-only — hidden for club-only (non-resident) members. */
 const hoaOnlyHrefs = new Set([
   "/member/service-requests",
-  "/member/properties",
-  "/member/real-estate",
   "/member/newsletter",
   "/member/payments",
 ]);

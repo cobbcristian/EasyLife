@@ -50,7 +50,7 @@ export default function MemberWaitlistPage() {
             href="/member/bookings"
             className="mt-3 inline-flex text-sm font-semibold text-[var(--mvp-blue)]"
           >
-            {t("Book an amenity")} →
+            {t("Reserve an amenity")} →
           </Link>
         </div>
       ) : (
