@@ -261,7 +261,7 @@ export function MemberMvpHome({
             "linear-gradient(168deg, #ff7a00 0%, #ff9f1a 22%, #f6c445 48%, #d4e04a 72%, #8ed63a 100%)",
         }}
       >
-        <div className="mx-auto max-w-lg">
+        <div className="mx-auto max-w-lg lg:max-w-none">
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"
@@ -303,7 +303,7 @@ export function MemberMvpHome({
         </div>
       </div>
 
-      <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-6 md:pb-10">
+      <div className="mx-auto max-w-lg space-y-6 px-4 pb-28 pt-6 md:pb-10 lg:max-w-none lg:px-8">
         <section>
           <h2 className="mb-4 text-[22px] font-semibold text-black">{t("Explore")}</h2>
           <div className="grid grid-cols-4 gap-2">

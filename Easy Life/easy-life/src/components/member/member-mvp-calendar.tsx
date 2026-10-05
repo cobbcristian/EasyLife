@@ -595,8 +595,8 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink md:bg-[linear-gradient(180deg,#f7f8fa_0%,#ffffff_28%)]">
-      <div className="mx-auto w-full max-w-lg pb-28 md:max-w-3xl md:px-6 md:pb-10 md:pt-8">
+    <div className="min-h-screen bg-white font-[family-name:var(--font-poppins)] text-ink md:flex md:min-h-[calc(100dvh-3.5rem)] md:flex-col md:bg-[linear-gradient(180deg,#f7f8fa_0%,#ffffff_28%)]">
+      <div className="mx-auto flex w-full max-w-lg flex-col pb-28 md:max-w-none md:flex-1 md:px-6 md:pb-8 md:pt-6">
         <header className="sticky top-0 z-20 border-b border-[#eceff3] bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:static md:rounded-2xl md:border md:border-[#e8ebf0] md:px-5 md:py-4 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink md:text-[26px]">
@@ -653,7 +653,7 @@ export function MemberMvpCalendar({ events, ads, communityId }: Props) {
           </div>
         </header>
 
-        <div className="space-y-5 px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:py-6 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
+        <div className="space-y-5 px-4 py-5 md:mt-5 md:flex-1 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:py-6 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
           {ads.length > 0 ? (
             <div className="space-y-2">
               {ads.map((ad) =>

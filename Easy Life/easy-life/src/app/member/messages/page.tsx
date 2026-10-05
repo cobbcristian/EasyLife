@@ -394,7 +394,7 @@ export default function MemberMessagesPage() {
   const showConversationPane = Boolean(active);
 
   return (
-    <div className="font-[family-name:var(--font-poppins)]">
+    <div className="font-[family-name:var(--font-poppins)] lg:flex lg:min-h-[calc(100dvh-3.5rem)] lg:flex-col">
       {/* Mobile conversation — Figma full-screen chat */}
       {active && mobileConversation ? (
         <div className="fixed inset-0 z-40 mx-auto flex max-w-lg flex-col bg-[#f2f2f7] lg:hidden">
@@ -486,7 +486,7 @@ export default function MemberMessagesPage() {
       {/* Thread list (mobile when not in conversation; always on desktop left) */}
       <div
         className={cn(
-          "mx-auto max-w-lg px-4 pb-28 pt-4 lg:max-w-5xl lg:px-6 lg:pb-10",
+          "mx-auto max-w-lg px-4 pb-28 pt-4 lg:flex lg:min-h-0 lg:w-full lg:max-w-none lg:flex-1 lg:flex-col lg:px-6 lg:pb-6 lg:pt-6",
           active && mobileConversation && "hidden lg:block",
         )}
       >
@@ -591,8 +591,8 @@ export default function MemberMessagesPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-          <div className="overflow-hidden rounded-xl border border-border-2 bg-white">
+        <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="overflow-hidden rounded-xl border border-border-2 bg-white lg:h-full lg:min-h-0">
             {loading ? (
               <p className="p-4 text-sm text-grey">{t("Loading…")}</p>
             ) : threads.length === 0 ? (
@@ -639,7 +639,7 @@ export default function MemberMessagesPage() {
           </div>
 
           {/* Desktop conversation pane */}
-          <div className="hidden min-h-[520px] flex-col overflow-hidden rounded-xl border border-border-2 bg-[#f2f2f7] lg:flex">
+          <div className="hidden min-h-[520px] flex-col overflow-hidden rounded-xl border border-border-2 bg-[#f2f2f7] lg:flex lg:h-full lg:min-h-0">
             {showConversationPane && active ? (
               <>
                 <div className="shrink-0 border-b border-[#e5e5ea] bg-white px-5 py-4">

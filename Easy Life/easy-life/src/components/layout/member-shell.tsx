@@ -154,7 +154,7 @@ export function MemberShell({
           className={
             pathname.startsWith("/member/assistant")
               ? "flex-1 overflow-hidden pb-24 md:pb-0"
-              : "flex-1 pb-28 md:pb-0"
+              : "flex min-h-0 flex-1 flex-col pb-28 md:pb-0"
           }
         >
           {children}
