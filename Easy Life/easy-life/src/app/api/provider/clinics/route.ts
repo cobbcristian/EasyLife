@@ -7,7 +7,7 @@ import {
 } from "@/lib/server/clinics";
 import { ensureRecordsSeeded, logEvent, listCommunityEvents } from "@/lib/server/records";
 import { providerShowsGroupClinics } from "@/lib/provider-nav";
-import { prisma } from "@/lib/server/prisma";
+import { findProviderForSession } from "@/lib/server/provider-identity";
 
 const SPORTS: ClinicSport[] = ["tennis", "golf", "bocce", "pickleball"];
 
@@ -27,13 +27,7 @@ async function clinicAllowedForSession(session: {
   const email = session.email.toLowerCase();
   const communityId = session.communityId ?? null;
   const provider = communityId
-    ? await prisma.provider.findFirst({
-        where: {
-          communityId,
-          OR: [{ email }, { name: session.name }],
-        },
-        select: { listingKind: true, category: true, type: true },
-      })
+    ? await findProviderForSession({ communityId, email })
     : null;
   return providerShowsGroupClinics({
     email,

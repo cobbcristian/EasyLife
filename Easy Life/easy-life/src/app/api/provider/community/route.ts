@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { getCommunityById } from "@/lib/server/db";
+import { findProviderForSession } from "@/lib/server/provider-identity";
 import { ensureRecordsSeeded, listMenuItems } from "@/lib/server/records";
 import {
   ensureSeedProviderOfferings,
@@ -24,8 +25,9 @@ export async function GET() {
     ? await getCommunityById(session.communityId)
     : undefined;
   const provider = session.communityId
-    ? await prisma.provider.findFirst({
-        where: { communityId: session.communityId, name: session.name },
+    ? await findProviderForSession({
+        communityId: session.communityId,
+        email: session.email,
       })
     : null;
   const menuItems = await listMenuItems(session.email);
@@ -98,12 +100,11 @@ export async function PATCH(request: Request) {
   }
 
   await ensureRecordsSeeded();
+  // Email-only: duplicate business names must not let a rival rewrite another provider row.
   const provider = session.communityId
-    ? await prisma.provider.findFirst({
-        where: {
-          communityId: session.communityId,
-          OR: [{ email: session.email }, { name: session.name }],
-        },
+    ? await findProviderForSession({
+        communityId: session.communityId,
+        email: session.email,
       })
     : null;
 
