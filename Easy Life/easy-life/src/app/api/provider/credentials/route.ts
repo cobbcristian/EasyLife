@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
+import { findProviderForSession } from "@/lib/server/provider-identity";
 import { prisma } from "@/lib/server/prisma";
 import { saveDocumentUpload, validateDocumentUpload } from "@/lib/server/storage";
 
@@ -45,12 +46,8 @@ export async function POST(request: Request) {
   if (!communityId) {
     return NextResponse.json({ error: "No community on this account" }, { status: 400 });
   }
-  const provider = await prisma.provider.findFirst({
-    where: {
-      communityId,
-      OR: [{ email }, ...(session.name ? [{ name: session.name }] : [])],
-    },
-  });
+  // Email-only: name collisions must not attach gov ID / background checks to another provider.
+  const provider = await findProviderForSession({ communityId, email });
   if (!provider) {
     return NextResponse.json({ error: "Provider profile not found" }, { status: 404 });
   }
