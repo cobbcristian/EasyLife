@@ -64,7 +64,8 @@ export async function sendPushToUser(
   }
   // Native Expo tokens already require iOS/Android permission — deliver those
   // even if the in-app toggle was never flipped (common App Store install path).
-  sent += await sendExpoPushToUser(email, payload);
+  const native = await sendExpoPushToUser(email, payload);
+  sent += native.sent;
   return sent;
 }
 

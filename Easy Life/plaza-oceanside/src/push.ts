@@ -69,7 +69,13 @@ export async function ensurePushRegistered(
     const current = await Notifications.getPermissionsAsync();
     let status = current.status;
     if (status !== "granted" && opts?.request) {
-      const asked = await Notifications.requestPermissionsAsync();
+      const asked = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+        },
+      });
       status = asked.status;
     }
     if (status !== "granted") return { ok: false, reason: "permission_denied" };

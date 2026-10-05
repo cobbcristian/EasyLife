@@ -22,14 +22,21 @@ export async function removeExpoPushToken(userEmail: string, token: string) {
   });
 }
 
+export type ExpoPushDelivery = {
+  sent: number;
+  error?: string;
+};
+
 export async function sendExpoPushToUser(
   userEmail: string,
   payload: { title: string; body: string; url?: string },
-): Promise<number> {
+): Promise<ExpoPushDelivery> {
   const rows = await prisma.expoPushToken.findMany({
     where: { userEmail: userEmail.toLowerCase() },
   });
-  if (rows.length === 0) return 0;
+  if (rows.length === 0) {
+    return { sent: 0, error: "no_device" };
+  }
 
   const expo = new Expo();
   const messages: ExpoPushMessage[] = rows
@@ -41,20 +48,35 @@ export async function sendExpoPushToUser(
       data: { url: payload.url ?? "/member" },
       sound: "default",
       priority: "high",
-      interruptionLevel: "time-sensitive",
+      // "active" is the normal lock-screen alert. iOS mirrors it to a paired
+      // Apple Watch. "time-sensitive" is dropped unless the app has that entitlement.
+      interruptionLevel: "active",
     }));
 
-  if (messages.length === 0) return 0;
+  if (messages.length === 0) {
+    return { sent: 0, error: "no_device" };
+  }
 
   let sent = 0;
+  let error: string | undefined;
   const chunks = expo.chunkPushNotifications(messages);
   for (const chunk of chunks) {
     try {
       const tickets = await expo.sendPushNotificationsAsync(chunk);
-      sent += tickets.filter((ticket) => ticket.status === "ok").length;
+      for (const ticket of tickets) {
+        if (ticket.status === "ok") {
+          sent += 1;
+          continue;
+        }
+        error = ticket.details?.error ?? "send_failed";
+        const expired = ticket.details?.expoPushToken;
+        if (ticket.details?.error === "DeviceNotRegistered" && expired) {
+          await prisma.expoPushToken.deleteMany({ where: { token: expired } });
+        }
+      }
     } catch {
-      /* skip failed chunk */
+      error = "send_failed";
     }
   }
-  return sent;
+  return sent > 0 ? { sent } : { sent: 0, error: error ?? "send_failed" };
 }
