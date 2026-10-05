@@ -11,6 +11,31 @@ function heuristicRoute(message: string): string {
   return "fallback";
 }
 
+/**
+ * Mirrors runClubAssistant priority: lesson/pro intent must win even when
+ * amenity name tokens (tennis/golf/pickle) would also match a court.
+ */
+function clubAssistantRoute(
+  message: string,
+  amenityMatchCount: number,
+): "vendor" | "amenity" | "fallback" {
+  const m = message.toLowerCase();
+  const askingHours =
+    /\b(hours|open|close|closing|opening)\b/.test(m) &&
+    !/\b(book|reserve|reservation)\b/.test(m);
+  const lessonAsk =
+    /vendor|pro\b|instructor|coach|lesson|private lesson|teaching pro/.test(m) ||
+    (/book|reserve|schedule/.test(m) && /lesson|pro\b|coach/.test(m));
+  if (lessonAsk) return "vendor";
+  if (
+    !askingHours &&
+    (amenityMatchCount > 0 || /\b(book|reserve|reservation)\b/.test(m))
+  ) {
+    return "amenity";
+  }
+  return "fallback";
+}
+
 describe("assistant intent routing", () => {
   it("routes common club intents", () => {
     expect(heuristicRoute("I want eat-in at the restaurant")).toBe("dining");
@@ -20,5 +45,15 @@ describe("assistant intent routing", () => {
     expect(heuristicRoute("when do kids age out")).toBe("household");
     expect(heuristicRoute("grab and go unlock")).toBe("grab_go");
     expect(heuristicRoute("rejoin after resigning")).toBe("rejoin");
+  });
+
+  it("does not auto-reserve a court when the member asked for a lesson", () => {
+    expect(clubAssistantRoute("Book a tennis lesson tomorrow at 10", 1)).toBe(
+      "vendor",
+    );
+    expect(clubAssistantRoute("book a golf lesson with a pro", 2)).toBe("vendor");
+    expect(clubAssistantRoute("book a tennis court tomorrow at 10", 1)).toBe(
+      "amenity",
+    );
   });
 });

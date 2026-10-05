@@ -83,6 +83,7 @@ import {
   type GolfClubFlex,
 } from "@/lib/rental-flex";
 import {
+  applyOpenClosePreservingClosed,
   closedWindowForRange,
   dayHoursForDate,
   formatHoursSummary,
@@ -1794,7 +1795,8 @@ export async function updateAmenityOperatingHours(input: {
     where: { id: input.amenityId, communityId: input.communityId },
   });
   if (!amenity) return null;
-  const hours = defaultDailyHours(input.open, input.close);
+  const existing = parseWeeklyHours(amenity.hoursJson);
+  const hours = applyOpenClosePreservingClosed(existing, input.open, input.close);
   return prisma.amenity.update({
     where: { id: amenity.id },
     data: {
