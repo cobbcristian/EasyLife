@@ -39,6 +39,55 @@ export function defaultDailyHoursWithClosed(
   return { mon: day, tue: day, wed: day, thu: day, fri: day, sat: day, sun: day };
 }
 
+const WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+/**
+ * Apply a single open/close to every day while preserving mid-day `closed`
+ * windows (irrigation, maintenance). Without this, a simple hours editor
+ * would wipe blackout periods and let members book during closures.
+ */
+export function applyOpenClosePreservingClosed(
+  existing: WeeklyHours | null,
+  open: string,
+  close: string,
+): WeeklyHours {
+  if (!existing) return defaultDailyHours(open, close);
+  const next: WeeklyHours = {
+    mon: null,
+    tue: null,
+    wed: null,
+    thu: null,
+    fri: null,
+    sat: null,
+    sun: null,
+  };
+  for (const key of WEEKDAY_KEYS) {
+    const day = existing[key];
+    if (!day) {
+      next[key] = { open, close };
+      continue;
+    }
+    next[key] = {
+      open,
+      close,
+      ...(day.closed?.length ? { closed: day.closed } : {}),
+    };
+  }
+  return next;
+}
+
+/** First usable open/close from structured hours (for editor drafts). */
+export function openCloseFromWeeklyHours(
+  hours: WeeklyHours | null,
+): { open: string; close: string } | null {
+  if (!hours) return null;
+  for (const key of WEEKDAY_KEYS) {
+    const day = hours[key];
+    if (day) return { open: day.open, close: day.close };
+  }
+  return null;
+}
+
 export function weekdayHours(
   weekdayOpen: string,
   weekdayClose: string,

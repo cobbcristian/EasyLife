@@ -743,7 +743,9 @@ export async function runClubAssistant(input: {
   const lessonAsk =
     isVendorIntent(m) ||
     (/book|reserve|schedule/.test(m) && /lesson|pro\b|coach/.test(m));
-  if (lessonAsk && amenityMatches.length === 0) {
+  // Lesson/pro intent must win even when sport amenity names also match
+  // ("book a tennis lesson" must not auto-reserve a court).
+  if (lessonAsk) {
     result = await handleVendorBookingIntent({
       communityId,
       memberEmail: email,

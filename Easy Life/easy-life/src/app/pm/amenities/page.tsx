@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { openCloseFromWeeklyHours, parseWeeklyHours } from "@/lib/hours";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/ui/toast";
 
@@ -8,9 +9,16 @@ type AmenityHours = {
   id: string;
   name: string;
   schedule: string;
+  hoursJson?: string | null;
 };
 
-const TIMES = [
+function draftFromAmenity(amenity: AmenityHours): { open: string; close: string } {
+  const fromHours = openCloseFromWeeklyHours(parseWeeklyHours(amenity.hoursJson));
+  if (fromHours) return fromHours;
+  return { open: "08:00", close: "20:00" };
+}
+
+const BASE_TIMES = [
   "05:00",
   "06:00",
   "07:00",
@@ -32,6 +40,11 @@ const TIMES = [
   "23:00",
 ];
 
+function timesFor(value: string) {
+  if (BASE_TIMES.includes(value)) return BASE_TIMES;
+  return [...BASE_TIMES, value].sort();
+}
+
 export default function PmAmenityHoursPage() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -49,7 +62,7 @@ export default function PmAmenityHoursPage() {
         setRows(amenities);
         const next: Record<string, { open: string; close: string }> = {};
         for (const amenity of amenities) {
-          next[amenity.id] = { open: "08:00", close: "20:00" };
+          next[amenity.id] = draftFromAmenity(amenity);
         }
         setDrafts(next);
       })
@@ -107,7 +120,7 @@ export default function PmAmenityHoursPage() {
                       }))
                     }
                   >
-                    {TIMES.map((time) => (
+                    {timesFor(drafts[row.id]?.open ?? "08:00").map((time) => (
                       <option key={time} value={time}>
                         {time}
                       </option>
@@ -126,7 +139,7 @@ export default function PmAmenityHoursPage() {
                       }))
                     }
                   >
-                    {TIMES.map((time) => (
+                    {timesFor(drafts[row.id]?.close ?? "20:00").map((time) => (
                       <option key={time} value={time}>
                         {time}
                       </option>
