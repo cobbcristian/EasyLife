@@ -91,6 +91,7 @@ import {
   parseWeeklyHours,
   weekdayHours,
   defaultDailyHours,
+  withDailyOpenClosePreservingClosed,
 } from "@/lib/hours";
 import {
   isRainAdvisoryActive,
@@ -1794,7 +1795,12 @@ export async function updateAmenityOperatingHours(input: {
     where: { id: input.amenityId, communityId: input.communityId },
   });
   if (!amenity) return null;
-  const hours = defaultDailyHours(input.open, input.close);
+  // Preserve mid-day closed windows (e.g. tennis irrigation) when PM edits open/close.
+  const hours = withDailyOpenClosePreservingClosed(
+    parseWeeklyHours(amenity.hoursJson),
+    input.open,
+    input.close,
+  );
   return prisma.amenity.update({
     where: { id: amenity.id },
     data: {

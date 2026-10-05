@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  dailyOpenCloseDraft,
   defaultDailyHoursWithClosed,
   hoursClosedMessage,
   isOpenAt,
   parseWeeklyHours,
   weekdayHours,
+  withDailyOpenClosePreservingClosed,
 } from "@/lib/hours";
 
 describe("hours of operation", () => {
@@ -42,5 +44,24 @@ describe("mid-day irrigation closed windows", () => {
     const msg = hoursClosedMessage(tennis, "2026-07-20", "12:00", "13:00");
     expect(msg).toMatch(/irrigation/i);
     expect(msg).toMatch(/12:00/);
+  });
+
+  it("PM daily open/close save keeps irrigation closed windows", () => {
+    const updated = withDailyOpenClosePreservingClosed(tennis, "08:00", "20:00");
+    expect(updated.mon?.open).toBe("08:00");
+    expect(updated.mon?.close).toBe("20:00");
+    expect(updated.mon?.closed).toEqual([
+      {
+        start: "12:00",
+        end: "13:30",
+        reason: "Above-ground irrigation and green-clay dry-down",
+      },
+    ]);
+    expect(isOpenAt(updated, "2026-07-20", "12:00", "13:00")).toBe(false);
+    expect(isOpenAt(updated, "2026-07-20", "18:00", "19:00")).toBe(true);
+  });
+
+  it("draft open/close reads published hours, not 08:00–20:00 defaults", () => {
+    expect(dailyOpenCloseDraft(tennis)).toEqual({ open: "09:00", close: "17:00" });
   });
 });
