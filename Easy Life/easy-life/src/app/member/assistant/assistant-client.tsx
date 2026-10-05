@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { ChatComposer, ChatThreadScroll } from "@/components/messages/chat-composer";
 import { communityIsResidentialHoa } from "@/lib/community-features";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -170,9 +171,7 @@ export function AssistantClient() {
   const [listening, setListening] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isResidentialHoa, setIsResidentialHoa] = useState(false);
-  const [speechAvailable, setSpeechAvailable] = useState(false);
   const [keyboardInset, setKeyboardInset] = useState(0);
-  const threadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -195,9 +194,6 @@ export function AssistantClient() {
     };
   }, []);
 
-  useEffect(() => {
-    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
-  }, [messages, keyboardInset, listening]);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const bootstrappedQuery = useRef(false);
@@ -212,7 +208,6 @@ export function AssistantClient() {
 
   useEffect(() => {
     setVoiceEnabled(readVoicePref());
-    setSpeechAvailable(Boolean(getSpeechRecognitionCtor()));
   }, []);
 
   useEffect(() => {
@@ -280,8 +275,8 @@ export function AssistantClient() {
         ...prev,
         { role: "assistant", content: data.reply, actions: data.actions ?? [] },
       ]);
-      if (voiceEnabled && (data.speak || confirmAction)) {
-        speakText(data.reply);
+      if (voiceEnabled) {
+        void speakText(data.reply);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed");
@@ -311,7 +306,6 @@ export function AssistantClient() {
 
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
-      setSpeechAvailable(false);
       setError(
         t("Voice input isn’t available on this device. Type your request below."),
       );
@@ -364,7 +358,6 @@ export function AssistantClient() {
     recognitionRef.current = recognition;
     try {
       recognition.start();
-      setSpeechAvailable(true);
     } catch {
       setListening(false);
       setError(t("Could not start microphone. Type your request below."));
@@ -406,8 +399,8 @@ export function AssistantClient() {
             </h1>
             <p className="mt-1 text-sm text-grey">
               {voiceEnabled
-                ? t("Voice or text ' I can book courts and in-app vendors, then confirm out loud.")
-                : t("Text mode ' reply by typing. Turn Voice on to hear spoken confirmations.")}
+                ? t("Ask Barnaby by voice or text. Turn Voice on to hear the butler reply.")
+                : t("Ask Barnaby. Turn Voice on to hear spoken replies.")}
             </p>
           </div>
           <button
@@ -435,15 +428,16 @@ export function AssistantClient() {
           {(
             isResidentialHoa
               ? [
-                  "Book a tennis court tomorrow at 10",
-                  "What are the pool hours?",
-                  "How do I pay HOA dues?",
+                  "Reserve the billiard table tomorrow at 7",
+                  "Reserve the theater tonight at 8",
+                  "Reserve Grill #1 Saturday at noon",
+                  "What are the fitness center hours?",
                 ]
               : [
-                  "Book a tennis court tomorrow at 10",
-                  "Book a lesson with a tennis pro",
+                  "Reserve the billiard table tomorrow at 7",
+                  "Reserve the theater tonight at 8",
+                  "Book a golf lesson tomorrow at 10",
                   "Order eat-in tonight",
-                  "Grab & Go help",
                 ]
           ).map((q) => (
             <button
@@ -457,112 +451,98 @@ export function AssistantClient() {
           ))}
         </div>
 
-        <div ref={threadRef} className="mt-4 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto pb-2">
-          {messages.length === 0 ? (
-            <p className="text-sm text-grey">
-              {t("Say or type what you want booked ' I'll confirm when it's done.")}
-            </p>
-          ) : (
-            messages.map((m, i) => (
-              <div
-                key={m.id ?? `${m.role}-${i}`}
-                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
-                    m.role === "user"
-                      ? "bg-[var(--mvp-blue)] text-white"
-                      : "border border-[#e8ebf0] bg-[#fafbfc] text-ink"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{m.content}</p>
-                  {m.actions && m.actions.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {m.actions.map((a, j) =>
-                        a.type === "book_amenity" || a.type === "book_vendor" ? (
-                          <button
-                            key={`${a.type}-${j}`}
-                            type="button"
-                            disabled={busy}
-                            onClick={() => onActionClick(a)}
-                            className="rounded-full bg-[var(--mvp-blue)] px-3 py-1 text-[12px] font-semibold text-white disabled:opacity-50"
-                          >
-                            {a.label}
-                          </button>
-                        ) : (
-                          <Link
-                            key={`${a.type}-${j}`}
-                            href={actionHref(a)}
-                            className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[var(--mvp-blue)] ring-1 ring-[#e4e8ee]"
-                          >
-                            {a.label}
-                          </Link>
-                        ),
-                      )}
+        <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[22px] bg-[#f2f2f7]">
+          <ChatThreadScroll scrollKey={`${messages.length}-${busy}-${listening}`}>
+            {messages.length === 0 ? (
+              <p className="px-1 text-center text-sm text-[#8e8e93]">
+                {t("Ask Barnaby what to reserve. He will confirm when it is done.")}
+              </p>
+            ) : (
+              messages.map((m, i) => {
+                const mine = m.role === "user";
+                return (
+                  <div
+                    key={m.id ?? `${m.role}-${i}`}
+                    className={`flex flex-col ${mine ? "items-end" : "items-start"}`}
+                  >
+                    <div
+                      className={`max-w-[75%] rounded-[18px] px-3.5 py-2 text-[16px] leading-snug ${
+                        mine
+                          ? "rounded-br-[4px] bg-[#007aff] text-white"
+                          : "rounded-bl-[4px] bg-[#e9e9eb] text-black"
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                      {m.actions && m.actions.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {m.actions.map((a, j) =>
+                            a.type === "book_amenity" || a.type === "book_vendor" ? (
+                              <button
+                                key={`${a.type}-${j}`}
+                                type="button"
+                                disabled={busy}
+                                onClick={() => onActionClick(a)}
+                                className={`rounded-full px-3 py-1 text-[12px] font-semibold disabled:opacity-50 ${
+                                  mine
+                                    ? "bg-white text-[#007aff]"
+                                    : "bg-[#007aff] text-white"
+                                }`}
+                              >
+                                {a.label}
+                              </button>
+                            ) : (
+                              <Link
+                                key={`${a.type}-${j}`}
+                                href={actionHref(a)}
+                                className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
+                                  mine
+                                    ? "bg-white/20 text-white"
+                                    : "bg-white text-[#007aff]"
+                                }`}
+                              >
+                                {a.label}
+                              </Link>
+                            ),
+                          )}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              </div>
-            ))
-          )}
-          {error ? (
-            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-              {error}
-            </p>
-          ) : null}
-          {listening ? (
-            <p className="text-sm font-medium text-[var(--mvp-blue)]" aria-live="polite">
-              {t("Listening… speak now")}
-            </p>
-          ) : null}
+                  </div>
+                );
+              })
+            )}
+            {error ? (
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {listening ? (
+              <p className="text-sm font-medium text-[#007aff]" aria-live="polite">
+                {t("Listening… speak now")}
+              </p>
+            ) : null}
+          </ChatThreadScroll>
         </div>
 
-        <form
-          className="shrink-0 border-t border-[#eceff3] bg-white py-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          <div className="flex items-center gap-2">
+        <ChatComposer
+          value={input}
+          disabled={busy}
+          onChange={setInput}
+          onSend={() => void send()}
+          inputRef={inputRef}
+          placeholder={listening ? t("Listening…") : t("Ask Barnaby")}
+          leading={
             <button
               type="button"
               onClick={() => void toggleListen()}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
-                listening
-                  ? "bg-red-500 text-white"
-                  : "border border-[#e4e8ee] bg-white text-[var(--mvp-blue)]"
-              }`}
+              className={`rounded-full p-2 ${listening ? "bg-red-500 text-white" : ""}`}
               aria-label={listening ? t("Stop listening") : t("Voice input")}
               aria-pressed={listening}
-              title={
-                speechAvailable
-                  ? t("Tap to speak")
-                  : t("Voice may need permission — tap to try")
-              }
             >
               {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </button>
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                listening
-                  ? t("Listening…")
-                  : t("Ask or say: book a court tomorrow at 10'")
-              }
-              className="box-border h-11 min-w-0 flex-1 rounded-2xl border border-[#e4e8ee] px-4 text-sm leading-none outline-none focus:border-[var(--mvp-blue)]"
-            />
-            <button
-              type="submit"
-              disabled={busy || !input.trim()}
-              className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--mvp-blue)] px-4 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {busy ? t("'") : t("Send")}
-            </button>
-          </div>
-        </form>
+          }
+        />
       </div>
     </div>
   );

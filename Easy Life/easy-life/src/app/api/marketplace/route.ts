@@ -2,11 +2,24 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { resolveMarketplaceListingImage } from "@/lib/brand-assets";
 import { getSession } from "@/lib/server/auth";
-import { createListing, ensureRecordsSeeded, listListings } from "@/lib/server/records";
+import { createListing, ensureRecordsSeeded, listListingsEverywhere } from "@/lib/server/records";
 import { saveUpload, validateMediaUpload } from "@/lib/server/storage";
 import { moderateUpload } from "@/lib/server/ai/moderate";
 
-function mapListing(l: Awaited<ReturnType<typeof listListings>>[number]) {
+function mapListing(l: {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  seller: string;
+  unit: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  createdAt: Date;
+  location?: string;
+  communityName?: string;
+}) {
   return {
     id: l.id,
     title: l.title,
@@ -18,6 +31,8 @@ function mapListing(l: Awaited<ReturnType<typeof listListings>>[number]) {
     imageUrl: resolveMarketplaceListingImage(l.title, l.category, l.imageUrl),
     videoUrl: l.videoUrl,
     createdAt: l.createdAt.toISOString(),
+    location: l.location ?? "",
+    communityName: l.communityName ?? "",
   };
 }
 
@@ -25,7 +40,7 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await ensureRecordsSeeded();
-  const listings = await listListings(session.communityId);
+  const listings = await listListingsEverywhere();
   return NextResponse.json({ listings: listings.map(mapListing) });
 }
 

@@ -5,6 +5,7 @@ import {
   useRef,
   type FormEvent,
   type ReactNode,
+  type Ref,
 } from "react";
 import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ type ChatComposerProps = {
   className?: string;
   /** Extra strip above the field (e.g. booking request banner). */
   banner?: ReactNode;
+  inputRef?: Ref<HTMLInputElement>;
 };
 
 /** iMessage-style field: pill input with blue circular up-arrow send. */
@@ -78,6 +80,7 @@ export function ChatComposer({
   leading,
   className,
   banner,
+  inputRef,
 }: ChatComposerProps) {
   const canSend = value.trim().length > 0 && !disabled;
 
@@ -109,6 +112,7 @@ export function ChatComposer({
           )}
         >
           <input
+            ref={inputRef}
             value={value}
             disabled={disabled}
             enterKeyHint="send"

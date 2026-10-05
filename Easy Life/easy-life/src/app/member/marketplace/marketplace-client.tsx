@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Plus, Video, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { isMarketplaceProductCover, resolveMarketplaceListingImage } from "@/lib/brand-assets";
+import { LocationFilter } from "@/components/member/location-filter";
 
 export interface ListingDTO {
   id: string;
@@ -23,6 +24,8 @@ export interface ListingDTO {
   imageUrl: string | null;
   videoUrl: string | null;
   createdAt: string;
+  location?: string;
+  communityName?: string;
 }
 
 function ListingThumbnail({ item }: { item: ListingDTO }) {
@@ -157,7 +160,7 @@ function ListingDetailModal({
           </div>
 
           <p className="mt-5 text-sm text-grey">
-            {item.seller} · {t("Unit")} {item.unit}
+            {item.seller} · {item.location || item.communityName || t("Unit") + " " + item.unit}
           </p>
 
           <div className="mt-6">
@@ -193,6 +196,15 @@ export function MarketplaceClient({ initial }: { initial: ListingDTO[] }) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [location, setLocation] = useState("All locations");
+  const locations = useMemo(
+    () =>
+      [...new Set(initial.map((item) => item.location).filter((v): v is string => Boolean(v)))].sort(),
+    [initial],
+  );
+  const visible = initial.filter(
+    (item) => location === "All locations" || item.location === location,
+  );
 
   function resetMedia() {
     setImageFile(null);
@@ -370,7 +382,14 @@ export function MarketplaceClient({ initial }: { initial: ListingDTO[] }) {
             </form>
           ) : null}
 
-          {initial.length === 0 ? (
+          <LocationFilter
+            locations={locations}
+            value={location}
+            onChange={setLocation}
+            label={t("Location")}
+          />
+
+          {visible.length === 0 ? (
             <div className="rounded-xl bg-[#f7f8fa] px-5 py-8 text-center">
               <p className="text-sm font-semibold text-ink">{t("No listings yet.")}</p>
               <p className="mt-1 text-sm text-grey">
@@ -387,7 +406,7 @@ export function MarketplaceClient({ initial }: { initial: ListingDTO[] }) {
             </div>
           ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            {initial.map((item) => (
+            {visible.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -403,7 +422,7 @@ export function MarketplaceClient({ initial }: { initial: ListingDTO[] }) {
                     </span>
                   </div>
                   <p className="mt-1 text-[12px] text-grey">
-                    {item.seller} · {item.unit}
+                    {item.seller} · {item.location || item.communityName || item.unit}
                   </p>
                 </div>
               </button>

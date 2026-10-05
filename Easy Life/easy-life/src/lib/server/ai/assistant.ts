@@ -97,9 +97,8 @@ function isVendorIntent(message: string): boolean {
 function detectSport(message: string): LessonSport | null {
   const m = message.toLowerCase();
   if (/pickle/.test(m)) return "pickleball";
-  if (/golf|tee|pga/.test(m)) return "golf";
+  if (/golf|tee|pga/.test(m) && !/grill|simulat/.test(m)) return "golf";
   if (/tennis/.test(m)) return "tennis";
-  if (/lesson|pro\b|coach|instructor|vendor/.test(m)) return "tennis";
   return null;
 }
 
@@ -133,17 +132,20 @@ function scoreAmenityMatch(
     if (msg.includes(word)) score += 8;
   }
   const aliases: Array<[RegExp, RegExp]> = [
-    [/billiard|billiards|pool table/, /billiard|pool table/],
-    [/theatre|theater|movie/, /theatre|theater|movie|cinema/],
-    [/grill/, /grill/],
-    [/simulat/, /simulat/],
-    [/wine/, /wine/],
-    [/lounge/, /lounge/],
-    [/club room/, /club room/],
-    [/tennis/, /tennis/],
+    [/billiard|billiards|pool table|poolroom|pool room/, /billiard/],
+    [/theatre|theater|movie|cinema/, /theat|cinema|movie/],
+    [/grill|bbq|barbecue/, /grill/],
+    [/simulat|golf sim/, /simulat/],
+    [/wine|vault/, /wine|vault/],
+    [/sports lounge|lounge/, /lounge/],
+    [/board ?room|conference/, /board/],
+    [/club ?room/, /club room|clubhouse/],
+    [/massage/, /massage|spa/],
+    [/fitness|gym/, /fitness|gym/],
+    [/tennis|hard court/, /tennis/],
     [/pickle/, /pickle/],
-    [/spa|massage/, /spa|massage/],
-    [/pool(?! table)/, /pool/],
+    [/spa(?!ce)/, /spa|massage/],
+    [/swimming|lap pool|(?<!pool )pool(?! table)/, /pool|swim/],
   ];
   for (const [msgRe, nameRe] of aliases) {
     if (msgRe.test(msg) && nameRe.test(blob)) score += 10;
@@ -151,14 +153,16 @@ function scoreAmenityMatch(
   return score;
 }
 
-async function findAmenityForMessage(communityId: string, message: string) {
+async function findAmenityCandidates(communityId: string, message: string) {
   const amenities = await listAmenities(communityId);
   const playable = amenities.filter((a) => a.playable);
   const scored = playable
     .map((a) => ({ a, score: scoreAmenityMatch(message, a) }))
     .filter((x) => x.score > 0)
     .sort((x, y) => y.score - x.score);
-  return scored[0]?.a ?? null;
+  if (scored.length === 0) return [];
+  const top = scored[0]!.score;
+  return scored.filter((x) => x.score >= top - 2).map((x) => x.a);
 }
 
 async function executeAmenityBook(input: {
@@ -269,7 +273,19 @@ async function handleVendorBookingIntent(input: {
   message: string;
 }): Promise<AssistantReply> {
   await ensureLessonProsForCommunity(input.communityId);
-  const sport = detectSport(input.message) ?? "tennis";
+  const sport = detectSport(input.message);
+  if (!sport) {
+    return {
+      reply:
+        "I can book a lesson with a club pro. Tell me the sport — tennis, golf, or pickleball — and the day and time.",
+      actions: [
+        { type: "open", label: "Open lessons", href: "/member/lessons" },
+        { type: "open", label: "Browse vendors", href: "/member/vendors" },
+      ],
+      provider: "heuristic",
+      speak: true,
+    };
+  }
   const pros = await listClubPros(input.communityId, sport);
   const date = parseDateHint(input.message);
   const startTime = parseStartTime(input.message);
@@ -341,11 +357,32 @@ async function handleAmenityBookingIntent(input: {
   memberName: string;
   message: string;
 }): Promise<AssistantReply> {
-  const amenity = await findAmenityForMessage(input.communityId, input.message);
+  const matches = await findAmenityCandidates(input.communityId, input.message);
   const date = parseDateHint(input.message);
   const startTime = parseStartTime(input.message);
   const endTime = addHour(startTime);
-  const wantsNow = /\b(book|reserve|schedule)\b/i.test(input.message);
+  const wantsNow = /\b(book|reserve|reservation|schedule)\b/i.test(input.message);
+
+  if (matches.length > 1) {
+    const actions: AiAction[] = matches.slice(0, 6).map((amenity) => ({
+      type: "book_amenity" as const,
+      label: `Reserve ${amenity.name}`,
+      amenityId: amenity.id,
+      amenityName: amenity.name,
+      date,
+      startTime,
+      endTime,
+    }));
+    const names = matches.slice(0, 6).map((a) => a.name).join(", ");
+    return {
+      reply: `I can reserve ${names}. Which one should I hold for ${date} at ${startTime}?`,
+      actions,
+      provider: "heuristic",
+      speak: true,
+    };
+  }
+
+  const amenity = matches[0] ?? null;
 
   if (!amenity) {
     const amenities = await listAmenities(input.communityId);
@@ -545,7 +582,7 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
   if (isOceanside) {
     return {
       reply:
-        "I can help with amenity bookings, HOA payments, packages, and hours. Try: “Book a tennis court tomorrow at 10” or “How do I pay HOA dues?”",
+        "I can reserve any amenity by name — billiard table, theater, grill, golf simulator, board room, massage room, or a tennis court. Tell me the room and a time.",
       actions: [
         { type: "open", label: "Amenities", href: "/member/amenities" },
         { type: "open", label: "Bookings", href: "/member/bookings" },
@@ -557,7 +594,7 @@ function heuristicIntent(message: string, communityId?: string): AssistantReply 
 
   return {
     reply:
-      "I can book courts and in-app vendors (club pros), help with dining, Grab & Go, household age-out, and hours. Try: “Book a tennis court tomorrow at 10” or “Book a lesson with a tennis pro.”",
+      "I can reserve any named amenity, book a lesson with a club pro, and help with dining, Grab & Go, and hours. Name the room — billiard table, theater, grill, spa — or say which sport the lesson is.",
     actions: [
       { type: "open", label: "Dining", href: "/member/dining" },
       { type: "open", label: "Bookings", href: "/member/bookings" },
@@ -699,14 +736,24 @@ export async function runClubAssistant(input: {
 
   let result: AssistantReply;
   const m = message.toLowerCase();
-  if (isVendorIntent(m) || (/book|reserve|schedule/.test(m) && /lesson|pro\b|coach/.test(m))) {
+  const amenityMatches = await findAmenityCandidates(communityId, message);
+  const askingHours =
+    /\b(hours|open|close|closing|opening)\b/.test(m) &&
+    !/\b(book|reserve|reservation)\b/.test(m);
+  const lessonAsk =
+    isVendorIntent(m) ||
+    (/book|reserve|schedule/.test(m) && /lesson|pro\b|coach/.test(m));
+  if (lessonAsk && amenityMatches.length === 0) {
     result = await handleVendorBookingIntent({
       communityId,
       memberEmail: email,
       memberName,
       message,
     });
-  } else if (/\b(book|reserve|reservation|schedule)\b|court|tee|spa|pickle|billiard|theatre|theater|grill|lounge|simulat/.test(m)) {
+  } else if (
+    !askingHours &&
+    (amenityMatches.length > 0 || /\b(book|reserve|reservation)\b/.test(m))
+  ) {
     result = await handleAmenityBookingIntent({
       communityId,
       memberEmail: email,

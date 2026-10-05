@@ -82,6 +82,12 @@ export function AppSidebar({
           },
           { label: "Invites", href: "/invites", icon: "Mail" as const },
           { label: "Users", href: "/users", icon: "Users" as const },
+          {
+            label: "Provider documents",
+            href: "/provider-credentials",
+            icon: "FileText" as const,
+          },
+          { label: "Amenity hours", href: "/pm/amenities", icon: "Clock" as const },
           { label: "Account", href: "/account", icon: "UserCircle" as const },
         ]
       : null;

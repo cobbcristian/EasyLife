@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { prisma } from "@/lib/server/prisma";
+import { attachCommunityPlace } from "@/lib/server/community-place";
 import { addRealEstateListing, listRealEstate } from "@/lib/server/member-api-store";
 import { ensureHuntersRidgeDemoPropertiesAndRealEstate } from "@/lib/server/hunters-ridge-seed";
 import { ensureBonitaBayDemoPropertiesAndRealEstate } from "@/lib/server/bonita-bay-seed";
@@ -50,6 +52,9 @@ function mapListing(l: Awaited<ReturnType<typeof listRealEstate>>[number]) {
     color: l.color,
     images: parseImagesJson(l.imagesJson),
     createdAt: l.createdAt.toISOString(),
+    location: "location" in l && typeof l.location === "string" ? l.location : "",
+    communityName:
+      "communityName" in l && typeof l.communityName === "string" ? l.communityName : "",
   };
 }
 
@@ -269,7 +274,11 @@ if (isHuntersRidge) {
     }
   }
 
-  const listings = await listRealEstate(session.communityId);
+  const rows = await prisma.realEstateListing.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 400,
+  });
+  const listings = await attachCommunityPlace(rows);
   return NextResponse.json({ listings: listings.map(mapListing) });
 }
 

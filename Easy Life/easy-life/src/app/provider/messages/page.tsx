@@ -150,10 +150,10 @@ function MessageBubbles({
             ) : (
               <div
                 className={cn(
-                  "max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  "max-w-[75%] rounded-[18px] px-3.5 py-2 text-[16px] leading-snug",
                   message.isMine
-                    ? "rounded-br-md bg-[var(--mvp-blue)] text-white"
-                    : "rounded-bl-md bg-[#f2f2f7] text-black",
+                    ? "rounded-br-[4px] bg-[#007aff] text-white"
+                    : "rounded-bl-[4px] bg-[#e9e9eb] text-black",
                 )}
               >
                 {message.body}

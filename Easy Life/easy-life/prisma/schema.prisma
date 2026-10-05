@@ -111,6 +111,25 @@ model Provider {
   /// active | frozen — frozen providers stay listed but cannot operate / linked user cannot log in
   status                 String    @default("active")
   createdAt              DateTime  @default(now())
+  credentials            ProviderCredential[]
+}
+
+/// Background check, government ID, license, or insurance uploaded by a service provider.
+model ProviderCredential {
+  id            String   @id @default(cuid())
+  provider      Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  providerId    String
+  communityId   String
+  providerEmail String
+  /// background_check | government_id | license | insurance
+  kind          String
+  fileName      String
+  url           String
+  createdAt     DateTime @default(now())
+
+  @@index([communityId])
+  @@index([providerEmail])
+  @@index([providerId])
 }
 
 model Booking {

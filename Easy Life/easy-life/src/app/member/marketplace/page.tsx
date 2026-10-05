@@ -21,7 +21,7 @@ import { ensureWindsorDemoMarketplace } from "@/lib/server/windsor-seed";
 import { ensureClubRenaissanceDemoMarketplace } from "@/lib/server/club-renaissance-seed";
 import { ensureWorthingtonDemoMarketplace } from "@/lib/server/worthington-seed";
 import { ensureFourClubDemoContent } from "@/lib/server/four-club-demo-content";
-import { ensureRecordsSeeded, listListings } from "@/lib/server/records";
+import { ensureRecordsSeeded, listListingsEverywhere } from "@/lib/server/records";
 import { BONITA_BAY_TENANT, DEBARY_TENANT, JACARANDA_TENANT, THE_DUNES_TENANT, THE_NEST_TENANT, MARTIN_DOWNS_TENANT, SEAGATE_TENANT, COPPERLEAF_TENANT, CLUB_RENAISSANCE_TENANT, FALLS_CLUB_TENANT, ESTERO_TENANT, WILDCAT_RUN_TENANT, HIGHLAND_WOODS_TENANT, BONITA_NATIONAL_TENANT, CARROLLWOOD_TENANT, WINDSOR_TENANT, WORTHINGTON_TENANT, HUNTERS_RIDGE_TENANT, HERON_CREEK_TENANT, SHADOW_WOOD_TENANT } from "@/lib/tenant";
 import { MarketplaceClient } from "./marketplace-client";
 
@@ -237,7 +237,7 @@ const isWorthington =
     }
   }
 
-  const rows = await listListings(session?.communityId);
+  const rows = await listListingsEverywhere();
   const initial = rows.map((l) => ({
     id: l.id,
     title: l.title,
@@ -254,6 +254,8 @@ const isWorthington =
     ),
     videoUrl: l.videoUrl,
     createdAt: l.createdAt.toISOString().slice(0, 10),
+    location: l.location,
+    communityName: l.communityName,
   }));
   return <MarketplaceClient initial={initial} />;
 }

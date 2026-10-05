@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Building2, Plus } from "lucide-react";
+import Link from "next/link";
+import { LocationFilter } from "@/components/member/location-filter";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 
@@ -22,14 +24,21 @@ export default function MemberPropertiesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ address: "", type: "" });
+  const [homes, setHomes] = useState<
+    Array<{ id: string; title: string; type: string; price: number; location?: string }>
+  >([]);
+  const [place, setPlace] = useState("All locations");
 
   useEffect(() => {
     let on = true;
-    fetch("/api/properties")
-      .then((r) => r.json())
-      .then((propData) => {
+    Promise.all([
+      fetch("/api/properties").then((r) => r.json()),
+      fetch("/api/real-estate").then((r) => r.json()),
+    ])
+      .then(([propData, estateData]) => {
         if (!on) return;
         setProperties(propData.properties ?? []);
+        setHomes(estateData.listings ?? []);
       })
       .catch(() => {})
       .finally(() => on && setLoading(false));
@@ -83,6 +92,37 @@ export default function MemberPropertiesPage() {
         </header>
 
         <div className="space-y-4 px-4 py-5 md:mt-5 md:rounded-2xl md:border md:border-[#e8ebf0] md:bg-white md:px-5 md:py-6 md:shadow-[0_10px_28px_rgba(16,24,40,0.05)]">
+          <LocationFilter
+            locations={[...new Set(homes.map((h) => h.location).filter((v): v is string => Boolean(v)))].sort()}
+            value={place}
+            onChange={setPlace}
+            label={t("Location")}
+          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold text-ink">{t("For sale and rent")}</h2>
+              <Link href="/member/real-estate" className="text-sm font-semibold text-[var(--mvp-blue)]">
+                {t("See all")}
+              </Link>
+            </div>
+            {homes
+              .filter((h) => place === "All locations" || h.location === place)
+              .slice(0, 6)
+              .map((h) => (
+                <Link
+                  key={h.id}
+                  href="/member/real-estate"
+                  className="flex items-center justify-between rounded-2xl border border-[#e8ebf0] px-3 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-ink">{h.title}</p>
+                    <p className="text-[12px] text-grey">
+                      {h.location} · {h.type}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+          </div>
           <p className="text-[12px] text-grey">
             {t("Properties connected to your profile")}
           </p>

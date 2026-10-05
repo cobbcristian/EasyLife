@@ -24,6 +24,8 @@ const nav = [
   { label: "Home", href: "/pm", icon: "LayoutDashboard" },
   { label: "Front Desk", href: "/pm/front-desk", icon: "DoorOpen" },
   { label: "Member bookings", href: "/pm/bookings", icon: "CalendarCheck" },
+  { label: "Amenity hours", href: "/pm/amenities", icon: "Clock" },
+  { label: "Provider documents", href: "/pm/provider-credentials", icon: "FileText" },
   { label: "Mobile POS", href: "/pm/pos", icon: "CreditCard" },
   { label: "Tram Dispatch", href: "/pm/tram", icon: "Bus" },
   { label: "Packages", href: "/pm/packages", icon: "Package" },

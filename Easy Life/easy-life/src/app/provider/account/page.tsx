@@ -16,6 +16,7 @@ import { useI18n } from "@/lib/i18n";
 import { brandAssets, defaultAvatarForRole } from "@/lib/brand-assets";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 import { cn } from "@/lib/utils";
+import { ProviderCredentialsPanel } from "@/components/provider/provider-credentials-panel";
 
 function FloatingField({
   label,
@@ -308,6 +309,8 @@ export default function ProviderAccountPage() {
             onChange={(e) => setProfile((p) => ({ ...p, about: e.target.value }))}
           />
         </section>
+
+        <ProviderCredentialsPanel />
 
         <section className="mb-10">
           <h2 className="mb-4 text-xl font-medium text-black">{t("Business Hours")}</h2>

@@ -5,6 +5,7 @@ import { Bath, Bed, ImagePlus, Maximize, Plus, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
+import { LocationFilter } from "@/components/member/location-filter";
 
 type Filter = "all" | "sale" | "rent";
 
@@ -20,6 +21,8 @@ interface Listing {
   unit: string;
   color: string;
   images: string[];
+  location?: string;
+  communityName?: string;
 }
 
 const fieldClass =
@@ -118,7 +121,9 @@ function ListingDetailModal({
               >
                 {listing.title}
               </h2>
-              <p className="mt-1 text-sm text-grey">{listing.unit}</p>
+              <p className="mt-1 text-sm text-grey">
+                {listing.location || listing.communityName || listing.unit}
+              </p>
             </div>
             <p className="shrink-0 text-lg font-semibold text-ink">
               {formatCurrency(listing.price)}
@@ -166,6 +171,7 @@ export default function MemberRealEstatePage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
+  const [location, setLocation] = useState("All locations");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<Listing | null>(null);
@@ -198,9 +204,19 @@ export default function MemberRealEstatePage() {
     };
   }, []);
 
+  const locations = useMemo(
+    () =>
+      [...new Set(listings.map((l) => l.location).filter((v): v is string => Boolean(v)))].sort(),
+    [listings],
+  );
   const filtered = useMemo(
-    () => (filter === "all" ? listings : listings.filter((l) => l.type === filter)),
-    [filter, listings],
+    () =>
+      listings.filter((l) => {
+        if (filter !== "all" && l.type !== filter) return false;
+        if (location !== "All locations" && l.location !== location) return false;
+        return true;
+      }),
+    [filter, listings, location],
   );
 
   function resetImages() {
@@ -308,6 +324,14 @@ export default function MemberRealEstatePage() {
                 {f === "all" ? t("All") : t(`For ${f}`)}
               </button>
             ))}
+          </div>
+          <div className="mt-3">
+            <LocationFilter
+              locations={locations}
+              value={location}
+              onChange={setLocation}
+              label={t("Location")}
+            />
           </div>
         </header>
 
@@ -480,7 +504,9 @@ export default function MemberRealEstatePage() {
                         {l.description}
                       </p>
                     ) : null}
-                    <p className="mt-1 text-[11px] text-grey">{l.unit}</p>
+                    <p className="mt-1 text-[11px] text-grey">
+                      {l.location || l.communityName || l.unit}
+                    </p>
                     <div className="mt-2 flex gap-3 text-[11px] text-grey">
                       <span className="flex items-center gap-1">
                         <Bed className="h-3.5 w-3.5" /> {l.beds}

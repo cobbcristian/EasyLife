@@ -1153,6 +1153,32 @@ export async function listListings(communityId?: string | null) {
   });
 }
 
+/** Marketplace across every community, with a place name for location filters. */
+export async function listListingsEverywhere() {
+  const rows = await prisma.listing.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 400,
+  });
+  const ids = [...new Set(rows.map((r) => r.communityId))];
+  const communities =
+    ids.length === 0
+      ? []
+      : await prisma.community.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, location: true },
+        });
+  const byId = new Map(communities.map((c) => [c.id, c]));
+  return rows.map((row) => {
+    const place = byId.get(row.communityId);
+    const location = place?.location?.trim() || place?.name || row.communityId;
+    return {
+      ...row,
+      communityName: place?.name ?? row.communityId,
+      location,
+    };
+  });
+}
+
 export async function createListing(input: {
   communityId?: string | null;
   title: string;
@@ -1757,6 +1783,26 @@ export async function deletePet(id: string, userId: string) {
 }
 
 /* ---------------- Amenities ---------------- */
+
+export async function updateAmenityOperatingHours(input: {
+  amenityId: string;
+  communityId: string;
+  open: string;
+  close: string;
+}) {
+  const amenity = await prisma.amenity.findFirst({
+    where: { id: input.amenityId, communityId: input.communityId },
+  });
+  if (!amenity) return null;
+  const hours = defaultDailyHours(input.open, input.close);
+  return prisma.amenity.update({
+    where: { id: amenity.id },
+    data: {
+      hoursJson: JSON.stringify(hours),
+      schedule: formatHoursSummary(hours, amenity.schedule),
+    },
+  });
+}
 
 export async function listAmenities(communityId?: string | null) {
   const cid = scope(communityId);
