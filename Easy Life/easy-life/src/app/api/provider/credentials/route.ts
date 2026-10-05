@@ -41,9 +41,13 @@ export async function POST(request: Request) {
   if (err) return NextResponse.json({ error: err }, { status: 400 });
 
   const email = session.email.toLowerCase();
+  const communityId = session.communityId;
+  if (!communityId) {
+    return NextResponse.json({ error: "No community on this account" }, { status: 400 });
+  }
   const provider = await prisma.provider.findFirst({
     where: {
-      communityId: session.communityId,
+      communityId,
       OR: [{ email }, ...(session.name ? [{ name: session.name }] : [])],
     },
   });
