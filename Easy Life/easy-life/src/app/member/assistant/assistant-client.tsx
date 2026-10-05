@@ -74,44 +74,27 @@ function stopSpeaking() {
   }
 }
 
-function playBarnabyFile(src: string) {
-  stopSpeaking();
-  const audio = new Audio(src);
-  butlerAudio = audio;
-  void audio.play().catch(() => {
-    /* autoplay can wait for a tap */
-  });
-}
+const BARNABY_GREETING = "Barnaby here. How may I assist?";
 
 async function speakText(text: string) {
   stopSpeaking();
+  const spoken = text.trim();
+  if (!spoken) return;
   try {
     const res = await fetch("/api/member/barnaby-voice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text: spoken }),
     });
-    if (res.ok && (res.headers.get("content-type") ?? "").includes("audio")) {
-      const url = URL.createObjectURL(await res.blob());
-      const audio = new Audio(url);
-      butlerAudio = audio;
-      await audio.play();
-      return;
-    }
+    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("audio")) return;
+    const url = URL.createObjectURL(await res.blob());
+    const audio = new Audio(url);
+    butlerAudio = audio;
+    audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
+    await audio.play();
   } catch {
-    /* device voice below */
+    /* text stays on screen when speech is unavailable */
   }
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.9;
-  utter.pitch = 0.8;
-  utter.lang = "en-GB";
-  const voices = window.speechSynthesis.getVoices();
-  const butler =
-    voices.find((v) => /daniel|arthur|malcolm|uk english male|google uk english male/i.test(v.name)) ??
-    voices.find((v) => v.lang.toLowerCase().startsWith("en-gb"));
-  if (butler) utter.voice = butler;
-  window.speechSynthesis.speak(utter);
 }
 
 const VOICE_PREF_KEY = "easy-life-assistant-voice";
@@ -246,7 +229,7 @@ export function AssistantClient() {
       stopSpeaking();
       return;
     }
-    playBarnabyFile("/brand/barnaby-butler-intro.mp3");
+    void speakText(BARNABY_GREETING);
   }
 
   async function send(text?: string, confirmAction?: AiAction) {

@@ -1,36 +1,30 @@
 const BARNABY_VOICE =
-  "Older English gentleman butler. Calm, warm, unhurried, precise. British accent. Quiet confidence. Never American, never chirpy.";
+  "Older English gentleman butler. Calm, warm, unhurried, precise. British accent. Quiet confidence. Never American, never chirpy. Speak every sentence in this same voice.";
 
-/** Barnaby's spoken reply, matched to the butler recordings as closely as the speech model allows. */
+/** One Barnaby voice for any text, the way Siri or Alexa uses a single voice. */
 export async function openAiBarnabySpeech(text: string): Promise<ArrayBuffer | null> {
   const key = process.env.OPENAI_API_KEY?.trim();
-  const spoken = text.trim().slice(0, 700);
+  const spoken = text.trim().slice(0, 4000);
   if (!key || !spoken) return null;
-  const attempts: Array<Record<string, string>> = [
-    {
-      model: "gpt-4o-mini-tts",
-      voice: "ash",
-      input: spoken,
-      instructions: BARNABY_VOICE,
-    },
-    { model: "tts-1-hd", voice: "fable", input: spoken },
-  ];
-  for (const body of attempts) {
-    try {
-      const res = await fetch("https://api.openai.com/v1/audio/speech", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) return res.arrayBuffer();
-    } catch {
-      /* try the next voice */
-    }
+  try {
+    const res = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini-tts",
+        voice: "ash",
+        input: spoken,
+        instructions: BARNABY_VOICE,
+      }),
+    });
+    if (!res.ok) return null;
+    return res.arrayBuffer();
+  } catch {
+    return null;
   }
-  return null;
 }
 
 export function isOpenAiConfigured(): boolean {
