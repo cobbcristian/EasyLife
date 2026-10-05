@@ -39,6 +39,48 @@ export function defaultDailyHoursWithClosed(
   return { mon: day, tue: day, wed: day, thu: day, fri: day, sat: day, sun: day };
 }
 
+const WEEK_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+/**
+ * Apply daily open/close while keeping mid-day closed windows (irrigation, etc.).
+ * PM amenity-hour saves must not wipe `closed[]` or members can book during closures.
+ */
+export function withDailyOpenClosePreservingClosed(
+  existing: WeeklyHours | null | undefined,
+  open: string,
+  close: string,
+): WeeklyHours {
+  if (!existing) return defaultDailyHours(open, close);
+  const next = {} as WeeklyHours;
+  for (const key of WEEK_KEYS) {
+    const prev = existing[key];
+    const closed =
+      prev?.closed?.length && prev.closed.length > 0
+        ? prev.closed.map((window) => ({ ...window }))
+        : undefined;
+    next[key] = closed ? { open, close, closed } : { open, close };
+  }
+  return next;
+}
+
+/** Draft open/close for simple daily editors (prefer Monday, then first open day). */
+export function dailyOpenCloseDraft(
+  hours: WeeklyHours | null | undefined,
+): { open: string; close: string } {
+  const day =
+    hours?.mon ??
+    hours?.tue ??
+    hours?.wed ??
+    hours?.thu ??
+    hours?.fri ??
+    hours?.sat ??
+    hours?.sun;
+  return {
+    open: day?.open ?? "08:00",
+    close: day?.close ?? "20:00",
+  };
+}
+
 export function weekdayHours(
   weekdayOpen: string,
   weekdayClose: string,

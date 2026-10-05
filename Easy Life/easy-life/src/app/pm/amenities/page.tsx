@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/ui/toast";
+import { dailyOpenCloseDraft, parseWeeklyHours } from "@/lib/hours";
 
 type AmenityHours = {
   id: string;
   name: string;
   schedule: string;
+  hoursJson?: string | null;
 };
 
 const TIMES = [
@@ -49,7 +51,7 @@ export default function PmAmenityHoursPage() {
         setRows(amenities);
         const next: Record<string, { open: string; close: string }> = {};
         for (const amenity of amenities) {
-          next[amenity.id] = { open: "08:00", close: "20:00" };
+          next[amenity.id] = dailyOpenCloseDraft(parseWeeklyHours(amenity.hoursJson));
         }
         setDrafts(next);
       })
