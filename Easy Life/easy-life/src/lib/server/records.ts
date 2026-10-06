@@ -554,9 +554,17 @@ export async function createBooking(input: {
 }) {
   const communityId = scope(input.communityId);
 
-  const amenityRecord = input.amenityId
-    ? await prisma.amenity.findFirst({ where: { id: input.amenityId, communityId } })
+  const amenityId = input.amenityId?.trim() || undefined;
+  const amenityRecord = amenityId
+    ? await prisma.amenity.findFirst({ where: { id: amenityId, communityId } })
     : await prisma.amenity.findFirst({ where: { name: input.amenity, communityId } });
+
+  // A client-supplied amenityId that does not resolve in this community must not
+  // fall through to a name-only insert — that skips hours, playable, rain, and
+  // membership checks (POST /api/bookings and Barnaby confirmAction).
+  if (amenityId && !amenityRecord) {
+    throw new BookingConflictError("Amenity not found.");
+  }
 
   if (amenityRecord && !amenityRecord.playable) {
     const reason = amenityRecord.unplayableReason?.trim();
