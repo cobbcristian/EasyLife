@@ -327,6 +327,8 @@ export async function chargeStoredPaymentMethod(input: {
   amount: number;
   description: string;
   paymentMethodId?: string;
+  /** Passed through to PaymentIntent metadata so 3DS / webhook can settle. */
+  metadata?: Record<string, string>;
 }): Promise<{ status: "paid" | "action_required"; url?: string }> {
   const key = normalizeEmail(input.userEmail);
   const method =
@@ -361,6 +363,7 @@ export async function chargeStoredPaymentMethod(input: {
     confirm: true,
     off_session: false,
     payment_method_types: ["card"],
+    metadata: input.metadata,
     return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/member/payments?payment=success`,
   });
 

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
+  parseChargeIdsMetadata,
+  settleMemberCharge,
+  settlePayAllCharges,
+} from "@/lib/server/charge-settle";
 import { markHoaChargePaid } from "@/lib/server/hoa-dues";
-import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
@@ -39,28 +39,72 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const chargeId = session.metadata?.chargeId;
-    if (chargeId) {
-      if (session.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
+    const meta = session.metadata ?? {};
+    const expectedCents = meta.amountCents ? Number(meta.amountCents) : null;
+    const paidCents =
+      typeof session.amount_total === "number" ? session.amount_total : null;
+
+    if (
+      expectedCents != null &&
+      Number.isFinite(expectedCents) &&
+      paidCents != null &&
+      paidCents !== expectedCents
+    ) {
+      return NextResponse.json({ received: true, settled: false });
+    }
+
+    if (meta.kind === "pay_all") {
+      const email = meta.userEmail;
+      if (!email || paidCents == null) {
+        return NextResponse.json({ received: true, settled: false });
+      }
+      await settlePayAllCharges({
+        chargeIds: parseChargeIdsMetadata(meta.chargeIds),
+        memberEmail: email,
+        paidCents,
+      });
+    } else {
+      const chargeId = meta.chargeId;
+      if (chargeId) {
+        if (meta.type === "hoa") {
+          await markHoaChargePaid(chargeId);
+        } else {
+          await settleMemberCharge(chargeId);
+        }
       }
     }
   }
 
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object;
-    const chargeId = intent.metadata?.chargeId;
-    if (chargeId) {
-      if (intent.metadata?.type === "hoa") {
-        await markHoaChargePaid(chargeId);
-      } else {
-        await updateMemberChargeStatus(chargeId, "paid");
-        await activateSharedCalendarByCharge(chargeId);
-        await markEscrowHeldByCharge(chargeId);
+    const meta = intent.metadata ?? {};
+    const expectedCents = meta.amountCents ? Number(meta.amountCents) : null;
+    if (
+      expectedCents != null &&
+      Number.isFinite(expectedCents) &&
+      intent.amount !== expectedCents
+    ) {
+      return NextResponse.json({ received: true, settled: false });
+    }
+
+    if (meta.kind === "pay_all") {
+      const email = meta.userEmail;
+      if (!email) {
+        return NextResponse.json({ received: true, settled: false });
+      }
+      await settlePayAllCharges({
+        chargeIds: parseChargeIdsMetadata(meta.chargeIds),
+        memberEmail: email,
+        paidCents: intent.amount,
+      });
+    } else {
+      const chargeId = meta.chargeId;
+      if (chargeId) {
+        if (meta.type === "hoa") {
+          await markHoaChargePaid(chargeId);
+        } else {
+          await settleMemberCharge(chargeId);
+        }
       }
     }
   }
