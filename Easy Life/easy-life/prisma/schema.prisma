@@ -1924,3 +1924,40 @@ model NativeAppConfig {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+/// Standing notes a resident leaves for the front desk.
+model FrontDeskInstruction {
+  id           String   @id @default(cuid())
+  communityId  String
+  memberEmail  String
+  memberName   String
+  unit         String   @default("")
+  /// packages | access | pets | other
+  topic        String
+  note         String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([communityId, active])
+  @@index([memberEmail])
+}
+
+/// Resident request to alter their unit. Staff approve or deny it.
+model ArchitecturalRequest {
+  id           String   @id @default(cuid())
+  communityId  String
+  memberEmail  String
+  memberName   String
+  unit         String   @default("")
+  title        String
+  description  String
+  /// submitted | in_review | approved | denied
+  status       String   @default("submitted")
+  decisionNote String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([communityId, status])
+  @@index([memberEmail])
+}

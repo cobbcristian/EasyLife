@@ -1,6 +1,7 @@
 import { MemberMvpProfile } from "@/components/member/member-mvp-profile";
 import { getSession } from "@/lib/server/auth";
 import { listPets, listVehicles } from "@/lib/server/records";
+import { privateFileHref } from "@/lib/server/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,9 @@ export default async function MemberProfilePage() {
         plate: v.plate,
         year: v.year,
         ownerName: v.ownerName,
-        registrationUrl: v.registrationUrl,
-        insuranceUrl: v.insuranceUrl,
-        govIdUrl: v.govIdUrl,
+        registrationUrl: privateFileHref(v.registrationUrl),
+        insuranceUrl: privateFileHref(v.insuranceUrl),
+        govIdUrl: privateFileHref(v.govIdUrl),
         verificationStatus: v.verificationStatus,
         verificationJson: v.verificationJson,
         verifiedAt: v.verifiedAt?.toISOString() ?? null,

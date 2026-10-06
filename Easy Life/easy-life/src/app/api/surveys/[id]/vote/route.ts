@@ -23,6 +23,7 @@ export async function POST(
     surveyId: id,
     optionId: body.optionId,
     voterEmail: session.email,
+    communityId: session.communityId,
   });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 409 });

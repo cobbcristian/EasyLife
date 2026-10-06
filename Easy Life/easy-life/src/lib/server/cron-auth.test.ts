@@ -17,6 +17,16 @@ describe("authorizeCronRequest", () => {
     if (dev.ok) expect(dev.secured).toBe(false);
   });
 
+  it("rejects unset secret on a hosted site even outside production mode", () => {
+    const hosted = authorizeCronRequest(cronRequest(), {
+      cronSecret: undefined,
+      nodeEnv: "development",
+      hosted: true,
+    });
+    expect(hosted.ok).toBe(false);
+    if (!hosted.ok) expect(hosted.status).toBe(503);
+  });
+
   it("rejects unset secret in production", () => {
     const prod = authorizeCronRequest(cronRequest(), {
       cronSecret: undefined,

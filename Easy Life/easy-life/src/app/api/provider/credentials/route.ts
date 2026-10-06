@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/prisma";
-import { saveDocumentUpload, validateDocumentUpload } from "@/lib/server/storage";
+import { privateFileHref, saveDocumentUpload, validateDocumentUpload } from "@/lib/server/storage";
 
 const KINDS = new Set(["background_check", "government_id", "license", "insurance"]);
 
@@ -20,7 +20,7 @@ export async function GET() {
       id: row.id,
       kind: row.kind,
       fileName: row.fileName,
-      url: row.url,
+      url: privateFileHref(row.url) ?? row.url,
       createdAt: row.createdAt.toISOString(),
     })),
   });
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       id: row.id,
       kind: row.kind,
       fileName: row.fileName,
-      url: row.url,
+      url: privateFileHref(row.url) ?? row.url,
       createdAt: row.createdAt.toISOString(),
     },
   });

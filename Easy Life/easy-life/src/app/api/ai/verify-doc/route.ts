@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { verifyMemberIdDocument } from "@/lib/server/vehicle-verify";
-import { saveDocumentUpload } from "@/lib/server/storage";
+import { validateDocumentUpload } from "@/lib/server/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +15,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "file required" }, { status: 400 });
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  let url: string | null = null;
-  try {
-    url = await saveDocumentUpload(file);
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Upload failed" },
-      { status: 400 },
-    );
+  const uploadError = validateDocumentUpload(file);
+  if (uploadError) {
+    return NextResponse.json({ error: uploadError }, { status: 400 });
   }
+  const buffer = Buffer.from(await file.arrayBuffer());
 
   const result = await verifyMemberIdDocument({
     memberName: session.name,
@@ -36,7 +31,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    url,
     verification: result,
   });
 }

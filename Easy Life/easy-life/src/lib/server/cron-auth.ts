@@ -1,16 +1,16 @@
 export function authorizeCronRequest(
   request: Request,
-  env: { cronSecret?: string; nodeEnv?: string } = {
+  env: { cronSecret?: string; nodeEnv?: string; hosted?: boolean } = {
     cronSecret: process.env.CRON_SECRET,
     nodeEnv: process.env.NODE_ENV,
+    hosted: Boolean(process.env.WEBSITE_SITE_NAME),
   },
 ): { ok: true; secured: boolean } | { ok: false; status: number; error: string } {
   const secret = env.cronSecret;
 
-  // Dev/preview: allow unauthenticated cron when secret is unset.
-  // Production: require CRON_SECRET (Vercel sends Authorization: Bearer <CRON_SECRET>).
+  // Local dev can run cron without a secret. Production and Azure cannot.
   if (!secret) {
-    if (env.nodeEnv === "production") {
+    if (env.nodeEnv === "production" || env.hosted) {
       return {
         ok: false,
         status: 503,

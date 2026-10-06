@@ -43,6 +43,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const emailKey = email.trim().toLowerCase();
+  if (!rateLimit(`login-email:${emailKey}`, 8, 15 * 60_000)) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please wait a minute and try again." },
+      { status: 429 },
+    );
+  }
+
   const user = await findUserByEmail(email);
   if (!user || !verifyPassword(password, user.password)) {
     return NextResponse.json(

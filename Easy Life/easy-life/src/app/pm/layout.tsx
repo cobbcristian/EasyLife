@@ -23,6 +23,8 @@ import {
 const nav = [
   { label: "Home", href: "/pm", icon: "LayoutDashboard" },
   { label: "Front Desk", href: "/pm/front-desk", icon: "DoorOpen" },
+  { label: "Desk instructions", href: "/pm/desk-notes", icon: "StickyNote" },
+  { label: "Alterations", href: "/pm/alterations", icon: "ClipboardList" },
   { label: "Member bookings", href: "/pm/bookings", icon: "CalendarCheck" },
   { label: "Amenity hours", href: "/pm/amenities", icon: "Clock" },
   { label: "Provider documents", href: "/pm/provider-credentials", icon: "FileText" },

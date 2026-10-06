@@ -3,6 +3,8 @@ import path from "path";
 import { randomBytes } from "crypto";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const PRIVATE_DIR = path.join(process.cwd(), "private-uploads");
+const PRIVATE_PREFIX = "private:";
 
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 32 * 1024 * 1024;
@@ -71,8 +73,6 @@ async function saveToAzureBlob(
     const client = BlobServiceClient.fromConnectionString(connectionString);
     const containerClient = client.getContainerClient(container);
     await containerClient.createIfNotExists();
-    // Prefer public blob access when the account allows it (older configs).
-    await containerClient.setAccessPolicy("blob").catch(() => {});
 
     const block = containerClient.getBlockBlobClient(filename);
     await block.uploadData(buffer, {
@@ -115,6 +115,91 @@ async function saveToAzureBlob(
   }
 }
 
+function privateContainer(): string {
+  return process.env.AZURE_PRIVATE_CONTAINER ?? "private-docs";
+}
+
+export function privateFileHref(stored: string | null | undefined): string | null {
+  if (!stored) return null;
+  if (stored.startsWith(PRIVATE_PREFIX)) {
+    return `/api/files/private/${encodeURIComponent(stored.slice(PRIVATE_PREFIX.length))}`;
+  }
+  return stored;
+}
+
+function safePrivateName(name: string): string | null {
+  if (!/^[a-z0-9]{16,64}(\.[a-z0-9]{1,5})?$/i.test(name)) return null;
+  return name;
+}
+
+async function savePrivateBlob(
+  filename: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<boolean> {
+  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  if (!connectionString) return false;
+  try {
+    const { BlobServiceClient } = await import("@azure/storage-blob");
+    const client = BlobServiceClient.fromConnectionString(connectionString);
+    const containerClient = client.getContainerClient(privateContainer());
+    await containerClient.createIfNotExists();
+    const block = containerClient.getBlockBlobClient(filename);
+    await block.uploadData(buffer, {
+      blobHTTPHeaders: { blobContentType: contentType || "application/octet-stream" },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function readPrivateDocument(
+  stored: string,
+): Promise<{ data: Buffer; contentType: string } | null> {
+  if (!stored.startsWith(PRIVATE_PREFIX)) return null;
+  const filename = safePrivateName(stored.slice(PRIVATE_PREFIX.length));
+  if (!filename) return null;
+
+  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  if (connectionString) {
+    try {
+      const { BlobServiceClient } = await import("@azure/storage-blob");
+      const client = BlobServiceClient.fromConnectionString(connectionString);
+      const blob = client.getContainerClient(privateContainer()).getBlobClient(filename);
+      if (!(await blob.exists())) return null;
+      const download = await blob.download();
+      const chunks: Buffer[] = [];
+      if (!download.readableStreamBody) return null;
+      for await (const chunk of download.readableStreamBody) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      return {
+        data: Buffer.concat(chunks),
+        contentType: download.contentType || "application/octet-stream",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const data = await fs.readFile(path.join(PRIVATE_DIR, filename));
+    const ext = path.extname(filename).toLowerCase();
+    const contentType =
+      ext === ".pdf"
+        ? "application/pdf"
+        : ext === ".png"
+          ? "image/png"
+          : ext === ".webp"
+            ? "image/webp"
+            : "image/jpeg";
+    return { data, contentType };
+  } catch {
+    return null;
+  }
+}
+
 export function validateDocumentUpload(file: File): string | null {
   const okType =
     file.type.startsWith("image/") ||
@@ -130,18 +215,16 @@ export async function saveDocumentUpload(file: File): Promise<string> {
   if (validationError) throw new Error(validationError);
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const filename = `${randomBytes(12).toString("hex")}${safeExt(file.name) || ".bin"}`;
+  const filename = `${randomBytes(16).toString("hex")}${safeExt(file.name) || ".bin"}`;
+  const contentType = file.type || "application/octet-stream";
+  const stored = `${PRIVATE_PREFIX}${filename}`;
 
-  const azureUrl = await saveToAzureBlob(
-    filename,
-    buffer,
-    file.type || "application/octet-stream",
-  );
-  if (azureUrl) return azureUrl;
+  const saved = await savePrivateBlob(filename, buffer, contentType);
+  if (saved) return stored;
 
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  await fs.writeFile(path.join(UPLOAD_DIR, filename), buffer);
-  return `/uploads/${filename}`;
+  await fs.mkdir(PRIVATE_DIR, { recursive: true });
+  await fs.writeFile(path.join(PRIVATE_DIR, filename), buffer);
+  return stored;
 }
 
 export async function saveUpload(

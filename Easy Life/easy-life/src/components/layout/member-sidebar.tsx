@@ -64,6 +64,9 @@ const hoaOnlyHrefs = new Set([
 const moreNav = [
   { label: "Notifications", href: "/member/notifications", icon: "Bell" },
   { label: "Visitor", href: "/member/visitors", icon: "UserPlus" },
+  { label: "Front desk", href: "/member/desk-notes", icon: "DoorOpen" },
+  { label: "Alterations", href: "/member/alterations", icon: "ClipboardList" },
+  { label: "Surveys", href: "/member/surveys", icon: "ListChecks" },
   { label: "Favorites", href: "/member/favorites", icon: "Star" },
   { label: "Announcements", href: "/member/announcements", icon: "Megaphone" },
   { label: "Tram Service", href: "/member/tram", icon: "Bus" },

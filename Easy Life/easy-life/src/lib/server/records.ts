@@ -1665,7 +1665,21 @@ export async function castVote(input: {
   surveyId: string;
   optionId: string;
   voterEmail: string;
+  communityId?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
+  const survey = await prisma.survey.findUnique({
+    where: { id: input.surveyId },
+    include: { options: { select: { id: true } } },
+  });
+  if (!survey || survey.status !== "open") {
+    return { ok: false, error: "This survey is closed" };
+  }
+  if (input.communityId && survey.communityId !== input.communityId) {
+    return { ok: false, error: "This survey is closed" };
+  }
+  if (!survey.options.some((option) => option.id === input.optionId)) {
+    return { ok: false, error: "Choose one of the listed answers" };
+  }
   const existing = await prisma.surveyVote.findUnique({
     where: { surveyId_voterEmail: { surveyId: input.surveyId, voterEmail: input.voterEmail } },
   });

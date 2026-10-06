@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
-import { createSurvey, ensureRecordsSeeded, listSurveys } from "@/lib/server/records";
+import { createSurvey, ensureRecordsSeeded, getVotedSurveyIds, listSurveys } from "@/lib/server/records";
 
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await ensureRecordsSeeded();
-  return NextResponse.json({ surveys: await listSurveys(session.communityId) });
+  const surveys = await listSurveys(session.communityId);
+  const voted = await getVotedSurveyIds(session.email);
+  return NextResponse.json({ surveys, voted });
 }
 
 export async function POST(request: Request) {

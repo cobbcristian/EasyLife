@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { resolveScopedCommunityId } from "@/lib/server/community-context";
 import { prisma } from "@/lib/server/prisma";
+import { privateFileHref } from "@/lib/server/storage";
 
 export async function GET() {
   const session = await getSession();
@@ -19,7 +20,7 @@ export async function GET() {
       id: row.id,
       kind: row.kind,
       fileName: row.fileName,
-      url: row.url,
+      url: privateFileHref(row.url) ?? row.url,
       providerName: row.provider.name,
       providerCategory: row.provider.category,
       providerEmail: row.provider.email,
