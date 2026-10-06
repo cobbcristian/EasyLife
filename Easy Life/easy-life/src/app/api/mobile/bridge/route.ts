@@ -31,10 +31,14 @@ export async function GET(request: Request) {
   }
 
   const roleHome = homeForRole(session.role, session.communityId);
-  let destination =
-    nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
-      ? nextPath
-      : roleHome;
+  const safeNext =
+    !!nextPath &&
+    nextPath.startsWith("/") &&
+    !nextPath.startsWith("//") &&
+    !nextPath.includes("\\") &&
+    !nextPath.includes("://") &&
+    !nextPath.includes("@");
+  let destination = safeNext ? nextPath : roleHome;
 
   // Mobile used to always request /member; send staff to their portal home.
   if (

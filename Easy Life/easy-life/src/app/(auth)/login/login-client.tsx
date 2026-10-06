@@ -359,9 +359,6 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
               /go
             </Link>
           </p>
-          <p className="text-[13px] font-normal text-grey">
-            {t("Password")}: <span className="font-semibold text-ink">password</span>
-          </p>
         </div>
       )}
     </div>

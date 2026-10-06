@@ -2,18 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LoginHero } from "@/components/auth/login-hero";
 import { Logo } from "@/components/ui/logo";
 import { useI18n } from "@/lib/i18n";
 
 /** Figma Forgot Password (4616:17511). */
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,23 +30,7 @@ export default function ForgotPasswordPage() {
         setLoading(false);
         return;
       }
-      if (data.token && data.code) {
-        const params = new URLSearchParams({
-          token: String(data.token),
-          code: String(data.code),
-          email: email.trim(),
-        });
-        router.push(`/email-code?${params.toString()}`);
-        return;
-      }
-      // Unknown email — still advance to code screen with a dummy mismatch path
-      // so the UI matches Figma without leaking account existence.
-      const params = new URLSearchParams({
-        token: "pending",
-        code: "00000",
-        email: email.trim(),
-      });
-      router.push(`/email-code?${params.toString()}`);
+      setSent(true);
     } catch {
       setError(t("Something went wrong. Please try again."));
       setLoading(false);
@@ -81,9 +64,9 @@ export default function ForgotPasswordPage() {
             {t("Forgot Password")}
           </h1>
           <p className="mt-2 text-sm text-grey">
-            {t(
-              "Enter the email associated with your account and we'll send you a code to reset your password.",
-            )}
+            {sent
+              ? t("If an account exists for that email, password reset instructions have been sent.")
+              : t("Enter the email associated with your account and we'll send you a link to reset your password.")}
           </p>
 
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>

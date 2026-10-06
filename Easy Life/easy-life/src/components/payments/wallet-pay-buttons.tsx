@@ -157,11 +157,14 @@ export function WalletPayButtons({
           }
           ev.complete("success");
           if (paymentIntent?.status === "succeeded") {
-            if (data.chargeId) {
+            if (data.chargeId && paymentIntent?.id) {
               await fetch("/api/member/charges/mark-paid", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chargeId: data.chargeId }),
+                body: JSON.stringify({
+                  chargeId: data.chargeId,
+                  paymentIntentId: paymentIntent.id,
+                }),
               }).catch(() => {});
             }
             onPaid?.();
