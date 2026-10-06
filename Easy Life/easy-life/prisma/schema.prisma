@@ -1961,3 +1961,121 @@ model ArchitecturalRequest {
   @@index([communityId, status])
   @@index([memberEmail])
 }
+
+/// Guest parking pass a resident asks the desk to issue.
+model ParkingPass {
+  id          String   @id @default(cuid())
+  communityId String
+  memberEmail String
+  memberName  String
+  unit        String   @default("")
+  guestName   String
+  plate       String
+  date        String
+  /// requested | issued | denied
+  status      String   @default("requested")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([communityId, status])
+  @@index([memberEmail])
+}
+
+/// Elevator and loading notice for a move in or out.
+model MoveNotice {
+  id          String   @id @default(cuid())
+  communityId String
+  memberEmail String
+  memberName  String
+  unit        String   @default("")
+  /// in | out
+  kind        String
+  date        String
+  /// morning | afternoon | evening
+  window      String
+  company     String   @default("")
+  /// requested | confirmed | denied
+  status      String   @default("requested")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([communityId, date])
+  @@index([memberEmail])
+}
+
+/// Lost item a resident reports, or a found item the desk is holding.
+model LostFoundItem {
+  id            String   @id @default(cuid())
+  communityId   String
+  reporterEmail String
+  reporterName  String
+  /// lost | found
+  kind          String
+  title         String
+  detail        String
+  location      String   @default("")
+  /// open | claimed | closed
+  status        String   @default("open")
+  claimEmail    String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([communityId, kind, status])
+  @@index([reporterEmail])
+}
+
+/// Homeowner or renters policy the association tracks for the unit.
+model ResidentInsurance {
+  id           String   @id @default(cuid())
+  communityId  String
+  memberEmail  String
+  memberName   String
+  unit         String   @default("")
+  /// homeowner | renters
+  kind         String
+  carrier      String
+  policyNumber String
+  expiresOn    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([communityId, expiresOn])
+  @@index([memberEmail])
+}
+
+/// Request for a building access card. Staff mark it issued. This does not open a door.
+model AccessCardRequest {
+  id          String   @id @default(cuid())
+  communityId String
+  memberEmail String
+  memberName  String
+  unit        String   @default("")
+  quantity    Int      @default(1)
+  reason      String
+  /// requested | issued | denied
+  status      String   @default("requested")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([communityId, status])
+  @@index([memberEmail])
+}
+
+/// Noise, leak, damage, or other incident a resident files with the desk.
+model ResidentIncident {
+  id          String   @id @default(cuid())
+  communityId String
+  memberEmail String
+  memberName  String
+  unit        String   @default("")
+  /// noise | leak | damage | parking | other
+  category    String
+  description String
+  /// open | reviewing | closed
+  status      String   @default("open")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([communityId, status])
+  @@index([memberEmail])
+}
