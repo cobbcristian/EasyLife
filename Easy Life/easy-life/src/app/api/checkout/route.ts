@@ -1,24 +1,17 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import {
-  activateSharedCalendarByCharge,
-  markEscrowHeldByCharge,
-} from "@/lib/server/local-pros";
+  listOpenDueChargesForMember,
+  settleMemberCharge,
+  settlePayAllCharges,
+} from "@/lib/server/charge-settle";
 import {
   chargeStoredPaymentMethod,
   getPaymentSettings,
 } from "@/lib/server/payment-methods";
-import { updateMemberChargeStatus } from "@/lib/server/records";
 import { getStripe } from "@/lib/server/stripe";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 import { stripeCheckoutPaymentOptions } from "@/lib/server/stripe-checkout-options";
-
-async function afterChargePaid(chargeId: string | undefined) {
-  if (!chargeId) return;
-  await updateMemberChargeStatus(chargeId, "paid");
-  await activateSharedCalendarByCharge(chargeId);
-  await markEscrowHeldByCharge(chargeId);
-}
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -40,14 +33,48 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const amount = Number(body.amount);
-  if (!amount || amount <= 0) {
-    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-  }
-
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
   const returnPath = body.returnPath ?? "/member/payments";
   const description = body.description ?? "Club payment";
+
+  let amount: number;
+  let chargeId: string | undefined = body.chargeId;
+  let payAllChargeIds: string[] | undefined;
+  let checkoutMetadata: Record<string, string> | undefined;
+
+  if (!body.chargeId) {
+    // QuickPay / pay-all: never trust client amount; resolve open dues server-side.
+    const openPositive = await listOpenDueChargesForMember({
+      memberEmail: session.email,
+      communityId: session.communityId,
+    });
+    if (openPositive.length === 0) {
+      return NextResponse.json({ error: "Nothing due" }, { status: 400 });
+    }
+    amount = openPositive.reduce((sum, c) => sum + c.amount, 0);
+    payAllChargeIds = openPositive.map((c) => c.id);
+    const amountCents = Math.round(amount * 100);
+    checkoutMetadata = {
+      kind: "pay_all",
+      chargeIds: payAllChargeIds.join(","),
+      amountCents: String(amountCents),
+      userEmail: session.email,
+    };
+  } else {
+    const clientAmount = Number(body.amount);
+    if (!clientAmount || clientAmount <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+    amount = clientAmount;
+    checkoutMetadata = {
+      chargeId: body.chargeId,
+      userEmail: session.email,
+    };
+  }
+
+  if (!amount || amount <= 0) {
+    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  }
 
   const settings = await getPaymentSettings(session.email);
   const useStored =
@@ -73,14 +100,24 @@ export async function POST(request: Request) {
         amount,
         description,
         paymentMethodId: defaultMethod.id,
+        metadata: checkoutMetadata,
       });
 
       if (result.status === "action_required" && result.url) {
         return NextResponse.json({ url: result.url, mode: "stored" });
       }
 
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (payAllChargeIds) {
+        const settled = await settlePayAllCharges({
+          chargeIds: payAllChargeIds,
+          memberEmail: session.email,
+          paidCents: Math.round(amount * 100),
+        });
+        if ("error" in settled) {
+          return NextResponse.json({ error: settled.error }, { status: 400 });
+        }
+      } else if (chargeId) {
+        await settleMemberCharge(chargeId);
       }
 
       return NextResponse.json({
@@ -99,8 +136,17 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
     if (isDemoPaymentAllowed()) {
-      if (body.chargeId) {
-        await afterChargePaid(body.chargeId);
+      if (payAllChargeIds) {
+        const settled = await settlePayAllCharges({
+          chargeIds: payAllChargeIds,
+          memberEmail: session.email,
+          paidCents: Math.round(amount * 100),
+        });
+        if ("error" in settled) {
+          return NextResponse.json({ error: settled.error }, { status: 400 });
+        }
+      } else if (chargeId) {
+        await settleMemberCharge(chargeId);
       }
       return NextResponse.json({
         ok: true,
@@ -132,9 +178,9 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${origin}${returnPath}?payment=success${body.chargeId ? `&chargeId=${body.chargeId}` : ""}`,
+      success_url: `${origin}${returnPath}?payment=success${chargeId ? `&chargeId=${chargeId}` : ""}`,
       cancel_url: `${origin}${returnPath}?payment=cancelled`,
-      metadata: body.chargeId ? { chargeId: body.chargeId, userEmail: session.email } : undefined,
+      metadata: checkoutMetadata,
     });
     return NextResponse.json({ url: checkout.url, mode: "checkout" });
   } catch {
