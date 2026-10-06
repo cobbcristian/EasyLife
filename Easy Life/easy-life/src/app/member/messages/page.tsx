@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { readScreen, writeScreen } from "@/lib/screen-cache";
 import { ChevronLeft, ImagePlus, Paperclip, Plus } from "lucide-react";
 import {
   ChatComposer,
@@ -151,13 +152,24 @@ export default function MemberMessagesPage() {
   if (activeId !== messagesThreadId) {
     setMessagesThreadId(activeId);
     if (!activeId) setMessages([]);
+    else setMessages(readScreen<ChatMsg[]>(`member-thread:${activeId}`) ?? []);
   }
 
   const loadThreads = useCallback(async () => {
     const res = await fetch("/api/messages/threads");
     if (!res.ok) return;
     const data = await res.json();
-    setThreads(data.threads ?? []);
+    const list = (data.threads ?? []) as Thread[];
+    setThreads(list);
+    writeScreen("member-threads", list);
+  }, []);
+
+  useLayoutEffect(() => {
+    const saved = readScreen<Thread[]>("member-threads");
+    if (saved && saved.length > 0) {
+      setThreads(saved);
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -181,6 +193,7 @@ export default function MemberMessagesPage() {
         }
         if (!on) return;
         setThreads(list);
+        if (list.length > 0) writeScreen("member-threads", list);
 
         const dirRes = await fetch("/api/messages/recipients");
         const dirData = dirRes.ok
@@ -208,6 +221,7 @@ export default function MemberMessagesPage() {
             const refreshed = await fetchThreads();
             if (!on) return;
             setThreads(refreshed);
+            if (refreshed.length > 0) writeScreen("member-threads", refreshed);
             setActiveId(data.thread.id);
             setMobileConversation(true);
             if (draftParam) {
@@ -240,13 +254,29 @@ export default function MemberMessagesPage() {
   }, [profile.email, t, toast]);
 
   useEffect(() => {
+    if (!profile.email) return;
+    const id = window.setInterval(() => {
+      void loadThreads();
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, [profile.email, loadThreads]);
+
+  useEffect(() => {
     if (!activeId) return;
     let on = true;
     const load = () => {
       fetch(`/api/messages/threads/${activeId}`)
         .then((r) => r.json())
         .then((d) => {
-          if (on) setMessages(d.messages ?? []);
+          if (!on) return;
+          const incoming = (d.messages ?? []) as ChatMsg[];
+          writeScreen(`member-thread:${activeId}`, incoming);
+          setMessages((prev) => {
+            const pending = prev.filter(
+              (m) => m.id.startsWith("pending-") && !incoming.some((row) => row.body === m.body),
+            );
+            return [...incoming, ...pending];
+          });
         })
         .catch(() => on && setMessages([]));
     };
@@ -290,19 +320,40 @@ export default function MemberMessagesPage() {
     if (!activeId) return;
     const body = (bodyOverride ?? draft).trim();
     if (!body) return;
+    const tempId = `pending-${Date.now()}`;
+    const optimistic: ChatMsg = {
+      id: tempId,
+      authorEmail: profile.email,
+      authorName: profile.name,
+      body,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setDraft("");
+    setThreads((prev) =>
+      prev.map((th) =>
+        th.id === activeId
+          ? { ...th, lastMessage: body, lastAt: optimistic.createdAt }
+          : th,
+      ),
+    );
     const res = await fetch(`/api/messages/threads/${activeId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body }),
     });
     if (!res.ok) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setDraft(body);
       toast({ variant: "warning", title: t("Could not send message") });
       return;
     }
     const data = await res.json();
-    setMessages((prev) => [...prev, data.message]);
-    setDraft("");
-    await loadThreads();
+    const sent = data.message as ChatMsg | undefined;
+    if (sent) {
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? sent : m)));
+    }
+    void loadThreads();
   }
 
   function attachMessage(kind: "file" | "image") {

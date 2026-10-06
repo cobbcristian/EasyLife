@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import {
   RESIDENTIAL_HOA_ACCOUNT_LINKS,
@@ -36,6 +36,7 @@ export function MemberShell({
   const [accountEmail, setAccountEmail] = useState("");
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(undefined);
   const pathname = usePathname();
+  const router = useRouter();
   // Home embeds its own blue header + UserAvatarMenu; messages can force chromeless.
   // Every other member page uses the shared shell header so Log out is always available.
   const isMemberHome = pathname === "/member";
@@ -45,6 +46,13 @@ export function MemberShell({
     : undefined;
   const pageTitle = plazaTitleForPath(pathname);
   const pageIcon = plazaIconForHref(pathname);
+
+  useEffect(() => {
+    router.prefetch("/member");
+    router.prefetch("/member/messages");
+    router.prefetch("/member/bookings");
+    router.prefetch("/member/calendar");
+  }, [router]);
 
   useEffect(() => {
     function openSidebar() {

@@ -449,7 +449,7 @@ function AppInner() {
           setSupportMultipleWindows={false}
           javaScriptEnabled
           domStorageEnabled
-          cacheEnabled={false}
+          cacheEnabled
           originWhitelist={["*"]}
           applicationNameForUserAgent="PlazaOceansideApp/1"
           allowsBackForwardNavigationGestures
@@ -512,7 +512,7 @@ function AppInner() {
         setSupportMultipleWindows={false}
         javaScriptEnabled
         domStorageEnabled
-        cacheEnabled={false}
+        cacheEnabled
         originWhitelist={["*"]}
         applicationNameForUserAgent="PlazaOceansideApp/1"
         allowsBackForwardNavigationGestures

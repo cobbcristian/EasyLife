@@ -78,6 +78,11 @@ export function MemberMvpBookings({
   const [addons, setAddons] = useState<CourtAddonId[]>([]);
 
   const amenity = amenities.find((a) => a.id === amenityId) ?? amenities[0];
+
+  function reloadBookings() {
+    router.refresh();
+    window.dispatchEvent(new Event("member:bookings-changed"));
+  }
   const needsUnitPick = Boolean(amenity && amenity.unitCount > 1);
   const unitLabelNoun = amenity ? unitNoun(amenity.kind) : "Unit";
   const isCourtAmenity = amenity?.kind === "court";
@@ -231,7 +236,7 @@ export function MemberMvpBookings({
       return;
     }
     toast({ variant: "info", title: t("Booking cancelled") });
-    router.refresh();
+    reloadBookings();
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -356,7 +361,7 @@ export function MemberMvpBookings({
         setSheetOpen(false);
         if (bookingId) {
           router.push(`/member/reservations/${bookingId}?added=1`);
-          router.refresh();
+          reloadBookings();
           return;
         }
         toast({
@@ -364,7 +369,7 @@ export function MemberMvpBookings({
           title: t("Booking confirmed"),
           description: `${amenity.name} — ${formatCurrency(amenity.fee)} paid.`,
         });
-        router.refresh();
+        reloadBookings();
         return;
       }
       toast({
@@ -380,10 +385,10 @@ export function MemberMvpBookings({
     setSheetOpen(false);
     if (bookingId) {
       router.push(`/member/reservations/${bookingId}?added=1`);
-      router.refresh();
+      reloadBookings();
       return;
     }
-    router.refresh();
+    reloadBookings();
   }
 
   const clubAmenities = amenities.filter((a) => a.ownership !== "external");

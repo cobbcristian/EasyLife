@@ -90,6 +90,12 @@ export function PrivateMessageBoard({
   async function sendBody(body: string) {
     const trimmed = body.trim();
     if (!trimmed) return;
+    const tempId = `pending-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, author: avatarName, body: trimmed, time: "just now" },
+    ]);
+    setDraft("");
     setBusy(true);
     const res = await fetch("/api/messages", {
       method: "POST",
@@ -98,15 +104,17 @@ export function PrivateMessageBoard({
     });
     setBusy(false);
     if (!res.ok) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setDraft(trimmed);
       toast({ variant: "warning", title: t("Could not send") });
       return;
     }
     const data = await res.json();
     setMessages((prev) => {
-      if (prev.some((m) => m.id === data.message.id)) return prev;
-      return [...prev, data.message];
+      const without = prev.filter((m) => m.id !== tempId);
+      if (without.some((m) => m.id === data.message.id)) return without;
+      return [...without, data.message];
     });
-    setDraft("");
   }
 
   function attach(kind: "file" | "image") {

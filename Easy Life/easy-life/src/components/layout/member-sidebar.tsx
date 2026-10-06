@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
@@ -128,8 +129,9 @@ function NavList({
         const plazaIcon = plazaIconForHref(item.href);
         return (
           <li key={item.href}>
-            <a
+            <Link
               href={item.href}
+              prefetch
               onClick={onClose}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-colors",
@@ -140,7 +142,7 @@ function NavList({
             >
               <PlazaGlyph name={plazaIcon} className="h-8 w-8" />
               {t(item.label)}
-            </a>
+            </Link>
           </li>
         );
       })}
