@@ -20,7 +20,7 @@ export async function GET() {
       id: row.id,
       kind: row.kind,
       fileName: row.fileName,
-      url: privateFileHref(row.url) ?? row.url,
+      url: privateFileHref(row.url),
       createdAt: row.createdAt.toISOString(),
     })),
   });
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       id: row.id,
       kind: row.kind,
       fileName: row.fileName,
-      url: privateFileHref(row.url) ?? row.url,
+      url: privateFileHref(row.url),
       createdAt: row.createdAt.toISOString(),
     },
   });
