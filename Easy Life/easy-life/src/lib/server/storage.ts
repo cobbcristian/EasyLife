@@ -119,12 +119,18 @@ function privateContainer(): string {
   return process.env.AZURE_PRIVATE_CONTAINER ?? "private-docs";
 }
 
+/**
+ * Browser-facing href for identity documents (gov ID, insurance, credentials).
+ * Always returns an authenticated app route — never a public Azure SAS or /uploads
+ * bearer URL. Legacy rows that still store those public locations are gated via
+ * `/api/files/identity` so profile/admin APIs stop re-publishing them.
+ */
 export function privateFileHref(stored: string | null | undefined): string | null {
   if (!stored) return null;
   if (stored.startsWith(PRIVATE_PREFIX)) {
     return `/api/files/private/${encodeURIComponent(stored.slice(PRIVATE_PREFIX.length))}`;
   }
-  return stored;
+  return `/api/files/identity?u=${encodeURIComponent(stored)}`;
 }
 
 function safePrivateName(name: string): string | null {

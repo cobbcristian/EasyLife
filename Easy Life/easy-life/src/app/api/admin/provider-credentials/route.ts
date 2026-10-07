@@ -20,7 +20,7 @@ export async function GET() {
       id: row.id,
       kind: row.kind,
       fileName: row.fileName,
-      url: privateFileHref(row.url) ?? row.url,
+      url: privateFileHref(row.url),
       providerName: row.provider.name,
       providerCategory: row.provider.category,
       providerEmail: row.provider.email,
