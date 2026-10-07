@@ -90,6 +90,8 @@ export interface MemberMvpHomeProps {
   serviceBookings?: HomeServiceBooking[];
   events: HomeEvent[];
   tournaments?: HomeTournament[];
+  /** Property-manager override. null keeps the community default. */
+  tournamentsEnabled?: boolean | null;
   notificationCount?: number;
 }
 
@@ -215,13 +217,14 @@ export function MemberMvpHome({
   serviceBookings = [],
   events,
   tournaments = [],
+  tournamentsEnabled = null,
   notificationCount = 0,
 }: MemberMvpHomeProps) {
   const { t } = useI18n();
   const accountLinks = communityIsResidentialHoa(communityId)
     ? RESIDENTIAL_HOA_ACCOUNT_LINKS
     : undefined;
-  const hasTournaments = communityHasTournaments(communityId);
+  const hasTournaments = communityHasTournaments(communityId, tournamentsEnabled);
   const upcoming = buildUpcomingRows(
     bookings,
     events,

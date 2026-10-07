@@ -73,6 +73,7 @@ interface HomeData {
   requests: { id: string; status: string }[];
   ads: unknown[];
   tournaments: HomeTournament[];
+  tournamentsEnabled?: boolean;
   notificationCount?: number;
 }
 
@@ -186,6 +187,7 @@ export function MemberHomeClient() {
       serviceBookings={data.serviceBookings ?? []}
       events={data.events}
       tournaments={data.tournaments ?? []}
+      tournamentsEnabled={data.tournamentsEnabled ?? null}
       notificationCount={data.notificationCount ?? 0}
     />
   );

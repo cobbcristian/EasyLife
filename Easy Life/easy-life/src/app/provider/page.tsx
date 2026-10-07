@@ -181,6 +181,7 @@ export default function ProviderDashboardPage() {
   const earnings = bookings
     .filter((b) => b.status === "completed" || b.status === "accepted")
     .reduce((sum, b) => sum + b.amount, 0);
+  const jobsFromApp = bookings.filter((b) => b.status !== "cancelled").length;
   const openTasks = pending.length + unread;
 
   const serviceMix = useMemo(() => {
@@ -364,6 +365,11 @@ export default function ProviderDashboardPage() {
               {t("View all")}
             </Link>
           </div>
+
+          <p className="mb-3 text-sm text-grey">
+            {t("Jobs from the app")}: {jobsFromApp}.{" "}
+            {t("Residents booked these in Barnaby. That is what the monthly plan pays for.")}
+          </p>
 
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-border-2 bg-white p-5">

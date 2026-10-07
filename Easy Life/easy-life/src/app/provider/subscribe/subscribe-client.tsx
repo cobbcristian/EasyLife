@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { PROVIDER_PLANS, type ProviderPlanId } from "@/lib/provider-plans";
 import { ManageSubscriptionButton } from "@/components/payments/manage-subscription-button";
@@ -19,6 +19,22 @@ export function SubscribeClient({
   const plan = PROVIDER_PLANS[planId] ?? PROVIDER_PLANS.starter;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jobsFromApp, setJobsFromApp] = useState<number | null>(null);
+
+  useEffect(() => {
+    let on = true;
+    fetch("/api/provider/bookings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!on || !data) return;
+        const rows = (data.bookings ?? []) as Array<{ status?: string }>;
+        setJobsFromApp(rows.filter((row) => row.status !== "cancelled").length);
+      })
+      .catch(() => {});
+    return () => {
+      on = false;
+    };
+  }, []);
 
   async function startCheckout() {
     setLoading(true);
@@ -57,6 +73,11 @@ export function SubscribeClient({
         Activate your provider plan to unlock the dashboard, bookings, and
         messaging.
       </p>
+      {jobsFromApp !== null ? (
+        <p className="mt-3 text-sm font-medium text-ink">
+          Jobs from the app: {jobsFromApp}. Residents booked these in Barnaby.
+        </p>
+      ) : null}
 
       {cancelled ? (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import { getAccountProfile } from "@/lib/server/db";
+import { tournamentsEnabledFor } from "@/lib/server/community-flags";
 import {
   getMemberProfile,
   updateMemberProfile,
@@ -10,15 +11,18 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [profile, account] = await Promise.all([
+  const [profile, account, tournamentsEnabled] = await Promise.all([
     getMemberProfile(session.email),
     getAccountProfile(session.email),
+    tournamentsEnabledFor(session.communityId),
   ]);
   return NextResponse.json({
     ...profile,
     name: session.name ?? profile.name,
     email: session.email,
     avatarUrl: account?.avatarUrl ?? null,
+    communityId: session.communityId ?? profile.communityId,
+    tournamentsEnabled,
   });
 }
 

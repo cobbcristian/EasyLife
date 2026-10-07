@@ -25,9 +25,7 @@ import {
   isFourClubDemoId,
 } from "@/lib/server/four-club-demo-content";
 import { countUnreadMemberInbox } from "@/lib/server/project-management";
-import {
-  communityHasTournaments,
-} from "@/lib/community-features";
+import { tournamentsEnabledFor } from "@/lib/server/community-flags";
 
 export async function GET() {
   const session = await getSession();
@@ -37,7 +35,7 @@ export async function GET() {
   }
 
   const communityId = session.communityId;
-  const wantsTournaments = communityHasTournaments(communityId);
+  const wantsTournaments = await tournamentsEnabledFor(communityId);
 
   await ensureRecordsSeeded();
   if (isFourClubDemoId(communityId)) {
@@ -222,5 +220,6 @@ export async function GET() {
     tournaments: myTournaments,
     featuredTiles,
     notificationCount,
+    tournamentsEnabled: wantsTournaments,
   });
 }

@@ -179,6 +179,7 @@ export function MemberSidebar({
     ? undefined
     : (avatarSrc ?? avatarForReviewer(userName || "Member"));
   const [paysHoa, setPaysHoa] = useState(true);
+  const [tournamentsOverride, setTournamentsOverride] = useState<boolean | null>(null);
   const [communityId, setCommunityId] = useState<string | null | undefined>(
     communityIdProp,
   );
@@ -186,7 +187,7 @@ export function MemberSidebar({
   const hasGrabGo = communityHasGrabGo(communityId);
   const hasLocalPros = communityHasLocalPros(communityId);
   const hasVendors = communityHasVendors(communityId);
-  const hasTournaments = communityHasTournaments(communityId);
+  const hasTournaments = communityHasTournaments(communityId, tournamentsOverride);
   const hasRentals = communityHasRentals(communityId);
   const hasHouseholdMembership = communityHasHouseholdMembership(communityId);
   const hasTram = communityHasTramService(communityId);
@@ -268,6 +269,9 @@ export function MemberSidebar({
         setPaysHoa(residency === "non_resident" ? false : hoa !== false);
         if (typeof d.communityId === "string" && d.communityId) {
           setCommunityId(d.communityId);
+        }
+        if (typeof d.tournamentsEnabled === "boolean") {
+          setTournamentsOverride(d.tournamentsEnabled);
         }
       })
       .catch(() => {});

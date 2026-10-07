@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/server/auth";
-import { communityHasTournaments } from "@/lib/community-features";
+import { tournamentsEnabledFor } from "@/lib/server/community-flags";
 
 export default async function MemberTournamentsLayout({
   children,
@@ -8,7 +8,7 @@ export default async function MemberTournamentsLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  if (!communityHasTournaments(session?.communityId)) {
+  if (!(await tournamentsEnabledFor(session?.communityId))) {
     redirect("/member");
   }
   return children;

@@ -42,6 +42,7 @@ const nav = [
   { label: "Maintenance", href: "/pm/maintenance", icon: "Wrench" },
   { label: "Announcements", href: "/pm/announcements", icon: "Megaphone" },
   { label: "Events", href: "/pm/events", icon: "CalendarDays" },
+  { label: "Tournaments", href: "/pm/tournaments", icon: "Trophy" },
   { label: "Fundraising", href: "/pm/fundraising", icon: "Heart" },
   { label: "Dining", href: "/pm/dining", icon: "UtensilsCrossed" },
   { label: "Member approvals", href: "/pm/member-approvals", icon: "UserCheck" },

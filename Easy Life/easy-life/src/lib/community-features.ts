@@ -42,7 +42,9 @@ export function communityHasVendors(
 /** Club tournaments / brackets. */
 export function communityHasTournaments(
   communityId: string | null | undefined,
+  override?: boolean | null,
 ): boolean {
+  if (override === true || override === false) return override;
   if (!communityId) return true;
   if (communityId === "oceanside-residents") return false;
   return true;

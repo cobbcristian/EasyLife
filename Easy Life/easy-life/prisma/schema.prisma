@@ -76,6 +76,8 @@ model Community {
   contractClosedAt DateTime?
   /// Contract value in USD used for commission event gross.
   contractValueUsd Float?
+  /// null keeps the community default. true shows Tournaments to residents.
+  tournamentsEnabled Boolean?
   createdAt      DateTime          @default(now())
   members        CommunityMember[]
   providers      Provider[]
