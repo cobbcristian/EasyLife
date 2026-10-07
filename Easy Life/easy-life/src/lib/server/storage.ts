@@ -154,6 +154,25 @@ async function savePrivateBlob(
   }
 }
 
+function contentTypeForPrivateName(filename: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === ".pdf") return "application/pdf";
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  return "image/jpeg";
+}
+
+async function readLocalPrivateDocument(
+  filename: string,
+): Promise<{ data: Buffer; contentType: string } | null> {
+  try {
+    const data = await fs.readFile(path.join(PRIVATE_DIR, filename));
+    return { data, contentType: contentTypeForPrivateName(filename) };
+  } catch {
+    return null;
+  }
+}
+
 export async function readPrivateDocument(
   stored: string,
 ): Promise<{ data: Buffer; contentType: string } | null> {
@@ -167,37 +186,27 @@ export async function readPrivateDocument(
       const { BlobServiceClient } = await import("@azure/storage-blob");
       const client = BlobServiceClient.fromConnectionString(connectionString);
       const blob = client.getContainerClient(privateContainer()).getBlobClient(filename);
-      if (!(await blob.exists())) return null;
-      const download = await blob.download();
-      const chunks: Buffer[] = [];
-      if (!download.readableStreamBody) return null;
-      for await (const chunk of download.readableStreamBody) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      if (await blob.exists()) {
+        const download = await blob.download();
+        const chunks: Buffer[] = [];
+        if (!download.readableStreamBody) return null;
+        for await (const chunk of download.readableStreamBody) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        return {
+          data: Buffer.concat(chunks),
+          contentType: download.contentType || "application/octet-stream",
+        };
       }
-      return {
-        data: Buffer.concat(chunks),
-        contentType: download.contentType || "application/octet-stream",
-      };
     } catch {
-      return null;
+      // Fall through to local recovery for any pre-fix orphaned writes.
     }
+    // Azure configured but blob missing/unreachable — recover local fallback
+    // files written before fail-closed save (multi-instance still may 404).
+    return readLocalPrivateDocument(filename);
   }
 
-  try {
-    const data = await fs.readFile(path.join(PRIVATE_DIR, filename));
-    const ext = path.extname(filename).toLowerCase();
-    const contentType =
-      ext === ".pdf"
-        ? "application/pdf"
-        : ext === ".png"
-          ? "image/png"
-          : ext === ".webp"
-            ? "image/webp"
-            : "image/jpeg";
-    return { data, contentType };
-  } catch {
-    return null;
-  }
+  return readLocalPrivateDocument(filename);
 }
 
 export function validateDocumentUpload(file: File): string | null {
@@ -219,8 +228,17 @@ export async function saveDocumentUpload(file: File): Promise<string> {
   const contentType = file.type || "application/octet-stream";
   const stored = `${PRIVATE_PREFIX}${filename}`;
 
-  const saved = await savePrivateBlob(filename, buffer, contentType);
-  if (saved) return stored;
+  // When Azure is configured, durable private storage must succeed. Falling back
+  // to local disk while AZURE_STORAGE_CONNECTION_STRING remains set leaves a
+  // private: key that readPrivateDocument cannot serve from other instances
+  // (and previously could not serve at all when Azure-only read returned 404).
+  if (process.env.AZURE_STORAGE_CONNECTION_STRING) {
+    const saved = await savePrivateBlob(filename, buffer, contentType);
+    if (!saved) {
+      throw new Error("Could not store private document");
+    }
+    return stored;
+  }
 
   await fs.mkdir(PRIVATE_DIR, { recursive: true });
   await fs.writeFile(path.join(PRIVATE_DIR, filename), buffer);
