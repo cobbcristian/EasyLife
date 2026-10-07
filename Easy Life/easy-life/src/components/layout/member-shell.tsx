@@ -14,6 +14,7 @@ import { MemberMvpBottomNav } from "@/components/member/member-mvp-bottom-nav";
 import { plazaIconForHref, plazaTitleForPath, PlazaGlyph } from "@/components/member/plaza-theme";
 import { avatarForReviewer, preferInitialsAvatar } from "@/lib/brand-assets";
 import { communityIsResidentialHoa } from "@/lib/community-features";
+import { CommunityAlertBanner } from "@/components/member/community-alert-banner";
 
 export interface CommunityBranding {
   id: string;
@@ -110,9 +111,10 @@ export function MemberShell({
         communityId={branding?.id}
       />
       <div className="flex min-w-0 flex-1 flex-col">
+        <div className="sticky top-0 z-40">
         {!hideShellHeader ? (
           <>
-            <header className="plaza-chrome sticky top-0 z-30 px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] text-white sm:px-6 lg:hidden">
+            <header className="plaza-chrome px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))] text-white sm:px-6 lg:hidden">
               <div className="flex h-12 items-center gap-4">
               <button
                 type="button"
@@ -146,7 +148,7 @@ export function MemberShell({
                 </div>
               ) : null}
             </header>
-            <div className="plaza-chrome sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 px-8 text-white lg:flex">
+            <div className="plaza-chrome hidden h-14 items-center justify-end gap-3 px-8 text-white lg:flex">
               <ClubSwitcher />
               <UserAvatarMenu
                 name={accountName}
@@ -157,6 +159,8 @@ export function MemberShell({
             </div>
           </>
         ) : null}
+        <CommunityAlertBanner flushTop={hideShellHeader} />
+        </div>
         <main
           id="main-content"
           className={

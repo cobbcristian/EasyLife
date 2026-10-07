@@ -2081,3 +2081,17 @@ model ResidentIncident {
   @@index([communityId, status])
   @@index([memberEmail])
 }
+
+/// A short notice every resident sees, such as a closed court or course.
+model CommunityAlert {
+  id          String    @id @default(cuid())
+  communityId String
+  message     String
+  detail      String    @default("")
+  authorName  String
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  clearedAt   DateTime?
+
+  @@index([communityId, active])
+}
