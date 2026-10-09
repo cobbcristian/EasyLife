@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Home, LogOut } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/lib/i18n";
+import { clearScreenCache } from "@/lib/screen-cache";
 import { cn } from "@/lib/utils";
 
 export type AccountMenuLink = {
@@ -70,6 +71,7 @@ export function UserAvatarMenu({
 
   async function logout() {
     setOpen(false);
+    clearScreenCache();
     const res = await fetch("/api/auth/logout", {
       method: "POST",
       headers: { Accept: "application/json" },
