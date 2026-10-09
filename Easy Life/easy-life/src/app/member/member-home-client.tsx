@@ -5,6 +5,7 @@ import { readScreen, writeScreen } from "@/lib/screen-cache";
 import { MemberMvpHome } from "@/components/member/member-mvp-home";
 import { brandAssets, avatarForReviewer } from "@/lib/brand-assets";
 import { useI18n } from "@/lib/i18n";
+import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 
 interface HomeBooking {
   id: string;
@@ -93,6 +94,7 @@ function MemberMvpHomeSkeleton() {
 }
 
 export function MemberHomeClient() {
+  const session = useSessionProfile();
   const [data, setData] = useState<HomeData | null>(null);
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(brandAssets.memberAvatar);
   const [profileEmail, setProfileEmail] = useState<string | undefined>(undefined);
@@ -118,9 +120,10 @@ export function MemberHomeClient() {
         }
         setError(null);
         setData(home);
-        writeScreen("member-home", home);
+        const email = typeof home.profile?.email === "string" ? home.profile.email : "";
+        if (email) writeScreen(email, "member-home", home);
         const name = home.profile?.name;
-        if (home.profile?.email) setProfileEmail(home.profile.email);
+        if (email) setProfileEmail(email);
         if (home.profile?.avatarUrl) {
           setAvatarSrc(home.profile.avatarUrl);
         } else if (name) {
@@ -137,13 +140,15 @@ export function MemberHomeClient() {
   }, []);
 
   useLayoutEffect(() => {
-    const saved = readScreen<HomeData>("member-home");
-    if (saved?.profile) {
-      setData(saved);
-      setLoading(false);
-      if (saved.profile.email) setProfileEmail(saved.profile.email);
-    }
-  }, []);
+    if (!session.email) return;
+    const saved = readScreen<HomeData>(session.email, "member-home");
+    if (!saved?.profile) return;
+    const cachedEmail = saved.profile.email?.toLowerCase();
+    if (cachedEmail && cachedEmail !== session.email.toLowerCase()) return;
+    setData(saved);
+    setLoading(false);
+    setProfileEmail(session.email);
+  }, [session.email]);
 
   useEffect(() => {
     load();
