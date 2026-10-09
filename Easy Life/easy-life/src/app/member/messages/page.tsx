@@ -152,7 +152,13 @@ export default function MemberMessagesPage() {
   if (activeId !== messagesThreadId) {
     setMessagesThreadId(activeId);
     if (!activeId) setMessages([]);
-    else setMessages(readScreen<ChatMsg[]>(`member-thread:${activeId}`) ?? []);
+    else {
+      setMessages(
+        profile.email
+          ? (readScreen<ChatMsg[]>(profile.email, `member-thread:${activeId}`) ?? [])
+          : [],
+      );
+    }
   }
 
   const loadThreads = useCallback(async () => {
@@ -161,16 +167,17 @@ export default function MemberMessagesPage() {
     const data = await res.json();
     const list = (data.threads ?? []) as Thread[];
     setThreads(list);
-    writeScreen("member-threads", list);
-  }, []);
+    if (profile.email) writeScreen(profile.email, "member-threads", list);
+  }, [profile.email]);
 
   useLayoutEffect(() => {
-    const saved = readScreen<Thread[]>("member-threads");
+    if (!profile.email) return;
+    const saved = readScreen<Thread[]>(profile.email, "member-threads");
     if (saved && saved.length > 0) {
       setThreads(saved);
       setLoading(false);
     }
-  }, []);
+  }, [profile.email]);
 
   useEffect(() => {
     if (!profile.email) return;
@@ -193,7 +200,7 @@ export default function MemberMessagesPage() {
         }
         if (!on) return;
         setThreads(list);
-        if (list.length > 0) writeScreen("member-threads", list);
+        if (list.length > 0) writeScreen(profile.email, "member-threads", list);
 
         const dirRes = await fetch("/api/messages/recipients");
         const dirData = dirRes.ok
@@ -221,7 +228,7 @@ export default function MemberMessagesPage() {
             const refreshed = await fetchThreads();
             if (!on) return;
             setThreads(refreshed);
-            if (refreshed.length > 0) writeScreen("member-threads", refreshed);
+            if (refreshed.length > 0) writeScreen(profile.email, "member-threads", refreshed);
             setActiveId(data.thread.id);
             setMobileConversation(true);
             if (draftParam) {
@@ -262,15 +269,20 @@ export default function MemberMessagesPage() {
   }, [profile.email, loadThreads]);
 
   useEffect(() => {
-    if (!activeId) return;
+    if (!activeId || !profile.email) return;
     let on = true;
+    const email = profile.email;
     const load = () => {
       fetch(`/api/messages/threads/${activeId}`)
-        .then((r) => r.json())
-        .then((d) => {
+        .then(async (r) => {
+          const d = await r.json();
           if (!on) return;
+          if (!r.ok) {
+            setMessages([]);
+            return;
+          }
           const incoming = (d.messages ?? []) as ChatMsg[];
-          writeScreen(`member-thread:${activeId}`, incoming);
+          writeScreen(email, `member-thread:${activeId}`, incoming);
           setMessages((prev) => {
             const pending = prev.filter(
               (m) => m.id.startsWith("pending-") && !incoming.some((row) => row.body === m.body),
@@ -286,7 +298,7 @@ export default function MemberMessagesPage() {
       on = false;
       window.clearInterval(timer);
     };
-  }, [activeId]);
+  }, [activeId, profile.email]);
 
   useEffect(() => {
     window.dispatchEvent(

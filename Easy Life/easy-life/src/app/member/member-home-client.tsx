@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { readScreen, writeScreen } from "@/lib/screen-cache";
 import { MemberMvpHome } from "@/components/member/member-mvp-home";
 import { brandAssets, avatarForReviewer } from "@/lib/brand-assets";
+import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 import { useI18n } from "@/lib/i18n";
 
 interface HomeBooking {
@@ -93,6 +94,7 @@ function MemberMvpHomeSkeleton() {
 }
 
 export function MemberHomeClient() {
+  const session = useSessionProfile();
   const [data, setData] = useState<HomeData | null>(null);
   const [avatarSrc, setAvatarSrc] = useState<string | undefined>(brandAssets.memberAvatar);
   const [profileEmail, setProfileEmail] = useState<string | undefined>(undefined);
@@ -118,7 +120,8 @@ export function MemberHomeClient() {
         }
         setError(null);
         setData(home);
-        writeScreen("member-home", home);
+        const owner = String(home.profile?.email ?? session.email ?? "").trim();
+        if (owner) writeScreen(owner, "member-home", home);
         const name = home.profile?.name;
         if (home.profile?.email) setProfileEmail(home.profile.email);
         if (home.profile?.avatarUrl) {
@@ -134,16 +137,17 @@ export function MemberHomeClient() {
         setError("Could not load home.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [session.email]);
 
   useLayoutEffect(() => {
-    const saved = readScreen<HomeData>("member-home");
+    if (!session.email) return;
+    const saved = readScreen<HomeData>(session.email, "member-home");
     if (saved?.profile) {
       setData(saved);
       setLoading(false);
       if (saved.profile.email) setProfileEmail(saved.profile.email);
     }
-  }, []);
+  }, [session.email]);
 
   useEffect(() => {
     load();

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MemberMvpBookings } from "@/components/member/member-mvp-bookings";
 import { isBookableAmenityKind, type AmenityDTO, type BookingDTO } from "@/lib/member-dtos";
+import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 import { readScreen, writeScreen } from "@/lib/screen-cache";
 
 type ReserveCache = {
@@ -47,6 +48,7 @@ function mapAmenity(row: AmenityDTO): AmenityDTO {
 /** Reserve paints the last list immediately, then refreshes from the server. */
 export function MemberBookingsLive() {
   const searchParams = useSearchParams();
+  const profile = useSessionProfile();
   const [amenities, setAmenities] = useState<AmenityDTO[]>([]);
   const [bookings, setBookings] = useState<BookingDTO[]>([]);
   const [ready, setReady] = useState(false);
@@ -66,20 +68,23 @@ export function MemberBookingsLive() {
     setBookings(nextBookings);
     setAmenities(nextAmenities);
     setReady(true);
-    writeScreen("member-reserve", {
-      amenities: nextAmenities,
-      bookings: nextBookings,
-    } satisfies ReserveCache);
-  }, []);
+    if (profile.email) {
+      writeScreen(profile.email, "member-reserve", {
+        amenities: nextAmenities,
+        bookings: nextBookings,
+      } satisfies ReserveCache);
+    }
+  }, [profile.email]);
 
   useLayoutEffect(() => {
-    const saved = readScreen<ReserveCache>("member-reserve");
+    if (!profile.email) return;
+    const saved = readScreen<ReserveCache>(profile.email, "member-reserve");
     if (saved?.amenities?.length) {
       setAmenities(saved.amenities);
       setBookings(saved.bookings ?? []);
       setReady(true);
     }
-  }, []);
+  }, [profile.email]);
 
   useEffect(() => {
     void load();
