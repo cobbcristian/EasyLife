@@ -156,6 +156,7 @@ export async function resolveHoaPaymentForMember(opts: {
   }
 
   const periodId = billingPeriodId();
+  const email = memberEmail.trim().toLowerCase();
   const openBalance =
     fee.currentBalance != null && Number.isFinite(fee.currentBalance)
       ? Math.round(fee.currentBalance * 100) / 100
@@ -175,7 +176,7 @@ export async function resolveHoaPaymentForMember(opts: {
     const paidThisPeriod = await prisma.memberCharge.findFirst({
       where: {
         communityId,
-        memberEmail,
+        memberEmail: email,
         category: "hoa",
         status: "paid",
         referenceType: "hoa_assessment",
@@ -203,47 +204,17 @@ export async function resolveHoaPaymentForMember(opts: {
     };
   }
 
-  const existing = await prisma.memberCharge.findFirst({
-    where: {
-      communityId,
-      memberEmail,
-      category: "hoa",
-      status: { not: "paid" },
-    },
-    orderBy: { createdAt: "desc" },
+  // Serializable find-or-create so concurrent hoa-checkout / wallet starts
+  // cannot insert two open HOA charges (which would bypass per-chargeId
+  // Stripe idempotency and double-bill after both sessions are paid).
+  const chargeId = await claimOrCreateOpenHoaCharge({
+    communityId,
+    memberEmail: email,
+    memberName,
+    amount,
+    unit,
+    periodId,
   });
-
-  let chargeId: string;
-  if (existing) {
-    if (existing.amount !== amount) {
-      await prisma.memberCharge.update({
-        where: { id: existing.id },
-        data: {
-          amount,
-          description: `${OCEANSIDE_HOA_PRODUCT.name} · Unit ${unit} · ${periodId}`,
-          referenceType: "hoa_assessment",
-          referenceId: periodId,
-        },
-      });
-    }
-    chargeId = existing.id;
-  } else {
-    const created = await prisma.memberCharge.create({
-      data: {
-        communityId,
-        memberEmail,
-        memberName,
-        category: "hoa",
-        description: `${OCEANSIDE_HOA_PRODUCT.name} · Unit ${unit} · ${periodId}`,
-        amount,
-        status: "due",
-        dueDate: new Date().toISOString().slice(0, 10),
-        referenceType: "hoa_assessment",
-        referenceId: periodId,
-      },
-    });
-    chargeId = created.id;
-  }
 
   return {
     ok: true,
@@ -257,6 +228,87 @@ export async function resolveHoaPaymentForMember(opts: {
       periodId,
     },
   };
+}
+
+/** True when Prisma rejected a Serializable transaction (safe to retry). */
+export function isPrismaSerializationFailure(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const code = "code" in err ? String((err as { code?: unknown }).code ?? "") : "";
+  if (code === "P2034") return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return /could not serialize|serialization failure|40001/i.test(message);
+}
+
+/**
+ * Atomically reuse the member's latest unpaid HOA charge or create one.
+ * Concurrent callers must share one chargeId so Stripe idempotency keys align.
+ */
+export async function claimOrCreateOpenHoaCharge(input: {
+  communityId: string;
+  memberEmail: string;
+  memberName: string;
+  amount: number;
+  unit: string;
+  periodId: string;
+}): Promise<string> {
+  const email = input.memberEmail.trim().toLowerCase();
+  const description = `${OCEANSIDE_HOA_PRODUCT.name} · Unit ${input.unit} · ${input.periodId}`;
+
+  const attempt = () =>
+    prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.memberCharge.findFirst({
+          where: {
+            communityId: input.communityId,
+            memberEmail: email,
+            category: "hoa",
+            status: { not: "paid" },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (existing) {
+          if (existing.amount !== input.amount) {
+            await tx.memberCharge.update({
+              where: { id: existing.id },
+              data: {
+                amount: input.amount,
+                description,
+                referenceType: "hoa_assessment",
+                referenceId: input.periodId,
+              },
+            });
+          }
+          return existing.id;
+        }
+        const created = await tx.memberCharge.create({
+          data: {
+            communityId: input.communityId,
+            memberEmail: email,
+            memberName: input.memberName,
+            category: "hoa",
+            description,
+            amount: input.amount,
+            status: "due",
+            dueDate: new Date().toISOString().slice(0, 10),
+            referenceType: "hoa_assessment",
+            referenceId: input.periodId,
+          },
+        });
+        return created.id;
+      },
+      { isolationLevel: "Serializable" },
+    );
+
+  let lastErr: unknown;
+  for (let i = 0; i < 4; i++) {
+    try {
+      return await attempt();
+    } catch (err) {
+      lastErr = err;
+      if (!isPrismaSerializationFailure(err)) throw err;
+    }
+  }
+  throw lastErr;
 }
 
 export async function markHoaChargePaid(chargeId: string): Promise<void> {
