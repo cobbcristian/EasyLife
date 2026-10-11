@@ -22,10 +22,10 @@ export default function DeleteAccountPage() {
           <li>
             Email{" "}
             <a
-              href="mailto:support@easylife.com?subject=Plaza%20at%20Oceanside%20account%20deletion"
+              href="mailto:cobbcristian17@gmail.com?subject=Plaza%20at%20Oceanside%20account%20deletion"
               className="font-medium text-[var(--mvp-blue)]"
             >
-              support@easylife.com
+              cobbcristian17@gmail.com
             </a>{" "}
             from the email address on your account.
           </li>
@@ -97,10 +97,10 @@ export default function DeleteAccountPage() {
           visibility, vehicles, pets, etc.) while signed in. For deletion of
           specific data without closing the account, email{" "}
           <a
-            href="mailto:support@easylife.com?subject=Plaza%20at%20Oceanside%20data%20deletion%20request"
+            href="mailto:cobbcristian17@gmail.com?subject=Plaza%20at%20Oceanside%20data%20deletion%20request"
             className="font-medium text-[var(--mvp-blue)]"
           >
-            support@easylife.com
+            cobbcristian17@gmail.com
           </a>{" "}
           and describe what you want removed.
         </p>

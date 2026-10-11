@@ -1,0 +1,36 @@
+# Calls the Easy Life / Barnaby daily jobs on Azure App Service.
+# Runs reminders, autopay, membership aging, and Barnaby chat retention.
+# Needs repo secret EASYLIFE_CRON_SECRET set to the same value as CRON_SECRET in the Azure App Service settings.
+
+name: Easy Life daily cron
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # 08:00 UTC daily (4:00 AM Eastern during daylight time)
+  workflow_dispatch:
+
+concurrency:
+  group: easylife-daily-cron
+  cancel-in-progress: false
+
+jobs:
+  run-daily-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call /api/cron/reminders
+        env:
+          CRON_SECRET: ${{ secrets.EASYLIFE_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "EASYLIFE_CRON_SECRET is not set in repo secrets" >&2
+            exit 1
+          fi
+          status=$(curl -sS -o response.json -w "%{http_code}" --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://easylife-plaza-app.azurewebsites.net/api/cron/reminders)
+          echo "HTTP $status"
+          cat response.json
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi

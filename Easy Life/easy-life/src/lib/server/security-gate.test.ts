@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import path from "path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isDemoPaymentAllowed } from "@/lib/server/demo-mode";
 
 function source(relativePath: string): string {
@@ -37,15 +37,14 @@ describe("security gate", () => {
   });
 
   it("keeps demo payments off in production unless explicitly enabled", () => {
-    const previousNode = process.env.NODE_ENV;
-    const previousFlag = process.env.ALLOW_DEMO_PAYMENTS;
-    process.env.NODE_ENV = "production";
-    delete process.env.ALLOW_DEMO_PAYMENTS;
-    expect(isDemoPaymentAllowed()).toBe(false);
-    process.env.ALLOW_DEMO_PAYMENTS = "1";
-    expect(isDemoPaymentAllowed()).toBe(true);
-    process.env.NODE_ENV = previousNode;
-    if (previousFlag === undefined) delete process.env.ALLOW_DEMO_PAYMENTS;
-    else process.env.ALLOW_DEMO_PAYMENTS = previousFlag;
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_DEMO_PAYMENTS", "");
+    try {
+      expect(isDemoPaymentAllowed()).toBe(false);
+      vi.stubEnv("ALLOW_DEMO_PAYMENTS", "1");
+      expect(isDemoPaymentAllowed()).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
