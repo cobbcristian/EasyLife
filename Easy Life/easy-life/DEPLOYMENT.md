@@ -95,9 +95,12 @@ az webapp config appsettings set \
   --settings \
     DATABASE_URL="postgresql://easylifeadmin:<PASSWORD>@easy-life-db.postgres.database.azure.com:5432/easylife?sslmode=require" \
     NODE_ENV="production" \
-    NEXTAUTH_SECRET="<GENERATE_A_SECRET>" \
-    NEXTAUTH_URL="https://easy-life-app.azurewebsites.net"
+    AUTH_SECRET="<GENERATE_A_SECRET>" \
+    APP_URL="https://easy-life-app.azurewebsites.net"
 ```
+
+> **IMPORTANT**: `AUTH_SECRET` is **required** in production. The application will fail to start without it.
+> Generate a strong random secret: `openssl rand -base64 32`
 
 Generate a secure secret:
 ```bash
@@ -287,8 +290,10 @@ az webapp restart \
 |----------|-------------|----------|
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `NODE_ENV` | Environment (production) | Yes |
-| `NEXTAUTH_SECRET` | NextAuth.js secret key | Yes |
-| `NEXTAUTH_URL` | Full URL of the app | Yes |
+| `AUTH_SECRET` | JWT signing secret (min 32 chars) — **required in production** | Yes |
+| `APP_URL` | Full URL of the app (e.g. `https://your-app.azurewebsites.net`) | Recommended |
+| `SUPERADMIN_SEED_PASSWORD` | Initial password for super-admin seed (min 12 chars, prod only) | For first deploy |
+| `DEMO_SEED_PASSWORD` | Password for demo seed users (min 8 chars) — required in prod to seed demo users | For demos |
 | `VAPID_PUBLIC_KEY` | Push notification public key | Optional |
 | `VAPID_PRIVATE_KEY` | Push notification private key | Optional |
 | `VAPID_SUBJECT` | `mailto:` contact for web push | Optional |

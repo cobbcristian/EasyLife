@@ -22,8 +22,41 @@ import {
   recordProviderActivation,
 } from "@/lib/server/commissions";
 
+/**
+ * In production, seed passwords MUST come from env vars.
+ * If not set in production, seed users are skipped entirely.
+ * In non-production, super-admin gets random password, demo users get "password".
+ */
+function getSuperAdminSeedPassword(): string | null {
+  const envPassword = process.env.SUPERADMIN_SEED_PASSWORD;
+  if (envPassword && envPassword.length >= 12) {
+    return envPassword;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+  return randomBytes(16).toString("hex");
+}
+
+function getDemoSeedPassword(): string | null {
+  const envPassword = process.env.DEMO_SEED_PASSWORD;
+  if (envPassword && envPassword.length >= 8) {
+    return envPassword;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+  return "password"; // Only in non-production for backwards compat
+}
+
+const superAdminSeedPassword = getSuperAdminSeedPassword();
+const demoSeedPassword = getDemoSeedPassword();
+
 const seedUsers: AuthUser[] = [
-  { id: "u-admin", email: "superadmin@gmail.com", password: "password", role: "admin", name: "Easy Life Admin", communityId: null },
+  // Super-admin is conditionally included based on environment
+  ...(superAdminSeedPassword
+    ? [{ id: "u-admin", email: "superadmin@gmail.com", password: superAdminSeedPassword, role: "admin" as const, name: "Easy Life Admin", communityId: null }]
+    : []),
   { id: "u-club-admin", email: "pm.demo@willowcreekhoa.com", password: "password", role: "admin", name: "Priya Nair", communityId: "willow-creek" },
   { id: "u-provider", email: "cassiesmeticuloustouch@gmail.com", password: "password1!", role: "provider", name: "Cassie's Meticulous Touch", communityId: "golden-ocala" },
   { id: "u-member", email: "sarah.mitchell@oceanside.com", password: "password", role: "member", name: "Sarah Mitchell", communityId: "golden-ocala" },
@@ -171,6 +204,12 @@ async function backfillInviteCodes(): Promise<void> {
 
 async function backfillSeedUsers(): Promise<void> {
   for (const u of seedUsers) {
+    // Skip demo users in production if DEMO_SEED_PASSWORD is not set
+    const isSuperAdmin = u.id === "u-admin";
+    if (!isSuperAdmin && !demoSeedPassword) {
+      continue;
+    }
+
     const existing = await prisma.user.findFirst({
       where: { OR: [{ id: u.id }, { email: u.email }] },
     });
@@ -188,7 +227,7 @@ async function backfillSeedUsers(): Promise<void> {
   }
 }
 
-/** Rename legacy platform master login → superadmin@gmail.com. */
+/** Rename legacy platform master login → superadmin@gmail.com. Does NOT reset password. */
 async function backfillSuperAdminIdentity(): Promise<void> {
   const OLD_EMAIL = "goldenocala01@gmail.com";
   const NEW_EMAIL = "superadmin@gmail.com";
@@ -196,6 +235,7 @@ async function backfillSuperAdminIdentity(): Promise<void> {
   const newUser = await prisma.user.findUnique({ where: { email: NEW_EMAIL } });
 
   if (oldUser && !newUser) {
+    // Migrate old account email, keep existing password
     await prisma.user.update({
       where: { id: oldUser.id },
       data: {
@@ -203,21 +243,23 @@ async function backfillSuperAdminIdentity(): Promise<void> {
         name: "Easy Life Admin",
         role: "admin",
         communityId: null,
-        password: hashPassword("password"),
+        // Keep existing password - do NOT reset to known value
       },
     });
   } else if (oldUser && newUser) {
+    // Both exist: keep new user, delete old, preserve new user's password
     await prisma.user.update({
       where: { id: newUser.id },
       data: {
         name: "Easy Life Admin",
         role: "admin",
         communityId: null,
-        password: hashPassword("password"),
+        // Keep existing password - do NOT reset to known value
       },
     });
     await prisma.user.delete({ where: { id: oldUser.id } }).catch(() => null);
   } else if (newUser) {
+    // Only new exists: just update metadata, keep password
     await prisma.user.update({
       where: { id: newUser.id },
       data: {
@@ -1150,3 +1192,4 @@ export async function getCommunityBranding(communityId: string) {
     appDisplayName: row.appDisplayName ?? row.name,
   };
 }
+

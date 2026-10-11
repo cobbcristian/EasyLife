@@ -9,6 +9,8 @@ import {
 const SCRYPT_PREFIX = "scrypt";
 /** OAuth-only accounts — password login rejected. */
 const OAUTH_PREFIX = "oauth$";
+/** Invite-required accounts — password login rejected until user sets password via reset flow. */
+const PENDING_PREFIX = "pending$";
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);
@@ -23,6 +25,10 @@ export function hashOAuthPlaceholder(provider: string): string {
 
 export function isOAuthPassword(stored: string): boolean {
   return stored.startsWith(OAUTH_PREFIX);
+}
+
+export function isPendingPassword(stored: string): boolean {
+  return stored.startsWith(PENDING_PREFIX);
 }
 
 export function isScryptHash(stored: string): boolean {
@@ -126,6 +132,7 @@ function verifyScryptPassword(password: string, stored: string): boolean {
 export function verifyPassword(password: string, stored: string): boolean {
   if (!stored) return false;
   if (isOAuthPassword(stored)) return false;
+  if (isPendingPassword(stored)) return false;
   if (isScryptHash(stored)) return verifyScryptPassword(password, stored);
   if (isAspNetIdentityHash(stored)) {
     return verifyAspNetIdentityPassword(password, stored);

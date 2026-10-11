@@ -33,15 +33,10 @@ type LoginBranding = {
   liveProduction?: boolean;
 };
 
-const SUPER_ADMIN_EMAIL = "superadmin@gmail.com";
-
 function LoginForm({ branding }: { branding: LoginBranding | null }) {
   const searchParams = useSearchParams();
   const { t } = useI18n();
-  const unlockedDefaultEmail = branding?.locked
-    ? (branding.defaultEmail ?? "")
-    : SUPER_ADMIN_EMAIL;
-  const [email, setEmail] = useState(unlockedDefaultEmail);
+  const [email, setEmail] = useState(branding?.locked ? (branding.defaultEmail ?? "") : "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +60,7 @@ function LoginForm({ branding }: { branding: LoginBranding | null }) {
     setEmail(
       qEmail ||
         roleMatch?.email ||
-        (branding?.locked ? branding.defaultEmail : SUPER_ADMIN_EMAIL) ||
+        (branding?.locked ? branding.defaultEmail : "") ||
         "",
     );
     setPassword(roleMatch?.password || "");

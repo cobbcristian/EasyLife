@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { randomBytes } from "crypto";
 import { getSession } from "@/lib/server/auth";
 import { isSuperAdmin } from "@/lib/server/community-context";
 import {
@@ -8,9 +9,12 @@ import {
   listCommunities,
 } from "@/lib/server/db";
 import { logEvent } from "@/lib/server/records";
+import { isPasswordStrongEnough } from "@/lib/password-policy";
 import type { AuthRole } from "@/lib/types";
 
 const ALLOWED_ROLES: AuthRole[] = ["admin", "member", "board", "pm", "provider", "sales"];
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -64,13 +68,40 @@ export async function POST(request: Request) {
   const email = body.email?.trim().toLowerCase();
   const name = body.name?.trim();
   const role = body.role as AuthRole | undefined;
-  const password = body.password?.trim() || "password";
+  const providedPassword = body.password?.trim();
 
   if (!email?.includes("@") || !name || !role || !ALLOWED_ROLES.includes(role)) {
     return NextResponse.json(
       { error: "name, email, and a valid role are required" },
       { status: 400 },
     );
+  }
+
+  // Require strong password if provided; otherwise create in pending state
+  let password: string;
+  let status: "active" | "pending" = "active";
+
+  if (providedPassword) {
+    if (providedPassword.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json(
+        { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` },
+        { status: 400 },
+      );
+    }
+    if (!isPasswordStrongEnough(providedPassword)) {
+      return NextResponse.json(
+        {
+          error:
+            "Password must contain uppercase, lowercase, and a non-alphanumeric character",
+        },
+        { status: 400 },
+      );
+    }
+    password = providedPassword;
+  } else {
+    // No password provided: create in pending/invite-required state with unusable random password
+    password = `pending$${randomBytes(32).toString("hex")}`;
+    status = "pending";
   }
 
   let communityId: string | null | undefined = body.communityId;
@@ -87,6 +118,7 @@ export async function POST(request: Request) {
     role,
     password,
     communityId: communityId ?? null,
+    status,
   });
   if ("error" in created) {
     return NextResponse.json({ error: created.error }, { status: 400 });

@@ -54,6 +54,68 @@ function bearerToken(request: NextRequest): string | undefined {
   return header.startsWith("Bearer ") ? header.slice(7) : undefined;
 }
 
+/**
+ * API routes that handle their own authentication (not member JWT session).
+ * These routes use tokens, API keys, webhooks signatures, or other auth mechanisms.
+ * The proxy lets them through so they can perform their own route-level auth.
+ */
+const SELF_AUTHED_API_ROUTES = [
+  // Auth flows (login, register, password reset, OAuth)
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/logout",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/oauth",
+  "/api/auth/mfa/verify",
+  "/api/auth/mfa/confirm",
+  "/api/auth/session",
+  // Health check (public)
+  "/api/health",
+  // Cron jobs (CRON_SECRET header auth)
+  "/api/cron/autopay",
+  "/api/cron/reminders",
+  // Public community data
+  "/api/communities/public",
+  // Stripe (webhook signature verification)
+  "/api/stripe/webhook",
+  "/api/stripe/connect",
+  "/api/stripe/billing-portal",
+  "/api/stripe/subscription-checkout",
+  // Guest payment flows (token in URL)
+  "/api/pay/guest",
+  // Calendar feeds (token in URL)
+  "/api/calendar/feed",
+  // Contact/lead forms (public)
+  "/api/contact",
+  "/api/landing/contact",
+  "/api/leads",
+  // Public website API
+  "/api/website/public",
+  // Mobile routes (handled separately with their own JWT check)
+  "/api/mobile/login",
+  "/api/mobile/bridge",
+  "/api/mobile/register",
+  "/api/mobile/communities",
+  // Driver routes (driver JWT auth from PR #48)
+  "/api/driver",
+  // Grab & Go kiosk (machine API key auth)
+  "/api/grab-go/kiosk",
+  // Native app config (public)
+  "/api/native-apps",
+];
+
+/**
+ * Check if an API route handles its own authentication.
+ * Matches exact path or path with trailing segments (e.g. /api/cron/autopay/foo).
+ * Does NOT match partial prefixes (e.g. /api/healthXYZ won't match /api/health).
+ */
+function isSelfAuthedApi(pathname: string): boolean {
+  return SELF_AUTHED_API_ROUTES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
 const STAGING_EXEMPT_API_PREFIXES = [
   "/api/auth/",
   "/api/cron/",
@@ -140,7 +202,7 @@ function withPathnameHeader(request: NextRequest, pathname: string) {
 }
 
 /** Paths under /go that are sales tools, not club demo locks. */
-const GO_SALES_TOOL_SLUGS = new Set(["guide", "superadmin"]);
+const GO_SALES_TOOL_SLUGS = new Set(["guide"]);
 
 function demoGoPath(pathname: string): DemoTenant | null {
   const match = pathname.match(/^\/go\/([a-z0-9-]+)\/?$/i);
@@ -195,13 +257,11 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Master / platform super admin entry — unlock club branding, open Easy Life login.
+  // /go/superadmin is no longer supported — redirect to generic login.
   if (pathname === "/go/superadmin" || pathname === "/go/superadmin/") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
-    url.searchParams.set("email", "superadmin@gmail.com");
-    url.searchParams.set("password", "password");
     const redirect = NextResponse.redirect(url);
     clearDemoTenantCookies(redirect);
     return redirect;
@@ -257,6 +317,23 @@ export async function proxy(request: NextRequest) {
         { status: 403 },
       );
     }
+    return NextResponse.next();
+  }
+
+  // Default-deny for /api/** — require JWT unless route handles its own auth
+  if (pathname.startsWith("/api/")) {
+    if (isSelfAuthedApi(pathname)) {
+      // Let the route handler perform its own authentication
+      return NextResponse.next();
+    }
+    // All other API routes require a valid member session
+    const token =
+      request.cookies.get(SESSION_COOKIE)?.value ?? bearerToken(request);
+    const session = await verifySessionToken(token);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Let the route handler perform role-based authorization
     return NextResponse.next();
   }
 
@@ -335,8 +412,6 @@ export const config = {
     "/go/",
     "/go/guide",
     "/go/guide/",
-    "/go/superadmin",
-    "/go/superadmin/",
     "/sell/plaza",
     "/sell/plaza/",
     "/sell",
