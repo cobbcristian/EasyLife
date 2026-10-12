@@ -18,6 +18,20 @@ export function findOrphanEmails(chatEmails: string[], accountEmails: string[]):
 }
 
 /**
+ * Wipe Barnaby history for one email immediately when the account is deleted.
+ * History is keyed only by email — if we wait for the daily orphan cron, a
+ * re-registration with the same address can load the prior resident's chats.
+ */
+export async function purgeAiChatsForEmail(email: string): Promise<number> {
+  const key = email.trim().toLowerCase();
+  if (!key) return 0;
+  const res = await prisma.aiChatMessage.deleteMany({
+    where: { userEmail: key },
+  });
+  return res.count;
+}
+
+/**
  * Runs daily from the cron route. Deletes:
  * 1. Barnaby chats whose account no longer exists (daily run keeps this well inside the 30-day promise).
  * 2. Barnaby chats older than 12 months.

@@ -47,4 +47,11 @@ describe("security gate", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("clears Barnaby chats when an account is deleted (email-reuse leak)", () => {
+    const deleteAccount = source("src/lib/server/db.ts");
+    expect(deleteAccount).toMatch(/purgeAiChatsForEmail/);
+    const rejectPending = source("src/lib/server/member-enrollment.ts");
+    expect(rejectPending).toMatch(/purgeAiChatsForEmail/);
+  });
 });
