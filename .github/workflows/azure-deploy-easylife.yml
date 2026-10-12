@@ -1,5 +1,5 @@
 # Deploys Easy Life (Next.js standalone) to Azure App Service.
-# App root in this monorepo: Easy Life/easy-life
+# App root in this monorepo: easy-life
 
 name: Azure Deploy Easy Life
 
@@ -9,7 +9,7 @@ on:
       - main
       - master
     paths:
-      - "Easy Life/easy-life/**"
+      - "easy-life/**"
       - ".github/workflows/azure-deploy-easylife.yml"
   workflow_dispatch:
 
@@ -22,7 +22,7 @@ env:
   AZURE_RESOURCE_GROUP: easy-life-rg
   AZURE_STORAGE_ACCOUNT: easylifeplaza5934
   NODE_VERSION: "22.x"
-  APP_DIR: Easy Life/easy-life
+  APP_DIR: easy-life
 
 jobs:
   build-and-deploy:
