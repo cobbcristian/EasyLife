@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/server/password";
 import type { AuthUser } from "@/lib/types";
 import { upsertMembership } from "@/lib/server/memberships";
 import { recordResidentActivation } from "@/lib/server/commissions";
+import { purgeAiChatsForEmail } from "@/lib/server/ai-chat-retention";
 
 export type EnrollmentStatus = "active" | "pending" | "frozen";
 
@@ -241,6 +242,7 @@ export async function rejectPendingMember(opts: {
       },
     });
   }
+  await purgeAiChatsForEmail(user.email);
   await prisma.user.delete({ where: { id: user.id } });
 
   return {

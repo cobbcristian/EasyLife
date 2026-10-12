@@ -21,6 +21,7 @@ import {
   recordResidentActivation,
   recordProviderActivation,
 } from "@/lib/server/commissions";
+import { purgeAiChatsForEmail } from "@/lib/server/ai-chat-retention";
 
 const seedUsers: AuthUser[] = [
   { id: "u-admin", email: "superadmin@gmail.com", password: "password", role: "admin", name: "Easy Life Admin", communityId: null },
@@ -825,6 +826,9 @@ export async function deleteUserAccount(id: string): Promise<boolean> {
     await prisma.pushSubscription.deleteMany({
       where: { userEmail: emailLower },
     });
+    // Barnaby chats are keyed by email only — clear before delete so a later
+    // signup with the same address cannot inherit the prior resident's history.
+    await purgeAiChatsForEmail(emailLower);
   }
 
   await prisma.user.delete({ where: { id } });
