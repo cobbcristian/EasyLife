@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/server/mobile-auth";
 import { logEvent, toggleEventRsvp } from "@/lib/server/records";
 import { prisma } from "@/lib/server/prisma";
+import { isOpenSchedule } from "@/lib/utils";
 
 export async function POST(
   request: Request,
@@ -28,6 +29,12 @@ export async function POST(
   const event = await prisma.communityEvent.findUnique({ where: { id } });
   if (!event) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+  if (!isOpenSchedule(event.date, event.time, event.endTime)) {
+    return NextResponse.json(
+      { error: "This event has already ended." },
+      { status: 400 },
+    );
   }
 
   if (decline) {

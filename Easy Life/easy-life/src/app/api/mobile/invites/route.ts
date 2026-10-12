@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/server/mobile-auth";
-import { listBookingInvitesForMember } from "@/lib/server/records";
-import { prisma } from "@/lib/server/prisma";
+import {
+  listBookingInvitesForMember,
+  listOpenEventInvitesForMember,
+} from "@/lib/server/records";
 
-/** Pending event + amenity booking invites for the signed-in member. */
+/** Pending event + amenity booking invites that have not ended. */
 export async function GET(request: Request) {
   const session = await getMobileSession(request);
   if (!session) {
@@ -11,38 +13,10 @@ export async function GET(request: Request) {
   }
   const email = session.email.trim().toLowerCase();
 
-  const [eventInvites, bookingInvites] = await Promise.all([
-    prisma.eventInvite.findMany({
-      where: { memberEmail: email, status: "pending" },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    }),
+  const [eventRows, bookingInvites] = await Promise.all([
+    listOpenEventInvitesForMember(email),
     listBookingInvitesForMember(email),
   ]);
-
-  const eventIds = [...new Set(eventInvites.map((i) => i.eventId))];
-  const events = await prisma.communityEvent.findMany({
-    where: { id: { in: eventIds } },
-  });
-  const byId = new Map(events.map((e) => [e.id, e]));
-
-  const eventRows = eventInvites.map((i) => {
-    const event = byId.get(i.eventId);
-    return {
-      id: i.id,
-      type: "event" as const,
-      status: i.status,
-      eventId: i.eventId,
-      bookingId: null as string | null,
-      title: event?.title ?? "Event",
-      date: event?.date ?? "",
-      time: event?.time ?? null,
-      location: event?.location ?? "",
-      hostName: "",
-      requirePayment: event?.requirePayment ?? false,
-      feeCents: event?.feeCents ?? 0,
-    };
-  });
 
   return NextResponse.json({
     invites: [...bookingInvites, ...eventRows].sort((a, b) =>

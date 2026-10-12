@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
+import { eventTimeWindow, isOpenSchedule, isUpcomingItem } from "@/lib/utils";
 import {
   assignUnitNumber,
   availabilityWindows,
@@ -139,6 +140,14 @@ export class BookingInviteFullError extends Error {
   constructor(message = "This reservation is full — no spots left.") {
     super(message);
     this.name = "BookingInviteFullError";
+  }
+}
+
+/** Going / Not going after the reservation window has already ended. */
+export class BookingInviteEndedError extends Error {
+  constructor(message = "This reservation has already ended.") {
+    super(message);
+    this.name = "BookingInviteEndedError";
   }
 }
 
@@ -291,7 +300,10 @@ export async function getBookingReservationDetail(
     canCancel: isHost,
     canLeave: !isHost && Boolean(myInvite) && myInvite!.status !== "declined",
     canInviteMore: isHost,
-    canAcceptInvite: !isHost && myInvite?.status === "pending",
+    canAcceptInvite:
+      !isHost &&
+      myInvite?.status === "pending" &&
+      isUpcomingItem(booking.date, `${booking.startTime} – ${booking.endTime}`),
     inviteId: myInvite?.id ?? null,
     yourInviteStatus: myInvite
       ? myInvite.status === "accepted"
@@ -492,7 +504,7 @@ export async function getEventReservationDetail(
     canCancel: isOrganizer,
     canLeave: Boolean(myRsvp) && !isOrganizer,
     canInviteMore: isOrganizer,
-    canRsvp: true,
+    canRsvp: isOpenSchedule(event.date, event.time, event.endTime),
     userRsvped: Boolean(myRsvp),
     yourInviteStatus: myRsvp
       ? "going"
@@ -2101,6 +2113,43 @@ export async function listBookingInvitesForMember(memberEmail: string) {
       requirePayment: false,
       feeCents: 0,
     };
+  }).filter((row) => isUpcomingItem(row.date, row.time));
+}
+
+/** Pending event invites whose date and end time are still ahead. */
+export async function listOpenEventInvitesForMember(memberEmail: string) {
+  const email = memberEmail.trim().toLowerCase();
+  const invites = await prisma.eventInvite.findMany({
+    where: { memberEmail: email, status: "pending" },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+  if (invites.length === 0) return [];
+  const events = await prisma.communityEvent.findMany({
+    where: { id: { in: [...new Set(invites.map((i) => i.eventId))] } },
+  });
+  const byId = new Map(events.map((e) => [e.id, e]));
+  return invites.flatMap((i) => {
+    const event = byId.get(i.eventId);
+    if (!event || !isOpenSchedule(event.date, event.time, event.endTime)) {
+      return [];
+    }
+    return [
+      {
+        id: i.id,
+        type: "event" as const,
+        status: i.status,
+        eventId: i.eventId,
+        bookingId: null as string | null,
+        title: event.title,
+        date: event.date,
+        time: eventTimeWindow(event.time, event.endTime),
+        location: event.location,
+        hostName: event.createdBy,
+        requirePayment: event.requirePayment,
+        feeCents: event.feeCents,
+      },
+    ];
   });
 }
 
@@ -2114,6 +2163,7 @@ export async function respondBookingInvite(input: {
   type TxResult =
     | { kind: "ok"; invite: Awaited<ReturnType<typeof prisma.bookingInvite.update>> }
     | { kind: "missing" }
+    | { kind: "ended" }
     | { kind: "full"; message: string };
 
   const result = await prisma.$transaction(async (tx): Promise<TxResult> => {
@@ -2125,6 +2175,14 @@ export async function respondBookingInvite(input: {
       return { kind: "ok", invite };
     }
 
+    const booking = await tx.booking.findUnique({
+      where: { id: invite.bookingId },
+    });
+    if (!booking) return { kind: "missing" };
+    if (!isUpcomingItem(booking.date, `${booking.startTime} – ${booking.endTime}`)) {
+      return { kind: "ended" };
+    }
+
     if (input.status === "declined") {
       return {
         kind: "ok",
@@ -2134,11 +2192,6 @@ export async function respondBookingInvite(input: {
         }),
       };
     }
-
-    const booking = await tx.booking.findUnique({
-      where: { id: invite.bookingId },
-    });
-    if (!booking) return { kind: "missing" };
 
     if (booking.inviteCapacity != null && booking.inviteCapacity > 0) {
       const accepted = await tx.bookingInvite.count({
@@ -2166,6 +2219,9 @@ export async function respondBookingInvite(input: {
   });
 
   if (result.kind === "missing") return null;
+  if (result.kind === "ended") {
+    throw new BookingInviteEndedError();
+  }
   if (result.kind === "full") {
     throw new BookingInviteFullError(result.message);
   }

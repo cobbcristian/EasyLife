@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, ChevronLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { isUpcomingItem } from "@/lib/utils";
 
 function redirectExternally(url: string) {
   window.location.assign(url);
@@ -80,6 +81,8 @@ export default function MemberNotificationsPage() {
       on = false;
     };
   }, []);
+
+  const openInvites = invites.filter((inv) => isUpcomingItem(inv.date, inv.time));
 
   async function summarizeInbox() {
     setSummarizing(true);
@@ -216,7 +219,7 @@ export default function MemberNotificationsPage() {
           <>
             <section className="border-b border-[#eceff3] px-4 py-4">
               <h2 className="text-[15px] font-semibold text-black">{t("Invitations")}</h2>
-              {invites.length === 0 ? (
+              {openInvites.length === 0 ? (
                 <div className="mt-3 rounded-xl bg-[#f7f8fa] p-4">
                   <p className="text-sm font-medium text-black">{t("No pending invitations")}</p>
                   <p className="mt-1 text-sm text-grey">
@@ -231,7 +234,7 @@ export default function MemberNotificationsPage() {
                 </div>
               ) : (
                 <ul className="mt-3 space-y-3">
-                  {invites.map((inv) => {
+                  {openInvites.map((inv) => {
                     const pay =
                       inv.type === "event" &&
                       inv.requirePayment &&

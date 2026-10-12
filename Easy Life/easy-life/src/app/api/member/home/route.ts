@@ -4,6 +4,7 @@ import {
   ensureRecordsSeeded,
   listBookingsForMember,
   listBookingInvitesForMember,
+  listOpenEventInvitesForMember,
   listCalendarAds,
   listCommunityEvents,
   listMemberCharges,
@@ -154,15 +155,13 @@ export async function GET() {
   await ensureDemoPaidFeatured(communityId);
   const featuredTiles = await listPaidFeaturedTiles(communityId);
 
-  const [unreadInbox, pendingEventInvites, bookingInvites] = await Promise.all([
+  const [unreadInbox, eventInvites, bookingInvites] = await Promise.all([
     countUnreadMemberInbox(session.email),
-    prisma.eventInvite.count({
-      where: { memberEmail: email, status: "pending" },
-    }),
+    listOpenEventInvitesForMember(email),
     listBookingInvitesForMember(email),
   ]);
   const notificationCount =
-    unreadInbox + pendingEventInvites + bookingInvites.length;
+    unreadInbox + eventInvites.length + bookingInvites.length;
 
   return NextResponse.json({
     balance,

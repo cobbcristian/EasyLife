@@ -3,6 +3,7 @@ import { getMobileSession } from "@/lib/server/mobile-auth";
 import {
   ensureRecordsSeeded,
   listBookingInvitesForMember,
+  listOpenEventInvitesForMember,
   listBookingsForMember,
   listCommunityEvents,
 } from "@/lib/server/records";
@@ -45,11 +46,7 @@ export async function GET(request: Request) {
       listAllProviders(),
       listMemberInbox(session.email),
       listBookingInvitesForMember(email),
-      prisma.eventInvite.findMany({
-        where: { memberEmail: email, status: "pending" },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      }),
+      listOpenEventInvitesForMember(email),
       listChatThreadsForUser(session.email, session.communityId ?? null),
     ]);
 
@@ -108,13 +105,6 @@ export async function GET(request: Request) {
     .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
     .slice(0, 8);
 
-  const eventIds = [...new Set(eventInvites.map((i) => i.eventId))];
-  const inviteEvents =
-    eventIds.length > 0
-      ? await prisma.communityEvent.findMany({ where: { id: { in: eventIds } } })
-      : [];
-  const eventById = new Map(inviteEvents.map((e) => [e.id, e]));
-
   const pendingInvites = [
     ...bookingInvites.map((i) => ({
       id: i.id,
@@ -125,16 +115,13 @@ export async function GET(request: Request) {
         : `${i.date}${i.time ? ` · ${i.time}` : ""}`,
       hostName: i.hostName ?? "",
     })),
-    ...eventInvites.map((i) => {
-      const event = eventById.get(i.eventId);
-      return {
-        id: i.id,
-        type: "event" as const,
-        title: event?.title ?? "Event",
-        subtitle: `${event?.date ?? ""}${event?.time ? ` · ${event.time}` : ""}`,
-        hostName: event?.createdBy ?? "",
-      };
-    }),
+    ...eventInvites.map((i) => ({
+      id: i.id,
+      type: "event" as const,
+      title: i.title,
+      subtitle: `${i.date}${i.time ? ` · ${i.time}` : ""}`,
+      hostName: i.hostName,
+    })),
   ].slice(0, 5);
 
   const threadIds = threads.map((t) => t.id);

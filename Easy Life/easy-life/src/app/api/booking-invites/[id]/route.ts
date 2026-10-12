@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/server/auth";
 import {
+  BookingInviteEndedError,
   BookingInviteFullError,
   respondBookingInvite,
 } from "@/lib/server/records";
@@ -42,6 +43,9 @@ export async function PATCH(
   } catch (err) {
     if (err instanceof BookingInviteFullError) {
       return NextResponse.json({ error: err.message, code: "invite_full" }, { status: 409 });
+    }
+    if (err instanceof BookingInviteEndedError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     throw err;
   }

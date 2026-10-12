@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMobileSession } from "@/lib/server/mobile-auth";
 import {
+  BookingInviteEndedError,
   BookingInviteFullError,
   respondBookingInvite,
 } from "@/lib/server/records";
@@ -45,6 +46,9 @@ export async function PATCH(
         { error: err.message, code: "invite_full" },
         { status: 409 },
       );
+    }
+    if (err instanceof BookingInviteEndedError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     throw err;
   }

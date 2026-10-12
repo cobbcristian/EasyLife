@@ -46,9 +46,24 @@ function parseEndMinutes(time?: string | null): number | null {
   return hours * 60 + minutes;
 }
 
+/** Join a start and end into one window. A start that already has a range is left as-is. */
+export function eventTimeWindow(
+  time?: string | null,
+  endTime?: string | null,
+): string | null {
+  const start = (time ?? "").trim();
+  const end = (endTime ?? "").trim();
+  if (!start && !end) return null;
+  if (!end) return start;
+  if (!start) return end;
+  if (/[-–—]/.test(start) && /\d/.test(start)) return start;
+  return `${start}–${end}`;
+}
+
 /** True when the item is today or later, and today's slot has not ended. */
 export function isUpcomingItem(date: string, time?: string | null): boolean {
   const day = toDateKey(date);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
   const today = localDateKey();
   if (day > today) return true;
   if (day < today) return false;
@@ -56,6 +71,15 @@ export function isUpcomingItem(date: string, time?: string | null): boolean {
   if (end == null) return true;
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes() < end;
+}
+
+/** True while the date is still ahead, or today's window has not ended. */
+export function isOpenSchedule(
+  date: string,
+  time?: string | null,
+  endTime?: string | null,
+): boolean {
+  return isUpcomingItem(date, eventTimeWindow(time, endTime));
 }
 
 export function formatDate(date: string) {

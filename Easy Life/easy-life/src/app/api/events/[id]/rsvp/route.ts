@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
 import { logEvent } from "@/lib/server/records";
+import { isOpenSchedule } from "@/lib/utils";
 import { prisma } from "@/lib/server/prisma";
 import {
   assertEventHasCapacity,
@@ -35,6 +36,12 @@ export async function POST(
   const event = await prisma.communityEvent.findUnique({ where: { id } });
   if (!event) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!isOpenSchedule(event.date, event.time, event.endTime)) {
+    return NextResponse.json(
+      { error: "This event has already ended." },
+      { status: 400 },
+    );
   }
 
   const email = session.email.trim().toLowerCase();

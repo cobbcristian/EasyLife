@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/invite-member-picker";
 import { imageForBookingRow, imageForEvent } from "@/lib/brand-assets";
 import { useI18n } from "@/lib/i18n";
-import { cn, getInitials } from "@/lib/utils";
+import { cn, getInitials, isUpcomingItem } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 
 export type ReservationGuestView = {
@@ -405,10 +405,12 @@ export function MemberMvpReservationManager({
         </ul>
 
         {reservation.role !== "host" &&
-        (reservation.kind === "event" ||
-          reservation.canAcceptInvite ||
-          reservation.yourInviteStatus === "pending" ||
-          reservation.yourInviteStatus === "going") ? (
+        isUpcomingItem(reservation.date, reservation.timeLabel) &&
+        (reservation.kind === "event"
+          ? reservation.canRsvp !== false
+          : reservation.canAcceptInvite ||
+            reservation.yourInviteStatus === "pending" ||
+            reservation.yourInviteStatus === "going") ? (
           <div className="mt-6 flex gap-3">
             <button
               type="button"

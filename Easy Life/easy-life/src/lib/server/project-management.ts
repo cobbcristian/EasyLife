@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
+import { isOpenSchedule, isUpcomingItem } from "@/lib/utils";
 import { appPath } from "@/lib/server/app-url";
 import { sendEmail } from "@/lib/server/notify";
 import { sendPushToUser } from "@/lib/server/push";
@@ -41,16 +42,70 @@ export async function addMemberInboxItem(input: {
 }
 
 export async function listMemberInbox(userEmail: string) {
-  return prisma.memberInboxItem.findMany({
+  const items = await prisma.memberInboxItem.findMany({
     where: { userEmail: userEmail.trim().toLowerCase() },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+  return omitExpiredInviteNotices(items);
 }
 
 export async function countUnreadMemberInbox(userEmail: string) {
-  return prisma.memberInboxItem.count({
-    where: { userEmail: userEmail.trim().toLowerCase(), read: false },
+  const items = await listMemberInbox(userEmail);
+  return items.filter((item) => !item.read).length;
+}
+
+function inviteTargetId(href: string | null, kind: "events" | "reservations") {
+  if (!href) return null;
+  const match = href.match(new RegExp(`^/member/${kind}/([^/?#]+)`));
+  return match?.[1] ?? null;
+}
+
+/** Drop inbox rows that only exist so someone can RSVP to a finished event or court time. */
+async function omitExpiredInviteNotices<T extends { href: string | null }>(items: T[]) {
+  const eventIds = new Set<string>();
+  const bookingIds = new Set<string>();
+  for (const item of items) {
+    const eventId = inviteTargetId(item.href, "events");
+    const bookingId = inviteTargetId(item.href, "reservations");
+    if (eventId) eventIds.add(eventId);
+    if (bookingId) bookingIds.add(bookingId);
+  }
+  if (eventIds.size === 0 && bookingIds.size === 0) return items;
+
+  const [events, bookings] = await Promise.all([
+    eventIds.size === 0
+      ? []
+      : prisma.communityEvent.findMany({
+          where: { id: { in: [...eventIds] } },
+          select: { id: true, date: true, time: true, endTime: true },
+        }),
+    bookingIds.size === 0
+      ? []
+      : prisma.booking.findMany({
+          where: { id: { in: [...bookingIds] } },
+          select: { id: true, date: true, startTime: true, endTime: true },
+        }),
+  ]);
+  const eventOpen = new Map(
+    events.map((event) => [
+      event.id,
+      isOpenSchedule(event.date, event.time, event.endTime),
+    ]),
+  );
+  const bookingOpen = new Map(
+    bookings.map((booking) => [
+      booking.id,
+      isUpcomingItem(booking.date, `${booking.startTime} – ${booking.endTime}`),
+    ]),
+  );
+
+  return items.filter((item) => {
+    const eventId = inviteTargetId(item.href, "events");
+    if (eventId) return eventOpen.get(eventId) === true;
+    const bookingId = inviteTargetId(item.href, "reservations");
+    if (bookingId) return bookingOpen.get(bookingId) === true;
+    return true;
   });
 }
 
