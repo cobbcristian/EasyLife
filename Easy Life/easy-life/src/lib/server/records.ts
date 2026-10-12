@@ -12,6 +12,7 @@ import { sortPlayersForSeeding } from "@/lib/tournament-ratings";
 import { scheduleTournamentMatches } from "@/lib/server/tournament-scheduling";
 import { syncTournamentCourtBookings } from "@/lib/server/tournament-bookings";
 import {
+  bookingHasNotStarted,
   buildBookingReminderRows,
   deliverScheduledReminder,
   reminderLogAction,
@@ -825,6 +826,7 @@ export async function scheduleBookingReminder(booking: {
   startTime: string;
 }) {
   const start = parseBookingDateTime(booking.date, booking.startTime);
+  if (!bookingHasNotStarted(start, new Date())) return;
   const sendAt = new Date(start.getTime() - 3 * 60 * 60 * 1000);
   const rows = buildBookingReminderRows({ ...booking, sendAt });
   for (const row of rows) {
@@ -846,6 +848,13 @@ export async function processDueReminders() {
     if (due.length === 0) break;
 
     for (const n of due) {
+      if (!(await reminderIsStillAhead(n))) {
+        await prisma.scheduledNotification.update({
+          where: { id: n.id },
+          data: { sent: true },
+        });
+        continue;
+      }
       await deliverScheduledReminder(n);
       await logEvent({
         communityId: n.communityId,
@@ -864,6 +873,29 @@ export async function processDueReminders() {
   }
 
   return processed;
+}
+
+/** Past and cancelled bookings are marked sent without an email, text, or push. */
+async function reminderIsStillAhead(notification: {
+  referenceType: string | null;
+  referenceId: string | null;
+  sendAt: Date;
+}): Promise<boolean> {
+  if (notification.referenceType === "booking" && notification.referenceId) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: notification.referenceId },
+      select: { date: true, startTime: true, status: true },
+    });
+    if (!booking || booking.status === "cancelled") return false;
+    return bookingHasNotStarted(
+      parseBookingDateTime(booking.date, booking.startTime),
+      new Date(),
+    );
+  }
+  return bookingHasNotStarted(
+    new Date(notification.sendAt.getTime() + 3 * 60 * 60 * 1000),
+    new Date(),
+  );
 }
 
 export async function cancelBooking(id: string, memberEmail: string) {

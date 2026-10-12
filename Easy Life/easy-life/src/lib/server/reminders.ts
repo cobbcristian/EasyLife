@@ -60,6 +60,11 @@ export function buildBookingReminderRows(input: {
   ];
 }
 
+/** A 3-hour reminder is only worth sending while the booking has not started. */
+export function bookingHasNotStarted(start: Date, now: Date): boolean {
+  return start.getTime() > now.getTime();
+}
+
 export function reminderLogAction(channel: ReminderChannel): string {
   switch (channel) {
     case "sms":

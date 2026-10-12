@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  bookingHasNotStarted,
   buildBookingReminderRows,
   deliverScheduledReminder,
   reminderLogAction,
@@ -23,6 +24,20 @@ describe("buildBookingReminderRows", () => {
     expect(rows.map((r) => r.channel).sort()).toEqual(["email", "push", "sms"]);
     expect(rows.every((r) => r.referenceId === "bk1")).toBe(true);
     expect(rows.every((r) => r.sendAt === sendAt)).toBe(true);
+  });
+});
+
+describe("bookingHasNotStarted", () => {
+  it("is false once the booking time has passed", () => {
+    const start = new Date("2026-10-06T07:00:00Z");
+    const now = new Date("2026-10-12T17:24:00Z");
+    expect(bookingHasNotStarted(start, now)).toBe(false);
+  });
+
+  it("is true while the booking is still ahead", () => {
+    const start = new Date("2026-10-13T15:00:00Z");
+    const now = new Date("2026-10-12T17:24:00Z");
+    expect(bookingHasNotStarted(start, now)).toBe(true);
   });
 });
 
