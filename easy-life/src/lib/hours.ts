@@ -54,7 +54,8 @@ export function parseWeeklyHours(raw: string | null | undefined): WeeklyHours | 
   if (!raw?.trim()) return null;
   try {
     const parsed = JSON.parse(raw) as WeeklyHours;
-    if (!parsed?.mon && !parsed?.tue) return null;
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!DAY_KEYS.some((key) => key in parsed)) return null;
     return parsed;
   } catch {
     return null;
@@ -81,7 +82,12 @@ export function formatHoursSummary(hours: WeeklyHours | null, fallback = ""): st
   } else if (mon) {
     base = `Weekdays ${mon.open} – ${mon.close}`;
   }
-  if (!mon) return base || fallback;
+  if (!mon) {
+    const open = (["tue", "wed", "thu", "fri", "sat", "sun"] as const)
+      .map((key) => hours[key])
+      .find((day) => day);
+    return open ? `Open ${open.open} – ${open.close}` : "Closed";
+  }
   const note = formatClosedNote(mon);
   return note ? `${base} · ${note}` : base;
 }

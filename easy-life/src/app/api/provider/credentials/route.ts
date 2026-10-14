@@ -21,6 +21,7 @@ export async function GET() {
       kind: row.kind,
       fileName: row.fileName,
       url: privateFileHref(row.url) ?? row.url,
+      expiresOn: row.expiresOn,
       createdAt: row.createdAt.toISOString(),
     })),
   });
@@ -34,8 +35,16 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const kind = String(form.get("kind") ?? "");
   const file = form.get("file");
+  const expiresOn = String(form.get("expiresOn") ?? "").trim();
   if (!KINDS.has(kind) || !(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "Choose a document type and file" }, { status: 400 });
+  }
+  const dated = kind === "license" || kind === "insurance";
+  if (dated && !/^\d{4}-\d{2}-\d{2}$/.test(expiresOn)) {
+    return NextResponse.json(
+      { error: "Add the expiration date for this license or insurance" },
+      { status: 400 },
+    );
   }
   const err = validateDocumentUpload(file);
   if (err) return NextResponse.json({ error: err }, { status: 400 });
@@ -63,6 +72,8 @@ export async function POST(request: Request) {
       kind,
       fileName: file.name || kind,
       url,
+      expiresOn: dated ? expiresOn : null,
+      lapseNotice: "",
     },
   });
   return NextResponse.json({
@@ -72,7 +83,38 @@ export async function POST(request: Request) {
       kind: row.kind,
       fileName: row.fileName,
       url: privateFileHref(row.url) ?? row.url,
+      expiresOn: row.expiresOn,
       createdAt: row.createdAt.toISOString(),
     },
+  });
+}
+
+export async function PATCH(request: Request) {
+  const session = await getSession();
+  if (!session || session.role !== "provider") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  let body: { id?: string; expiresOn?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const expiresOn = body.expiresOn?.trim() ?? "";
+  if (!body.id || !/^\d{4}-\d{2}-\d{2}$/.test(expiresOn)) {
+    return NextResponse.json({ error: "A document and expiration date are required" }, { status: 400 });
+  }
+  const email = session.email.toLowerCase();
+  const existing = await prisma.providerCredential.findFirst({
+    where: { id: body.id, providerEmail: email, kind: { in: ["license", "insurance"] } },
+  });
+  if (!existing) return NextResponse.json({ error: "Document not found" }, { status: 404 });
+  const row = await prisma.providerCredential.update({
+    where: { id: existing.id },
+    data: { expiresOn, lapseNotice: "" },
+  });
+  return NextResponse.json({
+    ok: true,
+    credential: { id: row.id, expiresOn: row.expiresOn },
   });
 }

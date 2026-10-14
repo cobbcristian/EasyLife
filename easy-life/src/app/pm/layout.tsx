@@ -22,6 +22,10 @@ import {
 
 const nav = [
   { label: "Home", href: "/pm", icon: "LayoutDashboard" },
+  { label: "Newsletter", href: "/pm/newsletter", icon: "Megaphone" },
+  { label: "Amenities", href: "/pm/amenities", icon: "Clock" },
+  { label: "Staff profiles", href: "/pm/profiles", icon: "Users" },
+  { label: "Provider documents", href: "/pm/provider-credentials", icon: "FileText" },
   { label: "Front Desk", href: "/pm/front-desk", icon: "DoorOpen" },
   { label: "Desk instructions", href: "/pm/desk-notes", icon: "StickyNote" },
   { label: "Alterations", href: "/pm/alterations", icon: "ClipboardList" },
@@ -32,8 +36,6 @@ const nav = [
   { label: "Access cards", href: "/pm/access-cards", icon: "KeyRound" },
   { label: "Incidents", href: "/pm/incidents", icon: "AlertTriangle" },
   { label: "Member bookings", href: "/pm/bookings", icon: "CalendarCheck" },
-  { label: "Amenity hours", href: "/pm/amenities", icon: "Clock" },
-  { label: "Provider documents", href: "/pm/provider-credentials", icon: "FileText" },
   { label: "Mobile POS", href: "/pm/pos", icon: "CreditCard" },
   { label: "Tram Dispatch", href: "/pm/tram", icon: "Bus" },
   { label: "Packages", href: "/pm/packages", icon: "Package" },
@@ -60,6 +62,14 @@ const nav = [
   { label: "Guest fees", href: "/pm/guest-fees", icon: "ReceiptText" },
   { label: "Reports", href: "/pm/reports", icon: "BarChart3" },
   { label: "Board Messages", href: "/pm/messages", icon: "MessageSquare" },
+];
+
+const mobileNav = [
+  { label: "Home", href: "/pm", icon: "LayoutDashboard" },
+  { label: "News", href: "/pm/newsletter", icon: "Megaphone" },
+  { label: "Amenities", href: "/pm/amenities", icon: "Clock" },
+  { label: "Profiles", href: "/pm/profiles", icon: "Users" },
+  { label: "Docs", href: "/pm/provider-credentials", icon: "FileText" },
 ];
 
 export default async function PmLayout({
@@ -108,6 +118,7 @@ export default async function PmLayout({
       homeHref="/pm"
       avatarName={session?.name?.trim() || "Property Manager"}
       portalLabel="Property manager"
+      mobileNav={mobileNav}
       initialBrand={initialBrand}
     >
       {children}

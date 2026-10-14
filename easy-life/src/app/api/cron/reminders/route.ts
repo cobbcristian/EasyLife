@@ -5,6 +5,7 @@ import { processDependentMembershipAging } from "@/lib/server/dependent-membersh
 import { processRejoinReminders } from "@/lib/server/membership-rejoin";
 import { processAutopayDueToday } from "@/lib/server/autopay";
 import { purgeExpiredAiChats } from "@/lib/server/ai-chat-retention";
+import { processCredentialLapses } from "@/lib/server/credential-lapse";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const [processed, dependents, rejoins, autopay, aiChatRetention] = await Promise.all([
-    processDueReminders(),
-    processDependentMembershipAging(),
-    processRejoinReminders(),
-    processAutopayDueToday(),
-    purgeExpiredAiChats(),
-  ]);
+  const [processed, dependents, rejoins, autopay, aiChatRetention, credentialLapses] =
+    await Promise.all([
+      processDueReminders(),
+      processDependentMembershipAging(),
+      processRejoinReminders(),
+      processAutopayDueToday(),
+      purgeExpiredAiChats(),
+      processCredentialLapses(),
+    ]);
   return NextResponse.json({
     ok: true,
     processed,
@@ -28,6 +31,7 @@ export async function GET(request: Request) {
     rejoins,
     autopay,
     aiChatRetention,
+    credentialLapses,
     ...(auth.secured ? {} : { note: "CRON_SECRET not set — add later to lock down this endpoint" }),
   });
 }

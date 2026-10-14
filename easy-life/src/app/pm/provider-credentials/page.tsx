@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { lapseStage } from "@/lib/credential-lapse";
 
 type Row = {
   id: string;
@@ -11,6 +12,7 @@ type Row = {
   providerName: string;
   providerCategory: string;
   createdAt: string;
+  expiresOn?: string | null;
 };
 
 const LABELS: Record<string, string> = {
@@ -42,7 +44,7 @@ export default function ProviderCredentialsReviewPage() {
     <div className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-[22px] font-semibold text-ink">{t("Provider documents")}</h1>
       <p className="mt-1 text-sm text-grey">
-        {t("Background checks, IDs, licenses, and insurance uploaded by service providers.")}
+        {t("Background checks, IDs, licenses, and insurance uploaded by service providers. Licenses and insurance show here when they are close to lapsing, and the provider and staff are notified.")}
       </p>
       {loading ? (
         <p className="mt-6 text-sm text-grey">{t("Loading…")}</p>
@@ -58,6 +60,22 @@ export default function ProviderCredentialsReviewPage() {
                   {t(LABELS[row.kind] ?? row.kind)} · {row.fileName}
                   {row.providerCategory ? ` · ${row.providerCategory}` : ""}
                 </p>
+                {row.expiresOn ? (
+                  <p
+                    className={`mt-0.5 text-[12px] font-semibold ${
+                      lapseStage(row.expiresOn) ? "text-[#b42318]" : "text-grey"
+                    }`}
+                  >
+                    {lapseStage(row.expiresOn) === "lapsed"
+                      ? t("Expired")
+                      : t("Expires")}{" "}
+                    {row.expiresOn}
+                  </p>
+                ) : row.kind === "license" || row.kind === "insurance" ? (
+                  <p className="mt-0.5 text-[12px] font-semibold text-[#b54708]">
+                    {t("No expiration date")}
+                  </p>
+                ) : null}
               </div>
               <a
                 href={row.url}

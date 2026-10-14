@@ -9,6 +9,7 @@ interface Newsletter {
   id: string;
   title: string;
   summary: string;
+  body?: string;
   date: string;
 }
 
@@ -78,6 +79,11 @@ export default function MemberNewsletterPage() {
                       <p className={`mt-1 text-sm ${open ? "leading-relaxed text-ink" : "text-grey"}`}>
                         {n.summary}
                       </p>
+                      {open && n.body && n.body !== n.summary ? (
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                          {n.body}
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-[12px] text-grey">
                         {n.date ? formatDate(n.date) : ""}
                       </p>

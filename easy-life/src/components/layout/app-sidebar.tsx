@@ -87,7 +87,9 @@ export function AppSidebar({
             href: "/provider-credentials",
             icon: "FileText" as const,
           },
-          { label: "Amenity hours", href: "/pm/amenities", icon: "Clock" as const },
+          { label: "Amenities", href: "/pm/amenities", icon: "Clock" as const },
+          { label: "Newsletter", href: "/pm/newsletter", icon: "Megaphone" as const },
+          { label: "Staff profiles", href: "/pm/profiles", icon: "Users" as const },
           { label: "Account", href: "/account", icon: "UserCircle" as const },
         ]
       : null;

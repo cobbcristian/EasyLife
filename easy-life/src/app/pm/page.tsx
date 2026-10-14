@@ -117,8 +117,25 @@ export default function PmHomePage() {
         <PortalPageIntro
           eyebrow="Property manager workspace"
           title="Overview"
-          description="Day-to-day club operations — front desk and maintenance. Not platform setup or board meetings."
+          description="Day-to-day club operations — newsletter, amenities, staff, and the front desk."
         />
+
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { title: t("Newsletter"), href: "/pm/newsletter" },
+            { title: t("Amenities"), href: "/pm/amenities" },
+            { title: t("Staff profiles"), href: "/pm/profiles" },
+            { title: t("Provider documents"), href: "/pm/provider-credentials" },
+          ].map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="rounded-2xl border border-[#e8ebf0] bg-white px-4 py-4 text-sm font-semibold text-ink shadow-[0_8px_20px_rgba(16,24,40,0.04)]"
+            >
+              {item.title}
+            </a>
+          ))}
+        </div>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           {statCards.map((card) => (

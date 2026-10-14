@@ -24,6 +24,7 @@ export async function GET() {
       providerName: row.provider.name,
       providerCategory: row.provider.category,
       providerEmail: row.provider.email,
+      expiresOn: row.expiresOn,
       createdAt: row.createdAt.toISOString(),
     })),
   });

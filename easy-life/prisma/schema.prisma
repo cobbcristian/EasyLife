@@ -127,6 +127,10 @@ model ProviderCredential {
   kind          String
   fileName      String
   url           String
+  /// YYYY-MM-DD. Required for license and insurance.
+  expiresOn     String?
+  /// Last lapse notice sent: 30 | 7 | lapsed. Empty until a notice goes out.
+  lapseNotice   String   @default("")
   createdAt     DateTime @default(now())
 
   @@index([communityId])

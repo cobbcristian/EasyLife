@@ -29,6 +29,8 @@ interface PortalShellProps {
   portalLabel: string;
   /** SSR seed so white-label portals never flash Easy Life before session loads */
   initialBrand?: PortalBrandSeed | null;
+  /** Phone bar for community-manager tools. Hidden on desktop, where the sidebar is open. */
+  mobileNav?: PortalNavItem[];
   children: React.ReactNode;
 }
 
@@ -43,6 +45,7 @@ export function PortalShell({
   homeHref,
   avatarName: avatarNameProp = "User",
   portalLabel,
+  mobileNav,
   initialBrand = null,
   children,
 }: PortalShellProps) {
@@ -202,9 +205,39 @@ export function PortalShell({
           )}
           <UserAvatarMenu name={avatarName} />
         </header>
-        <main id="main-content" className="flex-1 bg-[#f7f9fc]">
+        <main
+          id="main-content"
+          className={cn("flex-1 bg-[#f7f9fc]", mobileNav ? "pb-24 lg:pb-0" : undefined)}
+        >
           {children}
         </main>
+        {mobileNav ? (
+          <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[#eceff3] bg-white px-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
+            <ul className="grid grid-cols-5">
+              {mobileNav.map((item) => {
+                const isActive =
+                  item.href === homeHref
+                    ? pathname === homeHref
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <li key={item.href}>
+                    <a
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "flex flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-semibold",
+                        isActive ? "text-[var(--mvp-blue)]" : "text-grey",
+                      )}
+                    >
+                      <NavIcon name={item.icon} />
+                      {t(item.label)}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        ) : null}
       </div>
     </div>
   );
