@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
-import { NavIcon } from "@/components/ui/nav-icon";
 import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
+import { PlazaPhoneChrome } from "@/components/layout/plaza-phone-chrome";
+import { PlazaGlyph, plazaIconForNav } from "@/components/member/plaza-theme";
 import { useI18n } from "@/lib/i18n";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
 import type { PortalBrandSeed } from "@/lib/demo-branding";
@@ -29,15 +29,19 @@ interface PortalShellProps {
   portalLabel: string;
   /** SSR seed so white-label portals never flash Easy Life before session loads */
   initialBrand?: PortalBrandSeed | null;
-  /** Phone bar for community-manager tools. Hidden on desktop, where the sidebar is open. */
-  mobileNav?: PortalNavItem[];
   children: React.ReactNode;
 }
 
-function useNativeAppShell(): boolean {
-  // Prefer hard navigations in every shell for now — Next soft routing on Azure
-  // frequently hangs (clicks do nothing until a full refresh).
-  return true;
+function phoneTabs(navItems: PortalNavItem[], homeHref: string) {
+  const home = navItems.find((item) => item.href === homeHref) ?? navItems[0];
+  const messages = navItems.find((item) => /messages/i.test(item.href));
+  const middle =
+    navItems.find((item) =>
+      ["/pm/amenities", "/pm/bookings", "/board/announcements", "/board/scheduler"].includes(
+        item.href,
+      ),
+    ) ?? navItems.find((item) => item !== home && item !== messages);
+  return [home, middle, messages].filter((item): item is PortalNavItem => Boolean(item));
 }
 
 export function PortalShell({
@@ -45,7 +49,6 @@ export function PortalShell({
   homeHref,
   avatarName: avatarNameProp = "User",
   portalLabel,
-  mobileNav,
   initialBrand = null,
   children,
 }: PortalShellProps) {
@@ -53,7 +56,6 @@ export function PortalShell({
   const pathname = usePathname();
   const { t } = useI18n();
   const profile = useSessionProfile();
-  const nativeApp = useNativeAppShell();
   const avatarName = profile.name && profile.name !== "Member" ? profile.name : avatarNameProp;
   const productName =
     profile.appDisplayName?.trim() ||
@@ -64,14 +66,17 @@ export function PortalShell({
     profile.communityName || initialBrand?.communityName || null;
   const whiteLabel = Boolean(productName !== "Easy Life" && logoUrl);
 
-  const activeNavLabel = useMemo(() => {
-    const match = navItems.find((item) =>
-      item.href === homeHref
-        ? pathname === homeHref
-        : pathname === item.href || pathname.startsWith(`${item.href}/`),
+  const activeItem = useMemo(() => {
+    return (
+      navItems.find((item) =>
+        item.href === homeHref
+          ? pathname === homeHref
+          : pathname === item.href || pathname.startsWith(`${item.href}/`),
+      ) ?? null
     );
-    return match?.label ?? portalLabel;
-  }, [navItems, homeHref, pathname, portalLabel]);
+  }, [navItems, homeHref, pathname]);
+  const activeNavLabel = activeItem?.label ?? portalLabel;
+  const tabs = phoneTabs(navItems, homeHref);
 
   const navClass = (isActive: boolean) =>
     cn(
@@ -97,7 +102,7 @@ export function PortalShell({
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex shrink-0 items-start justify-between gap-2 px-5 pb-2 pt-5">
+        <div className="plaza-chrome flex shrink-0 items-start justify-between gap-2 px-5 pb-4 pt-5 text-white">
           <div className="min-w-0">
             <UserAvatarMenu
               name={avatarName}
@@ -121,7 +126,7 @@ export function PortalShell({
           </div>
           <button
             type="button"
-            className="rounded-lg p-1.5 text-grey hover:bg-white/60 lg:hidden"
+            className="rounded-lg p-1.5 text-white hover:bg-white/20 lg:hidden"
             onClick={() => setOpen(false)}
             aria-label="Close menu"
           >
@@ -144,27 +149,15 @@ export function PortalShell({
                   : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <li key={item.href}>
-                  {nativeApp ? (
-                    <a
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      aria-current={isActive ? "page" : undefined}
-                      className={navClass(isActive)}
-                    >
-                      <NavIcon name={item.icon} active={isActive} />
-                      {t(item.label)}
-                    </a>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      aria-current={isActive ? "page" : undefined}
-                      className={navClass(isActive)}
-                    >
-                      <NavIcon name={item.icon} active={isActive} />
-                      {t(item.label)}
-                    </Link>
-                  )}
+                  <a
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={navClass(isActive)}
+                  >
+                    <PlazaGlyph name={plazaIconForNav(item.icon)} className="h-8 w-8" />
+                    {t(item.label)}
+                  </a>
                 </li>
               );
             })}
@@ -177,68 +170,24 @@ export function PortalShell({
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-border-2 bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:hidden">
-          <button
-            type="button"
-            className="rounded-lg p-2 text-gray-2 hover:bg-slate-100"
-            onClick={() => setOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--mvp-blue)]">
-              {t(portalLabel)}
-            </p>
-            <p className="truncate text-sm font-semibold text-ink">{t(activeNavLabel)}</p>
-          </div>
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt={productName}
-              className="h-8 w-auto max-w-[140px] object-contain"
-            />
-          ) : (
-            <Logo size="sm" productName={productName} />
-          )}
-          <UserAvatarMenu name={avatarName} />
-        </header>
-        <main
-          id="main-content"
-          className={cn("flex-1 bg-[#f7f9fc]", mobileNav ? "pb-24 lg:pb-0" : undefined)}
-        >
-          {children}
-        </main>
-        {mobileNav ? (
-          <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[#eceff3] bg-white px-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
-            <ul className="grid grid-cols-5">
-              {mobileNav.map((item) => {
-                const isActive =
-                  item.href === homeHref
-                    ? pathname === homeHref
-                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
-                  <li key={item.href}>
-                    <a
-                      href={item.href}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        "flex flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-semibold",
-                        isActive ? "text-[var(--mvp-blue)]" : "text-grey",
-                      )}
-                    >
-                      <NavIcon name={item.icon} />
-                      {t(item.label)}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        ) : null}
-      </div>
+      <PlazaPhoneChrome
+        productName={productName}
+        logoUrl={logoUrl}
+        communityName={communityName}
+        accountName={avatarName}
+        homeHref={homeHref}
+        title={activeNavLabel}
+        icon={plazaIconForNav(activeItem?.icon ?? "LayoutDashboard")}
+        onOpenMenu={() => setOpen(true)}
+        tabs={tabs.map((item) => ({
+          href: item.href,
+          label: /messages/i.test(item.href) ? "Messages" : item.href === homeHref ? "Home" : item.label,
+          icon: plazaIconForNav(item.icon),
+          exact: item.href === homeHref,
+        }))}
+      >
+        {children}
+      </PlazaPhoneChrome>
     </div>
   );
 }

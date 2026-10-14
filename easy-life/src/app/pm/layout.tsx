@@ -64,14 +64,6 @@ const nav = [
   { label: "Board Messages", href: "/pm/messages", icon: "MessageSquare" },
 ];
 
-const mobileNav = [
-  { label: "Home", href: "/pm", icon: "LayoutDashboard" },
-  { label: "News", href: "/pm/newsletter", icon: "Megaphone" },
-  { label: "Amenities", href: "/pm/amenities", icon: "Clock" },
-  { label: "Profiles", href: "/pm/profiles", icon: "Users" },
-  { label: "Docs", href: "/pm/provider-credentials", icon: "FileText" },
-];
-
 export default async function PmLayout({
   children,
 }: {
@@ -118,7 +110,6 @@ export default async function PmLayout({
       homeHref="/pm"
       avatarName={session?.name?.trim() || "Property Manager"}
       portalLabel="Property manager"
-      mobileNav={mobileNav}
       initialBrand={initialBrand}
     >
       {children}

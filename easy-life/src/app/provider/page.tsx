@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Briefcase, CalendarDays, ChevronRight, Mail, User } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { PlazaGlyph, type PlazaIconKey } from "@/components/member/plaza-theme";
 import { ProviderContentHeader } from "@/components/layout/provider-content-header";
 import { PageBody } from "@/components/layout/content-header";
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -21,12 +22,12 @@ interface BookingRow {
   amount: number;
 }
 
-const mobileHubLinks = [
-  { href: "/provider/bookings", label: "Bookings", icon: CalendarDays },
-  { href: "/provider/services", label: "Services", icon: Briefcase },
-  { href: "/provider/messages", label: "Messages", icon: Mail, badgeKey: "messages" as const },
-  { href: "/provider/account", label: "Account", icon: User },
-] as const;
+const mobileHubLinks: Array<{ href: string; label: string; icon: PlazaIconKey; badgeKey?: "messages" }> = [
+  { href: "/provider/bookings", label: "Bookings", icon: "reserve" },
+  { href: "/provider/services", label: "Services", icon: "pros" },
+  { href: "/provider/messages", label: "Messages", icon: "messages", badgeKey: "messages" },
+  { href: "/provider/account", label: "Account", icon: "profile" },
+];
 
 /** Figma Multi Series Pie colors (4616:14102). */
 const SERVICE_MIX_COLORS = ["#007aff", "#63abfd", "#f99f25", "#af52de"] as const;
@@ -252,15 +253,14 @@ export default function ProviderDashboardPage() {
         </div>
         <nav className="mt-10">
           {mobileHubLinks.map((item) => {
-            const Icon = item.icon;
-            const showBadge = "badgeKey" in item && item.badgeKey === "messages" && unread > 0;
+            const showBadge = item.badgeKey === "messages" && unread > 0;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className="flex items-center gap-3 border-b border-border-2 py-3.5 text-[16px] text-black"
               >
-                <Icon className="h-6 w-6 shrink-0 text-grey" strokeWidth={1.75} />
+                <PlazaGlyph name={item.icon} className="h-9 w-9" />
                 <span className="flex-1">{t(item.label)}</span>
                 {showBadge ? (
                   <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--mvp-blue)] px-1 text-[11px] text-white">

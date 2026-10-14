@@ -101,6 +101,46 @@ export function plazaIconForHref(href: string): PlazaIconKey {
   return hrefIcon.find((row) => row.test(href))?.icon ?? "more";
 }
 
+const navIcon: Record<string, PlazaIconKey> = {
+  LayoutDashboard: "home",
+  Home: "home",
+  Megaphone: "megaphone",
+  Clock: "clock",
+  Users: "people",
+  UserPlus: "people",
+  UserCheck: "people",
+  FileText: "info",
+  HelpCircle: "info",
+  CalendarCheck: "reserve",
+  CalendarDays: "outings",
+  Mail: "messages",
+  MessageSquare: "messages",
+  MessageCircle: "messages",
+  UserCircle: "profile",
+  CreditCard: "payments",
+  ReceiptText: "payments",
+  Package: "packages",
+  AlertTriangle: "alert",
+  Trophy: "trophy",
+  Heart: "heart",
+  UtensilsCrossed: "dining",
+  DoorOpen: "building",
+  Building2: "building",
+  Bus: "tram",
+  Star: "star",
+  Bell: "bell",
+  Image: "gallery",
+  Shirt: "shirt",
+  Sparkles: "info",
+  Wrench: "info",
+  Briefcase: "pros",
+};
+
+/** 3D icon for a staff menu name, matching the resident bar. */
+export function plazaIconForNav(icon: string): PlazaIconKey {
+  return navIcon[icon] ?? "more";
+}
+
 const titles: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p.startsWith("/member/bookings"), title: "Reserve" },
   { test: (p) => p.startsWith("/member/amenities"), title: "Reserve" },

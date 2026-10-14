@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { managingClubNavItems } from "@/lib/navigation";
 import { Logo } from "@/components/ui/logo";
-import { NavIcon } from "@/components/ui/nav-icon";
+import { PlazaGlyph, plazaIconForNav } from "@/components/member/plaza-theme";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { useI18n } from "@/lib/i18n";
 import { GlobalSearch } from "@/components/search/global-search";
@@ -127,7 +127,7 @@ export function AppSidebar({
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex shrink-0 items-start justify-between gap-2 px-5 pb-2 pt-5">
+        <div className="plaza-chrome flex shrink-0 items-start justify-between gap-2 px-5 pb-4 pt-5 text-white">
           <UserAvatarMenu
             name={userName}
             align="left"
@@ -153,7 +153,7 @@ export function AppSidebar({
           />
           <button
             type="button"
-            className="rounded-lg p-1.5 text-grey hover:bg-white/60 lg:hidden"
+            className="rounded-lg p-1.5 text-white hover:bg-white/20 lg:hidden"
             onClick={onClose}
             aria-label="Close menu"
           >
@@ -206,7 +206,7 @@ export function AppSidebar({
                         : "text-ink hover:bg-white/70",
                     )}
                   >
-                    <NavIcon name={item.icon} active={isActive} />
+                    <PlazaGlyph name={plazaIconForNav(item.icon)} className="h-8 w-8" />
                     {t(item.label)}
                   </Link>
                 </li>

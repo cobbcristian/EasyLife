@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AppHeader } from "@/components/layout/app-header";
+import { usePathname } from "next/navigation";
+import { PlazaPhoneChrome } from "@/components/layout/plaza-phone-chrome";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import type { CommunityOption } from "@/components/layout/community-selector";
 import { logoForCommunity } from "@/lib/brand-assets";
@@ -25,6 +26,7 @@ export function DashboardShell({
   clubCommunityId = null,
   userName = "Admin",
 }: DashboardShellProps) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingCommunityId, setPendingCommunityId] = useState<string | null>(
     null,
@@ -70,23 +72,56 @@ export function DashboardShell({
         onCommunityChange={setPendingCommunityId}
         userName={userName}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <AppHeader
-          onMenuClick={() => setSidebarOpen(true)}
-          userName={userName}
-          communityLogoSrc={activeCommunity?.logoUrl}
-          communityName={activeCommunity?.name}
-          productName={
-            isClubAdmin
-              ? activeCommunity?.appDisplayName ?? activeCommunity?.name
-              : "Easy Life"
-          }
-          homeHref={homeHref}
-        />
-        <main id="main-content" className="flex-1">
-          {children}
-        </main>
-      </div>
+      <PlazaPhoneChrome
+        productName={
+          isClubAdmin
+            ? activeCommunity?.appDisplayName ?? activeCommunity?.name ?? "Easy Life"
+            : "Easy Life"
+        }
+        logoUrl={activeCommunity?.logoUrl}
+        communityName={activeCommunity?.name}
+        accountName={userName}
+        homeHref={homeHref}
+        title={
+          pathname.includes("/users")
+            ? "Profiles"
+            : pathname.includes("/help-desk")
+              ? "Messages"
+              : pathname.includes("/bookings")
+                ? "Bookings"
+                : "Home"
+        }
+        icon={
+          pathname.includes("/users")
+            ? "people"
+            : pathname.includes("/help-desk")
+              ? "messages"
+              : pathname.includes("/bookings")
+                ? "reserve"
+                : "home"
+        }
+        onOpenMenu={() => setSidebarOpen(true)}
+        tabs={
+          isClubAdmin && clubCommunityId
+            ? [
+                {
+                  href: `/communities/${clubCommunityId}/bookings`,
+                  label: "Home",
+                  icon: "reserve",
+                  exact: true,
+                },
+                { href: "/users", label: "Profiles", icon: "people" },
+                { href: "/help-desk", label: "Messages", icon: "messages" },
+              ]
+            : [
+                { href: "/dashboard", label: "Home", icon: "home", exact: true },
+                { href: "/users", label: "Profiles", icon: "people" },
+                { href: "/help-desk", label: "Messages", icon: "messages" },
+              ]
+        }
+      >
+        {children}
+      </PlazaPhoneChrome>
     </div>
   );
 }

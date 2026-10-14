@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
-import { UserAvatarMenu } from "@/components/layout/user-avatar-menu";
-import { Logo } from "@/components/ui/logo";
 import { ProviderSidebar } from "@/components/layout/provider-sidebar";
+import { PlazaPhoneChrome } from "@/components/layout/plaza-phone-chrome";
 import { defaultAvatarForRole } from "@/lib/brand-assets";
-import { cn } from "@/lib/utils";
+import type { PlazaIconKey } from "@/components/member/plaza-theme";
 
 export function ProviderShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,8 +14,6 @@ export function ProviderShell({ children }: { children: React.ReactNode }) {
   const [displayName, setDisplayName] = useState("");
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [brandName, setBrandName] = useState<string | null>(null);
-  // Figma Service Vendor Main is chromeless on mobile
-  const hideMobileChrome = pathname === "/provider";
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -35,36 +31,49 @@ export function ProviderShell({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
+  const title =
+    pathname === "/provider"
+      ? "Home"
+      : pathname.includes("/bookings")
+        ? "Bookings"
+        : pathname.includes("/messages")
+          ? "Messages"
+          : pathname.includes("/services")
+            ? "Services"
+            : pathname.includes("/account")
+              ? "Account"
+              : "Provider";
+  const icon: PlazaIconKey =
+    title === "Bookings"
+      ? "reserve"
+      : title === "Messages"
+        ? "messages"
+        : title === "Account"
+          ? "profile"
+          : title === "Services"
+            ? "pros"
+            : "home";
+
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-white font-[family-name:var(--font-poppins)]">
       <ProviderSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header
-          className={cn(
-            "sticky top-0 z-30 flex h-[72px] items-center gap-4 bg-white px-4 sm:px-6 lg:hidden",
-            hideMobileChrome && "hidden",
-          )}
-        >
-          <button
-            type="button"
-            className="rounded-lg p-2 text-gray-2 hover:bg-slate-100"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <Logo
-            size="sm"
-            communityLogoSrc={brandLogo}
-            productName={brandName}
-            showText={!brandLogo}
-          />
-          <UserAvatarMenu name={displayName} avatarSrc={avatarSrc} className="ml-auto" />
-        </header>
-        <main id="main-content" className="flex-1">
-          {children}
-        </main>
-      </div>
+      <PlazaPhoneChrome
+        productName={brandName || "Easy Life"}
+        logoUrl={brandLogo}
+        accountName={displayName || "Provider"}
+        avatarSrc={avatarSrc}
+        homeHref="/provider"
+        title={title}
+        icon={icon}
+        onOpenMenu={() => setSidebarOpen(true)}
+        tabs={[
+          { href: "/provider", label: "Home", icon: "home", exact: true },
+          { href: "/provider/bookings", label: "Bookings", icon: "reserve" },
+          { href: "/provider/messages", label: "Messages", icon: "messages" },
+        ]}
+      >
+        {children}
+      </PlazaPhoneChrome>
     </div>
   );
 }
