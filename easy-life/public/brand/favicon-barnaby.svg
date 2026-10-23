@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Barnaby">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a6bff"/>
+      <stop offset="55%" stop-color="#0b4fd6"/>
+      <stop offset="100%" stop-color="#0839a8"/>
+    </linearGradient>
+    <linearGradient id="bFace" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#dce9ff"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b8f54a"/>
+      <stop offset="100%" stop-color="#3de7ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Speech-bubble B -->
+  <path
+    fill="url(#bFace)"
+    d="M148 96h168c78 0 128 42 128 108 0 42-24 74-66 90 52 14 82 52 82 108 0 72-56 118-148 118H148c-22 0-36-14-36-36V132c0-22 14-36 36-36zm36 56v92h118c38 0 60-18 60-48s-22-44-60-44H184zm0 148v108h132c46 0 74-22 74-56s-28-52-74-52H184z"
+  />
+  <!-- Visor + eyes -->
+  <rect x="214" y="214" width="128" height="72" rx="20" fill="#0a1a3a"/>
+  <path d="M236 248c10 14 22 14 32 0" fill="none" stroke="#3de7ff" stroke-width="10" stroke-linecap="round"/>
+  <path d="M288 248c10 14 22 14 32 0" fill="none" stroke="#3de7ff" stroke-width="10" stroke-linecap="round"/>
+  <!-- Motion sparks -->
+  <g fill="url(#spark)">
+    <rect x="392" y="168" width="28" height="10" rx="5" transform="rotate(28 406 173)"/>
+    <rect x="404" y="198" width="34" height="10" rx="5" transform="rotate(28 421 203)"/>
+    <rect x="416" y="228" width="24" height="10" rx="5" transform="rotate(28 428 233)"/>
+  </g>
+</svg>

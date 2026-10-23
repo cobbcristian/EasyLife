@@ -24,6 +24,20 @@ export const metadata: Metadata = {
   description:
     "Watch the Barnaby demo, then open a live club and explore the app.",
   robots: { index: false, follow: false },
+  icons: {
+    icon: [
+      {
+        url: "/brand/favicon-barnaby.svg?v=barnaby-tab-1",
+        type: "image/svg+xml",
+      },
+      {
+        url: "/brand/favicon-barnaby.png?v=barnaby-tab-1",
+        type: "image/png",
+      },
+    ],
+    apple: [{ url: "/brand/favicon-barnaby.png?v=barnaby-tab-1" }],
+    shortcut: "/brand/favicon-barnaby.svg?v=barnaby-tab-1",
+  },
   openGraph: {
     title: "Barnaby | Product demo",
     description:

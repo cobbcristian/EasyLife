@@ -38,6 +38,19 @@ export async function generateMetadata(): Promise<Metadata> {
     const isDemo = path === "/demo" || path.startsWith("/demo/");
     const isPlaza = path.startsWith("/sell/plaza");
     const isSell = path === "/sell" || path.startsWith("/sell/");
+    const barnabyIcon = {
+      icon: [
+        {
+          url: "/brand/favicon-barnaby.svg?v=barnaby-tab-1",
+          type: "image/svg+xml",
+        },
+        {
+          url: "/brand/favicon-barnaby.png?v=barnaby-tab-1",
+          type: "image/png",
+        },
+      ],
+      apple: [{ url: "/brand/favicon-barnaby.png?v=barnaby-tab-1" }],
+    };
     return {
       title: {
         absolute: isDemo
@@ -55,10 +68,12 @@ export async function generateMetadata(): Promise<Metadata> {
           : isSell
             ? "Boardroom pitch — Easy Life for clubs and HOA communities."
             : "Easy Life sales directory — open a club demo and copy logins.",
-      icons: {
-        icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-        apple: [{ url: "/icon-192.png" }],
-      },
+      icons: isDemo
+        ? barnabyIcon
+        : {
+            icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+            apple: [{ url: "/icon-192.png" }],
+          },
       manifest: "/manifest.json",
       appleWebApp: {
         capable: true,
@@ -101,19 +116,38 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     };
   }
+  const host = (headerStore.get("host") ?? "").toLowerCase();
+  const isBarnabyHost = host.includes("barnaby");
   return {
-    title: "Easy Life | Community Management",
-    description:
-      "Easy Life community management platform — manage communities, residents, services, and activity providers.",
-    icons: {
-      icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-      apple: [{ url: "/icon-192.png" }],
-    },
+    title: isBarnabyHost
+      ? "Barnaby | Community app"
+      : "Easy Life | Community Management",
+    description: isBarnabyHost
+      ? "Barnaby — the community app residents actually use."
+      : "Easy Life community management platform — manage communities, residents, services, and activity providers.",
+    icons: isBarnabyHost
+      ? {
+          icon: [
+            {
+              url: "/brand/favicon-barnaby.svg?v=barnaby-tab-1",
+              type: "image/svg+xml",
+            },
+            {
+              url: "/brand/favicon-barnaby.png?v=barnaby-tab-1",
+              type: "image/png",
+            },
+          ],
+          apple: [{ url: "/brand/favicon-barnaby.png?v=barnaby-tab-1" }],
+        }
+      : {
+          icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+          apple: [{ url: "/icon-192.png" }],
+        },
     manifest: "/manifest.json",
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",
-      title: "Easy Life",
+      title: isBarnabyHost ? "Barnaby" : "Easy Life",
     },
   };
 }

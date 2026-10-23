@@ -33,10 +33,28 @@ function setLinkIcon(rel: string, href: string, type?: string) {
   document.head.appendChild(link);
 }
 
+const BARNABY_FAVICON = "/brand/favicon-barnaby.svg?v=barnaby-tab-1";
+const BARNABY_APPLE = "/brand/favicon-barnaby.png?v=barnaby-tab-1";
+
 /** Force the locked /go demo brand into the browser tab (not Vercel / Easy Life). */
 export function BrandFavicon() {
   useEffect(() => {
     function apply() {
+      const path = window.location.pathname;
+      const host = window.location.hostname.toLowerCase();
+      const useBarnaby =
+        path === "/demo" ||
+        path.startsWith("/demo/") ||
+        host.includes("barnaby");
+
+      if (useBarnaby) {
+        clearHeadIcons();
+        setLinkIcon("icon", BARNABY_FAVICON, "image/svg+xml");
+        setLinkIcon("shortcut icon", BARNABY_FAVICON, "image/svg+xml");
+        setLinkIcon("apple-touch-icon", BARNABY_APPLE);
+        return;
+      }
+
       const tenantId = readCookie(DEMO_TENANT_COOKIE);
       const tenant = getDemoTenantById(tenantId);
       if (!tenant) return;
