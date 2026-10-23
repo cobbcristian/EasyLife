@@ -104,14 +104,16 @@ jobs:
           URL="https://${AZURE_STORAGE_ACCOUNT}.blob.core.windows.net/deploys/easylife-standalone.zip?${SAS}"
           # JSON file avoids shell mangling of & in SAS
           printf '%s' "{\"WEBSITE_RUN_FROM_PACKAGE\":\"${URL}\"}" > "$RUNNER_TEMP/rfpp.json"
-          az webapp config appsettings set \
-            -g "$AZURE_RESOURCE_GROUP" \
-            -n "$AZURE_WEBAPP_NAME" \
-            --settings @"$RUNNER_TEMP/rfpp.json" \
-            -o none
-          az webapp config set \
-            -g "$AZURE_RESOURCE_GROUP" \
-            -n "$AZURE_WEBAPP_NAME" \
-            --startup-file "node server.js" \
-            -o none
-          az webapp restart -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_WEBAPP_NAME" -o none
+          for APP in "$AZURE_WEBAPP_NAME" barnaby-app; do
+            az webapp config appsettings set \
+              -g "$AZURE_RESOURCE_GROUP" \
+              -n "$APP" \
+              --settings @"$RUNNER_TEMP/rfpp.json" \
+              -o none
+            az webapp config set \
+              -g "$AZURE_RESOURCE_GROUP" \
+              -n "$APP" \
+              --startup-file "node server.js" \
+              -o none
+            az webapp restart -g "$AZURE_RESOURCE_GROUP" -n "$APP" -o none
+          done
