@@ -2,9 +2,6 @@
 
 const DEMO_VIDEO_ID = "1uIXxbU7Dwi8C4mxe5lFGwfKu3juVcFVW";
 const DEMO_VIDEO_PREVIEW = `https://drive.google.com/file/d/${DEMO_VIDEO_ID}/preview`;
-const DEMO_VIDEO_OPEN = `https://drive.google.com/file/d/${DEMO_VIDEO_ID}/view`;
-const LIVE_DEMO_HREF = "/go/ironcrest";
-const MORE_CLUBS_HREF = "/go";
 
 export function DemoClient() {
   return (
@@ -51,28 +48,10 @@ export function DemoClient() {
         <h1 className="demo-rise demo-rise-delay-1 mt-5 max-w-2xl text-[clamp(1.35rem,3.6vw,2.1rem)] font-medium leading-snug text-white/95">
           The community app residents actually use.
         </h1>
-        <p className="demo-rise demo-rise-delay-2 mt-3 max-w-xl text-base leading-relaxed text-white/70 sm:text-lg">
-          Watch the short demo, then open a live club and click around.
-        </p>
-
-        <div className="demo-rise demo-rise-delay-3 mt-7 flex flex-wrap items-center gap-3">
-          <a
-            href="#demo-video"
-            className="inline-flex items-center justify-center rounded-md bg-[var(--demo-amber)] px-6 py-3 text-sm font-semibold tracking-wide text-[#1a1408] transition hover:brightness-110"
-          >
-            Watch the demo
-          </a>
-          <a
-            href={LIVE_DEMO_HREF}
-            className="inline-flex items-center justify-center rounded-md border border-white/35 bg-white/5 px-6 py-3 text-sm font-semibold tracking-wide text-white backdrop-blur-sm transition hover:bg-white/12"
-          >
-            Try IronCrest live
-          </a>
-        </div>
 
         <div
           id="demo-video"
-          className="demo-rise demo-rise-delay-4 demo-video-shell mt-10 w-full scroll-mt-6 rounded-sm shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/15"
+          className="demo-rise demo-rise-delay-2 demo-video-shell mt-10 w-full rounded-sm shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/15"
           style={{
             background:
               "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.25))",
@@ -87,23 +66,6 @@ export function DemoClient() {
               allowFullScreen
             />
           </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/55">
-          <a
-            href={DEMO_VIDEO_OPEN}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline decoration-white/30 underline-offset-4 transition hover:text-white"
-          >
-            Open video in Google Drive
-          </a>
-          <a
-            href={MORE_CLUBS_HREF}
-            className="underline decoration-white/30 underline-offset-4 transition hover:text-white"
-          >
-            More club demos
-          </a>
         </div>
       </main>
     </div>
