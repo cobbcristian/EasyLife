@@ -1,0 +1,83 @@
+@keyframes demo-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes demo-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes demo-sheen {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-12deg);
+  }
+}
+
+.demo-rise {
+  animation: demo-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.demo-rise-delay-1 {
+  animation-delay: 0.12s;
+}
+
+.demo-rise-delay-2 {
+  animation-delay: 0.24s;
+}
+
+.demo-rise-delay-3 {
+  animation-delay: 0.36s;
+}
+
+.demo-rise-delay-4 {
+  animation-delay: 0.48s;
+}
+
+.demo-glow {
+  animation: demo-glow 7s ease-in-out infinite;
+}
+
+.demo-video-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.demo-video-shell::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%) skewX(-12deg);
+  animation: demo-sheen 9s ease-in-out 1.2s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-rise,
+  .demo-glow,
+  .demo-video-shell::after {
+    animation: none;
+  }
+}

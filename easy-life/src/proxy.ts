@@ -184,6 +184,8 @@ export async function proxy(request: NextRequest) {
     pathname === "/sell/tour/" ||
     pathname === "/sell/showcase" ||
     pathname.startsWith("/sell/showcase/") ||
+    pathname === "/demo" ||
+    pathname === "/demo/" ||
     pathname === "/inquiry" ||
     pathname === "/inquiry/" ||
     pathname.startsWith("/site/")
@@ -347,6 +349,8 @@ export const config = {
     "/sell/tour/",
     "/sell/showcase",
     "/sell/showcase/",
+    "/demo",
+    "/demo/",
     "/inquiry",
     "/inquiry/",
     "/site/:path*",

@@ -30,25 +30,31 @@ export async function generateMetadata(): Promise<Metadata> {
   // Sales directory lists every club — never inherit a locked /go/[tenant] cookie title.
   if (
     path === "/go" ||
+    path === "/demo" ||
     path === "/sell" ||
     path === "/sell/plaza" ||
     path.startsWith("/sell/")
   ) {
+    const isDemo = path === "/demo" || path.startsWith("/demo/");
     const isPlaza = path.startsWith("/sell/plaza");
     const isSell = path === "/sell" || path.startsWith("/sell/");
     return {
       title: {
-        absolute: isPlaza
-          ? "The Plaza at Oceanside | Easy Life"
-          : isSell
-            ? "Easy Life | Sales pitch"
-            : "Easy Life | Sales demos",
+        absolute: isDemo
+          ? "Barnaby | Product demo"
+          : isPlaza
+            ? "The Plaza at Oceanside | Easy Life"
+            : isSell
+              ? "Easy Life | Sales pitch"
+              : "Easy Life | Sales demos",
       },
-      description: isPlaza
-        ? "Boardroom sales pitch — The Plaza at Oceanside on Easy Life."
-        : isSell
-          ? "Boardroom pitch — Easy Life for clubs and HOA communities."
-          : "Easy Life sales directory — open a club demo and copy logins.",
+      description: isDemo
+        ? "Watch the Barnaby demo, then open a live club and explore the app."
+        : isPlaza
+          ? "Boardroom sales pitch — The Plaza at Oceanside on Easy Life."
+          : isSell
+            ? "Boardroom pitch — Easy Life for clubs and HOA communities."
+            : "Easy Life sales directory — open a club demo and copy logins.",
       icons: {
         icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
         apple: [{ url: "/icon-192.png" }],
@@ -57,7 +63,11 @@ export async function generateMetadata(): Promise<Metadata> {
       appleWebApp: {
         capable: true,
         statusBarStyle: "default",
-        title: isPlaza ? "The Plaza at Oceanside" : "Easy Life",
+        title: isDemo
+          ? "Barnaby"
+          : isPlaza
+            ? "The Plaza at Oceanside"
+            : "Easy Life",
       },
     };
   }
