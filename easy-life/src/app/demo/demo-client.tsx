@@ -1,7 +1,7 @@
 "use client";
 
-const DEMO_VIDEO_ID = "1uIXxbU7Dwi8C4mxe5lFGwfKu3juVcFVW";
-const DEMO_VIDEO_PREVIEW = `https://drive.google.com/file/d/${DEMO_VIDEO_ID}/preview`;
+/** Hosted on our site — Google Drive embeds fail on phones (cookies / Google sign-in). */
+const DEMO_VIDEO_SRC = "/demo/barnaby-demo.mp4";
 
 export function DemoClient() {
   return (
@@ -51,20 +51,23 @@ export function DemoClient() {
 
         <div
           id="demo-video"
-          className="demo-rise demo-rise-delay-2 demo-video-shell mt-10 w-full rounded-sm shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/15"
+          className="demo-rise demo-rise-delay-2 demo-video-shell mt-10 w-full overflow-hidden rounded-sm shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/15"
           style={{
             background:
               "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.25))",
           }}
         >
-          <div className="relative aspect-video w-full bg-black/50">
-            <iframe
+          <div className="relative aspect-video w-full bg-black">
+            <video
+              className="absolute inset-0 h-full w-full"
+              controls
+              playsInline
+              preload="metadata"
+              controlsList="nodownload"
               title="Barnaby product demo"
-              src={DEMO_VIDEO_PREVIEW}
-              className="absolute inset-0 h-full w-full border-0"
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-            />
+            >
+              <source src={DEMO_VIDEO_SRC} type="video/mp4" />
+            </video>
           </div>
         </div>
       </main>
