@@ -1,7 +1,7 @@
 "use client";
 
 /** Hosted on our site — Google Drive embeds fail on phones (cookies / Google sign-in). */
-const DEMO_VIDEO_SRC = "/demo/barnaby-demo.mp4?v=2";
+const DEMO_VIDEO_SRC = "/demo/barnaby-demo.mp4?v=3";
 
 export function DemoClient() {
   return (
