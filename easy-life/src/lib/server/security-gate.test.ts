@@ -47,4 +47,18 @@ describe("security gate", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("PM staff DELETE demotes in-community and does not wipe the account", () => {
+    const route = source("src/app/api/pm/staff/route.ts");
+    expect(route).not.toMatch(/import \{[^}]*deleteUserAccount/);
+    expect(route).toMatch(/data: \{ role: "member" \}/);
+    expect(route).toMatch(/upsertMembership/);
+    // Board may view the roster but must not hire/promote/remove staff.
+    expect(route).toMatch(/function canView/);
+    expect(route).toMatch(/function canEdit\(role: string \| undefined\) \{/);
+    expect(route).toMatch(/return role === "admin" \|\| role === "pm";/);
+    expect(route).not.toMatch(
+      /function canEdit\(role: string \| undefined\) \{\s*return role === "admin" \|\| role === "pm" \|\| role === "board";/,
+    );
+  });
 });

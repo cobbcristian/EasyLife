@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { getSession } from "@/lib/server/auth";
 import { resolveScopedCommunityId } from "@/lib/server/community-context";
-import { createUser, deleteUserAccount } from "@/lib/server/db";
+import { createUser } from "@/lib/server/db";
 import { upsertMembership } from "@/lib/server/memberships";
 import { prisma } from "@/lib/server/prisma";
 import { sendEmail } from "@/lib/server/notify";
@@ -11,8 +11,13 @@ import type { AuthRole } from "@/lib/types";
 
 const STAFF_ROLES = new Set<AuthRole>(["admin", "pm", "board"]);
 
-function canEdit(role: string | undefined) {
+/** Board may view the roster; only admin/PM may hire, promote, or remove staff. */
+function canView(role: string | undefined) {
   return role === "admin" || role === "pm" || role === "board";
+}
+
+function canEdit(role: string | undefined) {
+  return role === "admin" || role === "pm";
 }
 
 function isStaffRole(role: string): role is AuthRole {
@@ -21,7 +26,7 @@ function isStaffRole(role: string): role is AuthRole {
 
 export async function GET() {
   const session = await getSession();
-  if (!session || !canEdit(session.role)) {
+  if (!session || !canView(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const communityId = await resolveScopedCommunityId(session);
@@ -221,6 +226,18 @@ export async function DELETE(request: Request) {
     where: { id: body.id, communityId, role: { in: ["admin", "pm", "board"] } },
   });
   if (!existing) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-  await deleteUserAccount(existing.id);
+  // Demote in this community only. Do not hard-delete the User — that would
+  // cascade-wipe UserCommunity rows at other clubs and every Provider listing
+  // matching this email across tenants.
+  await upsertMembership({
+    userId: existing.id,
+    communityId,
+    role: "member",
+    status: "active",
+  });
+  await prisma.user.update({
+    where: { id: existing.id },
+    data: { role: "member" },
+  });
   return NextResponse.json({ ok: true });
 }
