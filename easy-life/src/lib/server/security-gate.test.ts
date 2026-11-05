@@ -47,4 +47,19 @@ describe("security gate", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("removes staff with club scope instead of global account wipe", () => {
+    const route = source("src/app/api/pm/staff/route.ts");
+    expect(route).not.toMatch(/deleteUserAccount/);
+    expect(route).toMatch(/removeStaffFromCommunity\(/);
+  });
+
+  it("purges email-bound payment and identity rows on account delete", () => {
+    const db = source("src/lib/server/db.ts");
+    expect(db).toMatch(/purgeEmailBoundAccountData/);
+    expect(db).toMatch(/storedPaymentMethod\.deleteMany/);
+    expect(db).toMatch(/memberProfileExt\.deleteMany/);
+    expect(db).toMatch(/providerIdsMatchingEmail/);
+    expect(db).toMatch(/planStaffCommunityRemoval/);
+  });
 });

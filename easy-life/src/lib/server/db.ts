@@ -21,6 +21,10 @@ import {
   recordResidentActivation,
   recordProviderActivation,
 } from "@/lib/server/commissions";
+import {
+  planStaffCommunityRemoval,
+  providerIdsMatchingEmail,
+} from "@/lib/server/account-delete-scope";
 
 const seedUsers: AuthUser[] = [
   { id: "u-admin", email: "superadmin@gmail.com", password: "password", role: "admin", name: "Easy Life Admin", communityId: null },
@@ -803,31 +807,153 @@ export async function setUserStatus(
   };
 }
 
+async function deleteProvidersForEmail(
+  email: string,
+  scopeCommunityId?: string | null,
+): Promise<void> {
+  const emailLower = email.toLowerCase();
+  const providers = await prisma.provider.findMany({
+    where: {
+      email: { not: null },
+      ...(scopeCommunityId ? { communityId: scopeCommunityId } : {}),
+    },
+    select: { id: true, email: true, communityId: true },
+  });
+  const ids = providerIdsMatchingEmail(providers, emailLower, scopeCommunityId);
+  for (const providerId of ids) {
+    await deleteProvider(providerId);
+  }
+
+  // ProviderSubscription is global-per-email. Only drop it when no listings remain.
+  const leftover = await prisma.provider.findMany({
+    where: { email: { not: null } },
+    select: { email: true },
+  });
+  const stillListed = leftover.some(
+    (p) => p.email?.toLowerCase() === emailLower,
+  );
+  if (!stillListed) {
+    await prisma.providerSubscription.deleteMany({
+      where: { userEmail: emailLower },
+    });
+  }
+}
+
+/**
+ * Clear email-keyed rows that would otherwise re-bind to a later signup with
+ * the same address (cards, RFID, autopay, Barnaby history, inbox).
+ */
+async function purgeEmailBoundAccountData(emailLower: string): Promise<void> {
+  await prisma.memberProfileExt.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.storedPaymentMethod.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.expoPushToken.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.pushSubscription.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.aiChatMessage.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.memberInboxItem.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.scheduledNotification.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.chatParticipant.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.groupMembership.deleteMany({ where: { userEmail: emailLower } });
+  await prisma.memberCharge.deleteMany({ where: { memberEmail: emailLower } });
+}
+
+/**
+ * Full account erasure. When the user has a home club (`communityId`), provider
+ * listings are removed only in that club so other tenants keep their pros.
+ * Platform users (`communityId` null) still clear every listing for the email.
+ */
 export async function deleteUserAccount(id: string): Promise<boolean> {
   await ensureSeeded();
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return false;
 
-  // Remove provider listings tied to this email (if any).
   if (user.email) {
     const emailLower = user.email.toLowerCase();
-    const providers = await prisma.provider.findMany({
-      where: { email: { not: null } },
-    });
-    for (const p of providers) {
-      if (p.email?.toLowerCase() === emailLower) {
-        await deleteProvider(p.id);
-      }
-    }
-    await prisma.providerSubscription.deleteMany({
-      where: { userEmail: emailLower },
-    });
-    await prisma.pushSubscription.deleteMany({
-      where: { userEmail: emailLower },
-    });
+    await deleteProvidersForEmail(emailLower, user.communityId);
+    await purgeEmailBoundAccountData(emailLower);
   }
 
   await prisma.user.delete({ where: { id } });
+  return true;
+}
+
+/**
+ * Remove a staff profile from one club without wiping other clubs.
+ * Used by `/api/pm/staff` DELETE — must not call full account delete when the
+ * person still belongs elsewhere or has provider listings in other communities.
+ */
+export async function removeStaffFromCommunity(
+  userId: string,
+  communityId: string,
+): Promise<boolean> {
+  await ensureSeeded();
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return false;
+
+  const memberships = await prisma.userCommunity.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      communityId: true,
+      role: true,
+      status: true,
+      isPrimary: true,
+    },
+  });
+
+  const plan = planStaffCommunityRemoval({
+    removeCommunityId: communityId,
+    memberships,
+  });
+
+  // Always scope provider cleanup to the club being left.
+  if (user.email) {
+    await deleteProvidersForEmail(user.email.toLowerCase(), communityId);
+  }
+
+  if (plan.revokeMembershipId) {
+    await prisma.userCommunity.update({
+      where: { id: plan.revokeMembershipId },
+      data: { status: "revoked", isPrimary: false },
+    });
+  } else {
+    // Legacy rows may lack UserCommunity; still clear cached home club match.
+    await prisma.userCommunity.deleteMany({
+      where: { userId, communityId },
+    });
+  }
+
+  if (plan.deleteUser) {
+    // Sole remaining club — erase login + email-bound personal/payment data,
+    // but providers outside this club were already left untouched above.
+    if (user.email) {
+      await purgeEmailBoundAccountData(user.email.toLowerCase());
+    }
+    await prisma.user.delete({ where: { id: userId } });
+    return true;
+  }
+
+  if (plan.nextPrimary) {
+    await prisma.userCommunity.updateMany({
+      where: { userId, isPrimary: true },
+      data: { isPrimary: false },
+    });
+    await prisma.userCommunity.updateMany({
+      where: {
+        userId,
+        communityId: plan.nextPrimary.communityId,
+        status: "active",
+      },
+      data: { isPrimary: true },
+    });
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        communityId: plan.nextPrimary.communityId,
+        role: plan.nextPrimary.role,
+      },
+    });
+  }
+
   return true;
 }
 

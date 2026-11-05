@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { getSession } from "@/lib/server/auth";
 import { resolveScopedCommunityId } from "@/lib/server/community-context";
-import { createUser, deleteUserAccount } from "@/lib/server/db";
+import { createUser, removeStaffFromCommunity } from "@/lib/server/db";
 import { upsertMembership } from "@/lib/server/memberships";
 import { prisma } from "@/lib/server/prisma";
 import { sendEmail } from "@/lib/server/notify";
@@ -221,6 +221,7 @@ export async function DELETE(request: Request) {
     where: { id: body.id, communityId, role: { in: ["admin", "pm", "board"] } },
   });
   if (!existing) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
-  await deleteUserAccount(existing.id);
+  // Club-scoped removal only — never wipe provider listings / memberships in other clubs.
+  await removeStaffFromCommunity(existing.id, communityId);
   return NextResponse.json({ ok: true });
 }
