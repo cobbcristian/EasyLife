@@ -7,21 +7,17 @@ import { upsertMembership } from "@/lib/server/memberships";
 import { prisma } from "@/lib/server/prisma";
 import { sendEmail } from "@/lib/server/notify";
 import { appPath } from "@/lib/server/app-url";
-import type { AuthRole } from "@/lib/types";
-
-const STAFF_ROLES = new Set<AuthRole>(["admin", "pm", "board"]);
-
-function canEdit(role: string | undefined) {
-  return role === "admin" || role === "pm" || role === "board";
-}
-
-function isStaffRole(role: string): role is AuthRole {
-  return STAFF_ROLES.has(role as AuthRole);
-}
+import {
+  assignableStaffRoles,
+  canAssignStaffRole,
+  canEditStaffProfiles,
+  canMutateStaffMember,
+  isStaffRole,
+} from "@/lib/staff-role-auth";
 
 export async function GET() {
   const session = await getSession();
-  if (!session || !canEdit(session.role)) {
+  if (!session || !canEditStaffProfiles(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const communityId = await resolveScopedCommunityId(session);
@@ -47,6 +43,8 @@ export async function GET() {
   const phones = new Map(profiles.map((row) => [row.userEmail, row.phone ?? ""]));
   return NextResponse.json({
     me: session.sub,
+    myRole: session.role,
+    assignableRoles: assignableStaffRoles(session.role),
     staff: users.map((user) => ({
       id: user.id,
       email: user.email,
@@ -61,7 +59,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session || !canEdit(session.role)) {
+  if (!session || !canEditStaffProfiles(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: { name?: string; email?: string; role?: string; phone?: string };
@@ -82,6 +80,12 @@ export async function POST(request: Request) {
   }
   if (!isStaffRole(role)) {
     return NextResponse.json({ error: "Role must be admin, community manager, or board" }, { status: 400 });
+  }
+  if (!canAssignStaffRole(session.role, role)) {
+    return NextResponse.json(
+      { error: "Only an admin can add another admin" },
+      { status: 403 },
+    );
   }
   if (phone.length > 30) {
     return NextResponse.json({ error: "Phone is too long" }, { status: 400 });
@@ -142,7 +146,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const session = await getSession();
-  if (!session || !canEdit(session.role)) {
+  if (!session || !canEditStaffProfiles(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: { id?: string; name?: string; role?: string; phone?: string };
@@ -157,6 +161,12 @@ export async function PATCH(request: Request) {
     where: { id: body.id, communityId, role: { in: ["admin", "pm", "board"] } },
   });
   if (!existing) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (!canMutateStaffMember(session.role, existing.role)) {
+    return NextResponse.json(
+      { error: "Only an admin can change an admin profile" },
+      { status: 403 },
+    );
+  }
   const name = body.name?.trim() ?? existing.name;
   if (name.length < 2 || name.length > 80) {
     return NextResponse.json({ error: "Name must be 2 to 80 characters" }, { status: 400 });
@@ -164,6 +174,12 @@ export async function PATCH(request: Request) {
   const role = body.role ?? existing.role;
   if (!isStaffRole(role)) {
     return NextResponse.json({ error: "Role must be admin, community manager, or board" }, { status: 400 });
+  }
+  if (!canAssignStaffRole(session.role, role)) {
+    return NextResponse.json(
+      { error: "Only an admin can assign the admin role" },
+      { status: 403 },
+    );
   }
   if (existing.id === session.sub && role !== existing.role) {
     return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
@@ -203,7 +219,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const session = await getSession();
-  if (!session || !canEdit(session.role)) {
+  if (!session || !canEditStaffProfiles(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let body: { id?: string };
@@ -221,6 +237,12 @@ export async function DELETE(request: Request) {
     where: { id: body.id, communityId, role: { in: ["admin", "pm", "board"] } },
   });
   if (!existing) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+  if (!canMutateStaffMember(session.role, existing.role)) {
+    return NextResponse.json(
+      { error: "Only an admin can delete an admin profile" },
+      { status: 403 },
+    );
+  }
   await deleteUserAccount(existing.id);
   return NextResponse.json({ ok: true });
 }

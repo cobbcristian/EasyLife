@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/ui/toast";
 import { Avatar } from "@/components/ui/avatar";
 import { ChangePhotoButton } from "@/components/account/change-photo-button";
 import { useSessionProfile } from "@/lib/hooks/use-session-profile";
+import {
+  assignableStaffRoles,
+  canMutateStaffMember,
+} from "@/lib/staff-role-auth";
 
 type Staff = {
   id: string;
@@ -17,11 +21,11 @@ type Staff = {
   phone: string;
 };
 
-const ROLES = [
-  { id: "pm", label: "Community manager" },
-  { id: "admin", label: "Admin" },
-  { id: "board", label: "Board" },
-] as const;
+const ROLE_LABELS: Record<string, string> = {
+  pm: "Community manager",
+  admin: "Admin",
+  board: "Board",
+};
 
 export default function PmProfilesPage() {
   const { t } = useI18n();
@@ -29,14 +33,21 @@ export default function PmProfilesPage() {
   const me = useSessionProfile();
   const [rows, setRows] = useState<Staff[]>([]);
   const [selfId, setSelfId] = useState("");
+  const [myRole, setMyRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState({ name: "", email: "", role: "pm", phone: "" });
   const [password, setPassword] = useState("");
   const [edits, setEdits] = useState<Record<string, { name: string; role: string; phone: string }>>({});
 
-  function remember(staff: Staff[], meId: string) {
+  const roleOptions = useMemo(() => {
+    const ids = assignableStaffRoles(myRole || me.role);
+    return ids.map((id) => ({ id, label: ROLE_LABELS[id] ?? id }));
+  }, [myRole, me.role]);
+
+  function remember(staff: Staff[], meId: string, role: string) {
     setRows(staff);
     setSelfId(meId);
+    setMyRole(role);
     const next: Record<string, { name: string; role: string; phone: string }> = {};
     for (const row of staff) {
       next[row.id] = { name: row.name, role: row.role, phone: row.phone };
@@ -49,7 +60,13 @@ export default function PmProfilesPage() {
     fetch("/api/pm/staff")
       .then((r) => r.json())
       .then((data) => {
-        if (on) remember((data.staff ?? []) as Staff[], data.me ?? "");
+        if (on) {
+          remember(
+            (data.staff ?? []) as Staff[],
+            data.me ?? "",
+            typeof data.myRole === "string" ? data.myRole : "",
+          );
+        }
       })
       .finally(() => on && setLoading(false));
     return () => {
@@ -167,7 +184,7 @@ export default function PmProfilesPage() {
           onChange={(e) => setDraft((prev) => ({ ...prev, role: e.target.value }))}
           className="h-11 w-full rounded-xl border border-[#e4e8ee] px-3 text-sm"
         >
-          {ROLES.map((role) => (
+          {roleOptions.map((role) => (
             <option key={role.id} value={role.id}>
               {t(role.label)}
             </option>
@@ -190,34 +207,41 @@ export default function PmProfilesPage() {
           {rows.map((row) => {
             const edit = edits[row.id];
             if (!edit) return null;
+            const canManage = canMutateStaffMember(myRole || me.role, row.role);
+            const options =
+              row.role === "admin" && !roleOptions.some((role) => role.id === "admin")
+                ? [{ id: "admin", label: ROLE_LABELS.admin }, ...roleOptions]
+                : roleOptions;
             return (
               <li key={row.id} className="rounded-2xl border border-[#e8ebf0] bg-white p-4">
                 <p className="text-[12px] text-grey">{row.email}</p>
                 <div className="mt-2 space-y-2">
                   <input
                     value={edit.name}
+                    disabled={!canManage}
                     onChange={(e) =>
                       setEdits((prev) => ({ ...prev, [row.id]: { ...edit, name: e.target.value } }))
                     }
-                    className="h-11 w-full rounded-xl border border-[#e4e8ee] px-3 text-sm"
+                    className="h-11 w-full rounded-xl border border-[#e4e8ee] px-3 text-sm disabled:opacity-60"
                   />
                   <input
                     value={edit.phone}
+                    disabled={!canManage}
                     onChange={(e) =>
                       setEdits((prev) => ({ ...prev, [row.id]: { ...edit, phone: e.target.value } }))
                     }
                     placeholder={t("Phone")}
-                    className="h-11 w-full rounded-xl border border-[#e4e8ee] px-3 text-sm"
+                    className="h-11 w-full rounded-xl border border-[#e4e8ee] px-3 text-sm disabled:opacity-60"
                   />
                   <select
                     value={edit.role}
-                    disabled={row.id === selfId}
+                    disabled={row.id === selfId || !canManage}
                     onChange={(e) =>
                       setEdits((prev) => ({ ...prev, [row.id]: { ...edit, role: e.target.value } }))
                     }
-                    className="h-11 w-full rounded-xl border border-[#e4e8ee] px-3 text-sm"
+                    className="h-11 w-full rounded-xl border border-[#e4e8ee] px-3 text-sm disabled:opacity-60"
                   >
-                    {ROLES.map((role) => (
+                    {options.map((role) => (
                       <option key={role.id} value={role.id}>
                         {t(role.label)}
                       </option>
@@ -225,14 +249,16 @@ export default function PmProfilesPage() {
                   </select>
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void save(row.id)}
-                    className="h-9 rounded-xl bg-[var(--mvp-blue)] px-3 text-[12px] font-semibold text-white"
-                  >
-                    {t("Save")}
-                  </button>
-                  {row.id === selfId ? null : (
+                  {canManage ? (
+                    <button
+                      type="button"
+                      onClick={() => void save(row.id)}
+                      className="h-9 rounded-xl bg-[var(--mvp-blue)] px-3 text-[12px] font-semibold text-white"
+                    >
+                      {t("Save")}
+                    </button>
+                  ) : null}
+                  {row.id === selfId || !canManage ? null : (
                     <button
                       type="button"
                       onClick={() => void remove(row.id)}
