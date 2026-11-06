@@ -47,4 +47,14 @@ describe("security gate", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("purges email-bound Stripe/profile/push data when deleting an account", () => {
+    const db = source("src/lib/server/db.ts");
+    expect(db).toMatch(/purgeEmailBoundAccountData\(/);
+    const purge = source("src/lib/server/account-purge.ts");
+    expect(purge).toMatch(/storedPaymentMethod\.deleteMany/);
+    expect(purge).toMatch(/memberProfileExt\.deleteMany/);
+    expect(purge).toMatch(/expoPushToken\.deleteMany/);
+    expect(purge).toMatch(/customers\.del/);
+  });
 });

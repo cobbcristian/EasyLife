@@ -21,6 +21,7 @@ import {
   recordResidentActivation,
   recordProviderActivation,
 } from "@/lib/server/commissions";
+import { purgeEmailBoundAccountData } from "@/lib/server/account-purge";
 
 const seedUsers: AuthUser[] = [
   { id: "u-admin", email: "superadmin@gmail.com", password: "password", role: "admin", name: "Easy Life Admin", communityId: null },
@@ -825,6 +826,9 @@ export async function deleteUserAccount(id: string): Promise<boolean> {
     await prisma.pushSubscription.deleteMany({
       where: { userEmail: emailLower },
     });
+    // Profile / Stripe cards / RFID / rewards / Expo tokens are keyed by email
+    // only — leaving them lets a re-registration inherit payment instruments.
+    await purgeEmailBoundAccountData(user.email);
   }
 
   await prisma.user.delete({ where: { id } });
