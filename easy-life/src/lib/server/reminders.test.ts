@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  BOOKING_REMINDER_CRON_MAX_INTERVAL_MS,
+  BOOKING_REMINDER_LEAD_MS,
   bookingHasNotStarted,
   buildBookingReminderRows,
+  cronCanDeliverBookingReminder,
   deliverScheduledReminder,
   reminderLogAction,
 } from "@/lib/server/reminders";
@@ -38,6 +41,44 @@ describe("bookingHasNotStarted", () => {
     const start = new Date("2026-10-13T15:00:00Z");
     const now = new Date("2026-10-12T17:24:00Z");
     expect(bookingHasNotStarted(start, now)).toBe(true);
+  });
+});
+
+describe("cronCanDeliverBookingReminder", () => {
+  const start = new Date("2026-10-13T18:00:00Z"); // 2pm ET-ish afternoon court
+  const sendAt = new Date(start.getTime() - BOOKING_REMINDER_LEAD_MS);
+
+  it("delivers when cron runs after sendAt and before start", () => {
+    expect(
+      cronCanDeliverBookingReminder({
+        bookingStart: start,
+        cronNow: new Date(sendAt.getTime() + 5 * 60 * 1000),
+      }),
+    ).toBe(true);
+  });
+
+  it("skips when cron runs before the reminder is due", () => {
+    expect(
+      cronCanDeliverBookingReminder({
+        bookingStart: start,
+        cronNow: new Date(sendAt.getTime() - 60 * 1000),
+      }),
+    ).toBe(false);
+  });
+
+  it("skips when cron runs after the booking started (daily-cron blackout)", () => {
+    // Daily 08:00 UTC job the next morning: sendAt was yesterday, start has passed.
+    expect(
+      cronCanDeliverBookingReminder({
+        bookingStart: start,
+        cronNow: new Date("2026-10-14T08:00:00Z"),
+      }),
+    ).toBe(false);
+  });
+
+  it("requires cron interval well under the 3-hour lead time", () => {
+    expect(BOOKING_REMINDER_CRON_MAX_INTERVAL_MS).toBeLessThan(BOOKING_REMINDER_LEAD_MS);
+    expect(BOOKING_REMINDER_CRON_MAX_INTERVAL_MS).toBe(15 * 60 * 1000);
   });
 });
 

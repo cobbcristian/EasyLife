@@ -60,9 +60,34 @@ export function buildBookingReminderRows(input: {
   ];
 }
 
+/** Lead time before booking start when the 3-channel reminder becomes due. */
+export const BOOKING_REMINDER_LEAD_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Cron must run more often than this lead time, or skip-after-start (c7672c8)
+ * permanently blacks out daytime bookings when the job only runs once daily.
+ * Fifteen minutes leaves headroom for GitHub Actions schedule drift.
+ */
+export const BOOKING_REMINDER_CRON_MAX_INTERVAL_MS = 15 * 60 * 1000;
+
 /** A 3-hour reminder is only worth sending while the booking has not started. */
 export function bookingHasNotStarted(start: Date, now: Date): boolean {
   return start.getTime() > now.getTime();
+}
+
+/**
+ * True when a cron tick at `now` can still deliver a reminder that became due at
+ * `start - 3h` before the booking starts. Daily crons fail this for most slots.
+ */
+export function cronCanDeliverBookingReminder(input: {
+  bookingStart: Date;
+  cronNow: Date;
+  leadMs?: number;
+}): boolean {
+  const leadMs = input.leadMs ?? BOOKING_REMINDER_LEAD_MS;
+  const sendAt = input.bookingStart.getTime() - leadMs;
+  if (input.cronNow.getTime() < sendAt) return false;
+  return bookingHasNotStarted(input.bookingStart, input.cronNow);
 }
 
 export function reminderLogAction(channel: ReminderChannel): string {

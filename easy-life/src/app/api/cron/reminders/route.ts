@@ -9,10 +9,26 @@ import { processCredentialLapses } from "@/lib/server/credential-lapse";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * `?tasks=reminders` — booking/push/sms/email due queue only (safe every ~15m).
+ * Default — full daily suite (autopay, aging, AI retention, credential lapse).
+ * Do not run the full suite every 15m: autopay has no claim lock and can double-charge.
+ */
 export async function GET(request: Request) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const tasks = new URL(request.url).searchParams.get("tasks");
+  if (tasks === "reminders") {
+    const processed = await processDueReminders();
+    return NextResponse.json({
+      ok: true,
+      tasks: "reminders",
+      processed,
+      ...(auth.secured ? {} : { note: "CRON_SECRET not set — add later to lock down this endpoint" }),
+    });
   }
 
   const [processed, dependents, rejoins, autopay, aiChatRetention, credentialLapses] =
