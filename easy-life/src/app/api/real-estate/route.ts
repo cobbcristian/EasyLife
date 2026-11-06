@@ -274,7 +274,12 @@ if (isHuntersRidge) {
     }
   }
 
+  // Scope to the caller's club — unscoped findMany leaked other tenants' units/listings.
+  if (!session.communityId) {
+    return NextResponse.json({ listings: [] });
+  }
   const rows = await prisma.realEstateListing.findMany({
+    where: { communityId: session.communityId },
     orderBy: { createdAt: "desc" },
     take: 400,
   });
