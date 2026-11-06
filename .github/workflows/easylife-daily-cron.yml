@@ -1,5 +1,7 @@
 # Calls the Easy Life / Barnaby daily jobs on Azure App Service.
-# Runs reminders, autopay, membership aging, and Barnaby chat retention.
+# Runs reminders (catch-up), autopay, membership aging, credential lapse, and Barnaby chat retention.
+# Booking reminders also run every 15 minutes via easylife-booking-reminders-cron.yml —
+# a daily-only drain + skip-after-start blacks out daytime 3-hour reminders.
 # Needs repo secret EASYLIFE_CRON_SECRET set to the same value as CRON_SECRET in the Azure App Service settings.
 
 name: Easy Life daily cron

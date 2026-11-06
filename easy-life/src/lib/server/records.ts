@@ -834,6 +834,12 @@ export async function scheduleBookingReminder(booking: {
   }
 }
 
+/**
+ * Drains due ScheduledNotification rows (booking reminders are sendAt = start − 3h).
+ * Must be invoked on a short interval (see BOOKING_REMINDER_CRON_MAX_INTERVAL_MS):
+ * after c7672c8, rows whose booking already started are marked sent without delivery,
+ * so a once-daily cron permanently skips typical daytime courts/tees.
+ */
 export async function processDueReminders() {
   const BATCH = 50;
   const MAX_BATCHES = 10;
