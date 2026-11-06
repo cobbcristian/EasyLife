@@ -99,7 +99,11 @@ export async function POST(request: Request) {
   }
 
   if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: 409 });
+    const frozen = /frozen/i.test(result.error);
+    return NextResponse.json(
+      { error: result.error },
+      { status: frozen ? 403 : 409 },
+    );
   }
 
   if (result.status === "pending") {
@@ -109,6 +113,16 @@ export async function POST(request: Request) {
       message:
         "Registration received. You can sign in after association management approves your account.",
     });
+  }
+
+  if (result.status === "frozen") {
+    return NextResponse.json(
+      {
+        error:
+          "This account is frozen. Contact your club administrator.",
+      },
+      { status: 403 },
+    );
   }
 
   const token = await createSessionToken({

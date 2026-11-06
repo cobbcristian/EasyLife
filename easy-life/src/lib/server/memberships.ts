@@ -190,9 +190,15 @@ export async function joinAdditionalCommunity(input: {
 
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { role: true },
+    select: { role: true, status: true },
   });
   if (!user) return { error: "User not found" };
+  if (user.status === "frozen") {
+    return {
+      error:
+        "This account is frozen. Contact your club administrator.",
+    };
+  }
 
   const role = input.role ?? (user.role as AuthRole);
   await upsertMembership({

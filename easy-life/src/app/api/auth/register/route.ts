@@ -169,7 +169,11 @@ export async function POST(request: Request) {
   }
 
   if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: 409 });
+    const frozen = /frozen/i.test(result.error);
+    return NextResponse.json(
+      { error: result.error },
+      { status: frozen ? 403 : 409 },
+    );
   }
 
   // HOA self-enroll: wait for staff approval — do not issue a session yet.
@@ -179,6 +183,17 @@ export async function POST(request: Request) {
       pending: true,
       redirectTo: "/register/pending",
     });
+  }
+
+  // Defense in depth: never mint a session for a frozen account (login already blocks).
+  if (result.status === "frozen") {
+    return NextResponse.json(
+      {
+        error:
+          "This account is frozen. Contact your club administrator.",
+      },
+      { status: 403 },
+    );
   }
 
   const token = await createSessionToken({

@@ -47,4 +47,27 @@ describe("security gate", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("blocks frozen accounts from register/join session minting", () => {
+    const registerMember = source("src/lib/server/db.ts");
+    expect(registerMember).toMatch(/existing\.status === "frozen"/);
+    expect(registerMember).toMatch(/This account is frozen/);
+
+    const join = source("src/lib/server/memberships.ts");
+    expect(join).toMatch(/user\.status === "frozen"/);
+
+    const webRegister = source("src/app/api/auth/register/route.ts");
+    expect(webRegister).toMatch(/result\.status === "frozen"/);
+
+    const mobileRegister = source("src/app/api/mobile/register/route.ts");
+    expect(mobileRegister).toMatch(/result\.status === "frozen"/);
+  });
+
+  it("scopes real-estate listings to the session community", () => {
+    const route = source("src/app/api/real-estate/route.ts");
+    expect(route).toMatch(/where:\s*\{\s*communityId:\s*session\.communityId\s*\}/);
+    expect(route).not.toMatch(
+      /realEstateListing\.findMany\(\{\s*orderBy:\s*\{\s*createdAt:\s*"desc"\s*\}\s*,\s*take:\s*400\s*\}\)/,
+    );
+  });
 });
