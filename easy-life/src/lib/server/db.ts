@@ -979,6 +979,14 @@ export async function registerMember(input: {
     if (!verifyPassword(input.password, existing.password)) {
       return { error: "An account with this email already exists" };
     }
+    // Frozen accounts must not regain a session or join clubs via register/join.
+    // Login already rejects frozen users; this path previously skipped that check.
+    if (existing.status === "frozen") {
+      return {
+        error:
+          "This account is frozen. Contact your club administrator.",
+      };
+    }
     const already = await prisma.userCommunity.findUnique({
       where: {
         userId_communityId: {
