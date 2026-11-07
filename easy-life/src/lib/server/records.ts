@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/server/prisma";
-import { eventTimeWindow, isOpenSchedule, isUpcomingItem } from "@/lib/utils";
+import {
+  clubDateTimeToUtc,
+  eventTimeWindow,
+  isOpenSchedule,
+  isUpcomingItem,
+} from "@/lib/utils";
 import {
   assignUnitNumber,
   availabilityWindows,
@@ -809,11 +814,9 @@ export async function createBookingInvites(input: {
   return rows;
 }
 
+/** Booking date+startTime are club-local (Eastern), never host-local. */
 function parseBookingDateTime(date: string, time: string): Date {
-  const [h, m] = time.split(":").map(Number);
-  const d = new Date(`${date}T00:00:00`);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d;
+  return clubDateTimeToUtc(date, time);
 }
 
 export async function scheduleBookingReminder(booking: {
