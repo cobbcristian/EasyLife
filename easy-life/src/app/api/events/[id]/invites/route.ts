@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/server/auth";
+import { canManageCommunityEvent } from "@/lib/server/event-organizer-auth";
 import { createEventInvites } from "@/lib/server/project-management";
 import { prisma } from "@/lib/server/prisma";
 
@@ -36,9 +37,12 @@ export async function POST(
   if (!event) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (
-    event.createdBy.trim().toLowerCase() !== session.name.trim().toLowerCase()
-  ) {
+  const allowed = await canManageCommunityEvent({
+    event,
+    memberEmail: session.email,
+    communityId: session.communityId,
+  });
+  if (!allowed) {
     return NextResponse.json(
       { error: "Only the organizer can invite" },
       { status: 403 },

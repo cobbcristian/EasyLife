@@ -37,6 +37,7 @@ import {
 } from "@/lib/server/membership";
 import { ensureClubStaffSeeded } from "@/lib/server/residency";
 import { ensureGrabGoSeeded } from "@/lib/server/grab-go";
+import { canManageCommunityEvent } from "@/lib/server/event-organizer-auth";
 import {
   ensureDemoDependents,
 } from "@/lib/server/dependent-membership";
@@ -524,15 +525,17 @@ export async function getEventReservationDetail(
 
 export async function cancelCommunityEvent(
   eventId: string,
-  memberName: string,
+  memberEmail: string,
+  communityId?: string | null,
 ) {
   const event = await prisma.communityEvent.findUnique({ where: { id: eventId } });
   if (!event) return null;
-  if (
-    event.createdBy.trim().toLowerCase() !== memberName.trim().toLowerCase()
-  ) {
-    return null;
-  }
+  const allowed = await canManageCommunityEvent({
+    event,
+    memberEmail,
+    communityId,
+  });
+  if (!allowed) return null;
   await prisma.eventInvite.deleteMany({ where: { eventId } });
   await prisma.eventRsvp.deleteMany({ where: { eventId } });
   await prisma.communityEvent.delete({ where: { id: eventId } });
@@ -3446,7 +3449,9 @@ export async function createCommunityEvent(input: {
   requirePayment?: boolean;
   feeCents?: number;
   createdBy: string;
+  createdByEmail?: string | null;
 }) {
+  const createdByEmail = input.createdByEmail?.trim().toLowerCase() || null;
   return prisma.communityEvent.create({
     data: {
       communityId: scope(input.communityId),
@@ -3462,6 +3467,7 @@ export async function createCommunityEvent(input: {
       requirePayment: input.requirePayment ?? false,
       feeCents: input.feeCents ?? 0,
       createdBy: input.createdBy,
+      createdByEmail,
     },
   });
 }

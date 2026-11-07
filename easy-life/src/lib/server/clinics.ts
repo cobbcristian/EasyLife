@@ -129,6 +129,7 @@ export async function createProClinicSeries(input: {
       requirePayment: input.requirePayment,
       feeCents: input.requirePayment ? input.memberFeeCents : 0,
       createdBy: input.createdByName,
+      createdByEmail: input.createdByEmail,
     });
     events.push(event);
 

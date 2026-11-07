@@ -654,6 +654,8 @@ model CommunityEvent {
   requirePayment Boolean     @default(false)
   feeCents       Int         @default(0)
   createdBy      String
+  /// Organizer login email — preferred over display-name `createdBy` for authz.
+  createdByEmail String?
   createdAt      DateTime    @default(now())
   rsvps          EventRsvp[]
 }
