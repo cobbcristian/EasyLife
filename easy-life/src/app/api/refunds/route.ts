@@ -15,7 +15,13 @@ export async function GET() {
   }
 
   if (session.role === "provider") {
-    const refunds = await listRefundRequestsForProvider(session.email);
+    if (!session.communityId) {
+      return NextResponse.json({ error: "Community required" }, { status: 400 });
+    }
+    const refunds = await listRefundRequestsForProvider(
+      session.email,
+      session.communityId,
+    );
     return NextResponse.json({ refunds });
   }
 

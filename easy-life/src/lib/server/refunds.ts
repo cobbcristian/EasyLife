@@ -130,16 +130,32 @@ export async function listRefundRequestsForMember(
   return rows.map(mapRow);
 }
 
+/**
+ * Provider inbox: own refunds plus unassigned ones in the same club.
+ * Never return other clubs' null-provider rows (cross-tenant PII).
+ */
+export function providerRefundListWhere(
+  providerEmail: string,
+  communityId: string,
+): {
+  communityId: string;
+  OR: Array<{ providerEmail: string } | { providerEmail: null }>;
+} {
+  return {
+    communityId,
+    OR: [
+      { providerEmail: providerEmail.trim().toLowerCase() },
+      { providerEmail: null },
+    ],
+  };
+}
+
 export async function listRefundRequestsForProvider(
   providerEmail: string,
+  communityId: string,
 ): Promise<RefundRequestRow[]> {
   const rows = await prisma.refundRequest.findMany({
-    where: {
-      OR: [
-        { providerEmail: providerEmail.trim().toLowerCase() },
-        { providerEmail: null },
-      ],
-    },
+    where: providerRefundListWhere(providerEmail, communityId),
     orderBy: { createdAt: "desc" },
   });
   return rows.map(mapRow);
