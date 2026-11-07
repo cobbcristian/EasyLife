@@ -47,4 +47,14 @@ describe("security gate", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("rejects frozen or pending accounts when completing MFA login", () => {
+    const route = source("src/app/api/auth/mfa/verify/route.ts");
+    expect(route).toMatch(/user\.status === "frozen"/);
+    expect(route).toMatch(/user\.status === "pending"/);
+    expect(route).toMatch(/user\.status !== "active"/);
+    // Session must come from live user rows, not stale MFA pending claims.
+    expect(route).toMatch(/createSessionToken\(\{\s*sub: user\.id/s);
+    expect(route).not.toMatch(/createSessionToken\(\{\s*sub: pending\.sub/s);
+  });
 });
