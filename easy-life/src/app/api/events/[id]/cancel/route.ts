@@ -12,7 +12,11 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const result = await cancelCommunityEvent(id, session.name);
+  const result = await cancelCommunityEvent(
+    id,
+    session.email,
+    session.communityId,
+  );
   if (!result) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

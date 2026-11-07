@@ -96,6 +96,7 @@ export async function POST(request: Request) {
       requirePayment: body.requirePayment,
       feeCents: body.feeCents,
       createdBy: session.name,
+      createdByEmail: session.email,
     });
     created.push(event);
 

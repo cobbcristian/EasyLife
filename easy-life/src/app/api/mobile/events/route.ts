@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     location: body.location,
     category: body.category ?? "activity",
     createdBy: session.name,
+    createdByEmail: session.email,
   });
 
   if (body.invites?.length) {
