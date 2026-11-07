@@ -57,6 +57,25 @@ export async function POST(request: Request) {
     );
   }
 
+  // Re-check live account status before minting a session. Password/SSO already
+  // gated freeze/pending, but an admin can change status during the MFA window;
+  // the pending JWT must not complete login after that.
+  if (user.status === "frozen") {
+    return NextResponse.json(
+      { error: "This account is frozen. Contact your club administrator." },
+      { status: 403 },
+    );
+  }
+  if (user.status === "pending") {
+    return NextResponse.json(
+      {
+        error:
+          "Your registration is pending approval. You will be able to sign in after association management approves your account.",
+      },
+      { status: 403 },
+    );
+  }
+
   let totpOk = verifyTotpCode(user.mfaSecret, body.code);
   let nextRecovery = user.mfaRecoveryHashes;
   if (!totpOk) {
@@ -79,31 +98,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid code" }, { status: 401 });
   }
 
-  const role = pending.role as AuthRole;
+  // Mint from the live user row — never from MFA-pending JWT claims — so a
+  // demotion during the MFA window cannot keep the privileged role.
+  const role = user.role as AuthRole;
   const token = await createSessionToken({
-    sub: pending.sub,
-    email: pending.email,
+    sub: user.id,
+    email: user.email,
     role,
-    name: pending.name,
-    communityId: pending.communityId,
+    name: user.name,
+    communityId: user.communityId,
   });
 
   await logEvent({
-    communityId: pending.communityId,
-    userName: pending.name,
+    communityId: user.communityId,
+    userName: user.name,
     action: body.mobile ? "Mobile login (MFA)" : "Login (MFA)",
     detail: role,
   });
 
-  const redirectTo = homeForRole(role, pending.communityId);
+  const redirectTo = homeForRole(role, user.communityId);
 
   if (body.mobile) {
     return NextResponse.json({
       ok: true,
       token,
       role,
-      name: pending.name,
-      communityId: pending.communityId,
+      name: user.name,
+      communityId: user.communityId,
       redirectTo,
     });
   }

@@ -47,4 +47,17 @@ describe("security gate", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("blocks frozen/pending accounts at MFA verify and mints from live user row", () => {
+    const route = source("src/app/api/auth/mfa/verify/route.ts");
+    expect(route).toMatch(/user\.status === "frozen"/);
+    expect(route).toMatch(/user\.status === "pending"/);
+    expect(route).toMatch(/This account is frozen/);
+    // Session claims must come from DB, not MFA-pending JWT payload.
+    expect(route).toMatch(/role = user\.role as AuthRole/);
+    expect(route).toMatch(/email: user\.email/);
+    expect(route).toMatch(/communityId: user\.communityId/);
+    expect(route).not.toMatch(/role = pending\.role as AuthRole/);
+    expect(route).not.toMatch(/email: pending\.email/);
+  });
 });
